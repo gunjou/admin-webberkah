@@ -210,7 +210,7 @@ const ModalTambahPegawai = ({ isOpen, onClose, onRefresh }) => {
                   className="w-full pl-11 pr-4 py-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs outline-none dark:text-white focus:border-custom-merah-terang"
                   value={form.nip}
                   onChange={(e) => setForm({ ...form, nip: e.target.value })}
-                  placeholder="xx-xxxx-xx"
+                  placeholder="xx.xxxx.xx"
                 />
               </div>
             </div>

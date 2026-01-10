@@ -12,6 +12,7 @@ import {
   MdDeleteOutline,
   MdEdit,
   MdRefresh,
+  MdDownload,
 } from "react-icons/md";
 import ReactDOM from "react-dom";
 
@@ -111,6 +112,66 @@ const Pegawai = () => {
     }
   };
 
+  const handleDownload = async (type) => {
+    setIsDeleting(true);
+
+    try {
+      const labelMap = {
+        "Pegawai Tetap": "Pegawai Tetap",
+        "Pegawai Tidak Tetap": "Pegawai Tidak Tetap",
+        "Pegawai Magang": "Pegawai Magang",
+      };
+
+      const currentLabel = labelMap[selectedStatus] || "Pegawai";
+      const extension = type === "pdf" ? "pdf" : "xlsx";
+
+      // 1. Mapping Path Endpoint (Menambahkan Lokasi Absensi)
+      const endpointMap = {
+        rekening: `/export/report/rekening/${extension}`,
+        pendidikan: `/export/report/pendidikan/${extension}`,
+        akun: `/export/report/akun/${extension}`,
+        lokasi: `/export/report/lokasi-absensi/${extension}`, // Endpoint Lokasi
+      };
+
+      const baseUrl = endpointMap[mainTab] || `/export/report/${extension}`;
+
+      const { data: blobData } = await Api.get(baseUrl, {
+        responseType: "blob",
+        params: {
+          tab: mainTab,
+          status: selectedStatus === "Semua Status" ? "" : selectedStatus,
+        },
+      });
+
+      // 2. Mapping Prefix Nama File
+      const prefixMap = {
+        rekening: "Data Rekening",
+        pendidikan: "Data Pendidikan",
+        akun: "Data Akun Sistem",
+        lokasi: "Data Lokasi Absensi", // Prefix file Lokasi
+      };
+
+      const prefix = prefixMap[mainTab] || "Data";
+
+      const url = window.URL.createObjectURL(new Blob([blobData]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${prefix} ${currentLabel} Berkah Angsana.${extension}`;
+
+      document.body.appendChild(link);
+      link.click();
+
+      // 3. Cleanup
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download Error:", err);
+      alert("Gagal mengunduh laporan.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       {/* HEADER & INTEGRATED TOOLBAR */}
@@ -173,31 +234,53 @@ const Pegawai = () => {
         </div>
       </div>
 
-      {/* CATEGORY TABS (Sesuai Permintaan Anda) */}
-      <div className="flex bg-white dark:bg-custom-gelap p-1.5 rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm w-full md:w-fit">
-        {[
-          { id: "core", label: "Data Pegawai", icon: <MdPerson /> },
-          {
-            id: "rekening",
-            label: "Rekening Bank",
-            icon: <MdAccountBalance />,
-          },
-          { id: "pendidikan", label: "Pendidikan", icon: <MdSchool /> },
-          { id: "akun", label: "Akun Sistem", icon: <MdBadge /> },
-          { id: "lokasi", label: "Lokasi Absensi", icon: <MdLocationOn /> },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setMainTab(tab.id)}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-              mainTab === tab.id
-                ? "bg-custom-merah-terang text-white shadow-lg shadow-custom-merah-terang/20"
-                : "text-gray-400 hover:text-custom-merah-terang"
-            }`}
+      {/* WRAPPER UNTUK TABS & ACTION BUTTONS */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        {/* CATEGORY TABS (Sisi Kiri) */}
+        <div className="flex bg-white dark:bg-custom-gelap p-1.5 rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm w-full md:w-fit overflow-x-auto no-scrollbar">
+          {[
+            { id: "core", label: "Data Pegawai", icon: <MdPerson /> },
+            {
+              id: "rekening",
+              label: "Rekening Bank",
+              icon: <MdAccountBalance />,
+            },
+            { id: "pendidikan", label: "Pendidikan", icon: <MdSchool /> },
+            { id: "akun", label: "Akun Sistem", icon: <MdBadge /> },
+            { id: "lokasi", label: "Lokasi Absensi", icon: <MdLocationOn /> },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setMainTab(tab.id)}
+              className={`whitespace-nowrap flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                mainTab === tab.id
+                  ? "bg-custom-merah-terang text-white shadow-lg shadow-custom-merah-terang/20"
+                  : "text-gray-400 hover:text-custom-merah-terang"
+              }`}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ACTION BUTTONS (Sisi Kanan) */}
+        <div className="flex items-center gap-2">
+          {/* Tombol Download Excel */}
+          {/* <button
+            onClick={() => handleDownload("excel")}
+            className="flex items-center gap-2 px-5 py-3 bg-green-600/10 text-green-600 dark:bg-green-500/5 dark:text-green-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all border border-green-600/20"
           >
-            {tab.icon} {tab.label}
+            <MdDownload size={16} /> .xlsx
+          </button> */}
+
+          {/* Tombol Download PDF */}
+          <button
+            onClick={() => handleDownload("pdf")}
+            className="flex items-center gap-2 px-5 py-3 bg-red-600/10 text-red-600 dark:bg-red-500/5 dark:text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all border border-red-600/20"
+          >
+            <MdDownload size={16} /> .pdf
           </button>
-        ))}
+        </div>
       </div>
 
       {/* TABLE DATA LIST */}
@@ -576,7 +659,7 @@ const Pegawai = () => {
             {dataPegawai.length} Orang
           </span>
         </p>
-        <div className="flex gap-4">
+        {/* <div className="flex gap-4">
           <div className="flex items-center gap-2 text-[9px] font-bold text-blue-600 uppercase">
             <span className="w-2 h-2 bg-blue-500 rounded-full"></span> Tetap
           </div>
@@ -584,7 +667,7 @@ const Pegawai = () => {
             <span className="w-2 h-2 bg-orange-500 rounded-full"></span> Tidak
             Tetap
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Modal Tambah Pegawai */}
