@@ -526,9 +526,25 @@ const Pegawai = () => {
                           </div>
                         </td>
                         <td className="p-3 text-center">
-                          <code className="px-3 py-1 bg-gray-100 dark:bg-white/5 border border-dashed border-gray-300 dark:border-white/20 rounded-lg text-custom-merah-terang font-mono font-black tracking-[2px] text-[11px]">
-                            {p.auth_pegawai?.recovery_code || "------"}
-                          </code>
+                          <div className="inline-block relative group">
+                            <code
+                              onClick={(e) => {
+                                const text = p.auth_pegawai?.recovery_code;
+                                if (text) {
+                                  navigator.clipboard.writeText(text);
+                                  // Opsional: Beri feedback visual sederhana
+                                  e.target.innerText = "COPIED!";
+                                  setTimeout(() => {
+                                    e.target.innerText = text;
+                                  }, 1000);
+                                }
+                              }}
+                              className="px-3 py-1 bg-gray-100 dark:bg-white/5 border border-dashed border-gray-300 dark:border-white/20 rounded-lg text-custom-merah-terang font-mono font-black tracking-[2px] text-[11px] transition-all duration-300 select-none cursor-copy blur-[4px] hover:blur-0 active:scale-95"
+                              title="Klik untuk menyalin"
+                            >
+                              {p.auth_pegawai?.recovery_code || "------"}
+                            </code>
+                          </div>
                         </td>
                         <td className="p-3 text-center">
                           {p.auth_pegawai?.img_path ? (
@@ -541,9 +557,9 @@ const Pegawai = () => {
                                 />
                               </div>
                               {/* Tooltip kecil saat hover */}
-                              <div className="absolute hidden group-hover:block bottom-full mb-2 left-1/2 -translate-x-1/2 bg-custom-gelap text-white text-[8px] px-2 py-1 rounded font-bold uppercase whitespace-nowrap z-50">
+                              {/* <div className="absolute hidden group-hover:block bottom-full mb-2 left-1/2 -translate-x-1/2 bg-custom-gelap text-white text-[8px] px-2 py-1 rounded font-bold uppercase whitespace-nowrap z-50">
                                 Terverifikasi
-                              </div>
+                              </div> */}
                             </div>
                           ) : (
                             <span className="text-[9px] font-black text-red-500 bg-red-50 dark:bg-red-500/10 px-2 py-1 rounded-md border border-red-100 dark:border-red-500/20 uppercase tracking-tighter italic">
@@ -621,17 +637,17 @@ const Pegawai = () => {
                         </button>
 
                         {/* Tombol Delete biasanya hanya untuk menghapus Pegawai secara keseluruhan (Data Core) */}
-                        {mainTab === "core" && (
-                          <button
-                            onClick={() =>
-                              handleDeletePegawai(p.id_pegawai, p.nama_lengkap)
-                            }
-                            className="p-2 bg-gray-50 dark:bg-white/5 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                            title="Hapus Pegawai"
-                          >
-                            <MdDeleteOutline size={14} />
-                          </button>
-                        )}
+                        {/* {mainTab === "core" && ( */}
+                        <button
+                          onClick={() =>
+                            handleDeletePegawai(p.id_pegawai, p.nama_lengkap)
+                          }
+                          className="p-2 bg-gray-50 dark:bg-white/5 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                          title="Hapus Pegawai"
+                        >
+                          <MdDeleteOutline size={14} />
+                        </button>
+                        {/* )} */}
                       </div>
                     </td>
                   </tr>
