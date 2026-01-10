@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import Api from "../../utils/Api";
 import {
   MdAdd,
   MdEdit,
@@ -7,55 +8,115 @@ import {
   MdAccessTime,
   MdEventBusy,
   MdClose,
-  MdCheckCircle,
   MdEventNote,
+  MdRefresh,
 } from "react-icons/md";
 
 const Jadwal = () => {
-  const [activeSubTab, setActiveSubTab] = useState("shift");
+  const [activeSubTab, setActiveSubTab] = useState("shift"); // 'shift' atau 'libur'
   const [showModal, setShowModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [listData, setListData] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Data sesuai INSERT SQL ref_jam_kerja
-  const [listShift] = useState([
-    { id_jam_kerja: 1, nama_shift: "Normal", jam_per_hari: 480, status: 1 },
-    {
-      id_jam_kerja: 2,
-      nama_shift: "Cleaning Shift",
-      jam_per_hari: 720,
-      status: 1,
-    },
-  ]);
+  // Form State
+  const [formData, setFormData] = useState({
+    id: null,
+    nama: "",
+    value: "", // jam_per_hari untuk shift, tanggal untuk libur
+    jenis: "nasional", // khusus libur
+  });
 
-  // Data sesuai INSERT SQL ref_hari_libur (Tahun 2025)
-  const [listLibur] = useState([
-    {
-      tanggal: "2025-01-01",
-      nama_libur: "Tahun Baru Masehi",
-      jenis: "nasional",
-    },
-    {
-      tanggal: "2025-01-27",
-      nama_libur: "Isra Miraj Nabi Muhammad SAW",
-      jenis: "nasional",
-    },
-    {
-      tanggal: "2025-03-31",
-      nama_libur: "Idul Fitri 1446 Hijriah",
-      jenis: "nasional",
-    },
-    {
-      tanggal: "2025-05-01",
-      nama_libur: "Hari Buruh Internasional",
-      jenis: "nasional",
-    },
-    {
-      tanggal: "2025-11-08",
-      nama_libur: "Gathering Berkah Angsana",
-      jenis: "internal",
-    },
-    { tanggal: "2025-12-25", nama_libur: "Hari Raya Natal", jenis: "nasional" },
-    // ... data lainnya tersimpan di state
-  ]);
+  // 1. Fetch Data berdasarkan Tab
+  const fetchData = async () => {
+    setIsLoading(true);
+    const endpoint =
+      activeSubTab === "shift" ? "/master/jam-kerja" : "/master/hari-libur";
+    try {
+      const response = await Api.get(endpoint);
+      if (response.data.success) {
+        setListData(response.data.data);
+      }
+    } catch (error) {
+      console.error("Gagal memuat data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    setSearchTerm("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSubTab]);
+
+  // 2. Handle CRUD
+  const handleOpenModal = (data = null) => {
+    if (data) {
+      setFormData({
+        id: activeSubTab === "shift" ? data.id_jam_kerja : data.id_libur,
+        nama: activeSubTab === "shift" ? data.nama_shift : data.nama_libur,
+        value: activeSubTab === "shift" ? data.jam_per_hari : data.tanggal,
+        jenis: activeSubTab === "libur" ? data.jenis : "nasional",
+      });
+    } else {
+      setFormData({ id: null, nama: "", value: "", jenis: "nasional" });
+    }
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    const endpoint =
+      activeSubTab === "shift" ? "/master/jam-kerja" : "/master/hari-libur";
+
+    const payload =
+      activeSubTab === "shift"
+        ? { nama_shift: formData.nama, jam_per_hari: parseInt(formData.value) }
+        : {
+            nama_libur: formData.nama,
+            tanggal: formData.value,
+            jenis: formData.jenis,
+          };
+
+    try {
+      if (formData.id) {
+        await Api.put(`${endpoint}/${formData.id}`, payload);
+      } else {
+        await Api.post(endpoint, payload);
+      }
+      setShowModal(false);
+      fetchData();
+    } catch (error) {
+      alert(error.response?.data?.message || "Gagal menyimpan data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id, name) => {
+    if (window.confirm(`Hapus ${activeSubTab} "${name}"?`)) {
+      setIsLoading(true);
+      const endpoint =
+        activeSubTab === "shift" ? "/master/jam-kerja" : "/master/hari-libur";
+      try {
+        await Api.delete(`${endpoint}/${id}`);
+        fetchData();
+      } catch (error) {
+        alert(error.response?.data?.message || "Gagal menghapus");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  // Filter Data
+  const filteredData = listData.filter((item) => {
+    const searchField =
+      activeSubTab === "shift" ? item.nama_shift : item.nama_libur;
+    return searchField?.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
@@ -69,13 +130,21 @@ const Jadwal = () => {
             Manajemen Waktu Operasional
           </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-custom-merah-terang text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-custom-merah-terang/20 hover:scale-105 transition-all"
-        >
-          <MdAdd size={20} /> Tambah{" "}
-          {activeSubTab === "shift" ? "Shift" : "Hari Libur"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={fetchData}
+            className="p-3 bg-white dark:bg-custom-gelap text-custom-cerah rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm"
+          >
+            <MdRefresh size={20} className={isLoading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 px-6 py-3 bg-custom-merah-terang text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-custom-merah-terang/20 hover:scale-105 transition-all"
+          >
+            <MdAdd size={20} /> Tambah{" "}
+            {activeSubTab === "shift" ? "Shift" : "Libur"}
+          </button>
+        </div>
       </div>
 
       {/* Switcher Tab */}
@@ -102,7 +171,26 @@ const Jadwal = () => {
         </button>
       </div>
 
-      {/* Table Container - MAX HEIGHT 400PX */}
+      {/* Toolbar Search */}
+      <div className="bg-white dark:bg-custom-gelap p-4 rounded-[30px] shadow-sm border border-gray-100 dark:border-white/5 flex items-center">
+        <div className="relative flex-1 max-w-md">
+          <MdSearch
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            size={20}
+          />
+          <input
+            type="text"
+            placeholder={`Cari ${
+              activeSubTab === "shift" ? "Nama Shift" : "Keterangan Libur"
+            }...`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs outline-none dark:text-white focus:border-custom-merah-terang/50"
+          />
+        </div>
+      </div>
+
+      {/* Table Container */}
       <div className="bg-white dark:bg-custom-gelap rounded-[40px] shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden">
         <div className="max-h-[350px] overflow-y-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
@@ -126,74 +214,87 @@ const Jadwal = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-white/5 text-[11px]">
-              {activeSubTab === "shift"
-                ? listShift.map((s) => (
-                    <tr
-                      key={s.id_jam_kerja}
-                      className="group hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors"
-                    >
-                      <td className="p-5 font-black text-custom-merah-terang italic">
-                        #{s.id_jam_kerja}
-                      </td>
-                      <td className="p-5 font-bold text-custom-gelap dark:text-white uppercase">
-                        {s.nama_shift}
-                      </td>
-                      <td className="p-5 text-center font-mono text-blue-500 font-bold">
-                        {s.jam_per_hari} mnt
-                      </td>
-                      <td className="p-5 text-center">
-                        <span className="bg-gray-100 dark:bg-white/5 px-3 py-1 rounded-lg font-black text-gray-400 uppercase">
-                          {s.jam_per_hari / 60} Jam / Hari
-                        </span>
-                      </td>
-                      <td className="p-5 text-center">
-                        <div className="flex justify-center gap-2">
-                          <button className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl transition-all">
-                            <MdEdit size={16} />
-                          </button>
-                          <button className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all">
-                            <MdDeleteOutline size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                : listLibur.map((l, i) => (
-                    <tr
-                      key={i}
-                      className="group hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors"
-                    >
-                      <td className="p-5">
-                        <div className="flex items-center gap-2 font-bold text-custom-merah-terang">
-                          <MdEventNote size={16} /> {l.tanggal}
-                        </div>
-                      </td>
-                      <td className="p-5 font-bold text-custom-gelap dark:text-white">
-                        {l.nama_libur}
-                      </td>
-                      <td className="p-5 text-center">
-                        <span
-                          className={`px-4 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter ${
-                            l.jenis === "nasional"
-                              ? "bg-red-100 text-red-600"
-                              : "bg-blue-100 text-blue-600"
-                          }`}
+              {isLoading && listData.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="5"
+                    className="p-10 text-center font-bold text-gray-400 uppercase"
+                  >
+                    Memuat Data...
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((item, i) => (
+                  <tr
+                    key={i}
+                    className="group hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors"
+                  >
+                    {activeSubTab === "shift" ? (
+                      <>
+                        <td className="p-5 font-black text-custom-merah-terang italic">
+                          #{item.id_jam_kerja}
+                        </td>
+                        <td className="p-5 font-bold text-custom-gelap dark:text-white uppercase">
+                          {item.nama_shift}
+                        </td>
+                        <td className="p-5 text-center font-mono text-blue-500 font-bold">
+                          {item.jam_per_hari} mnt
+                        </td>
+                        <td className="p-5 text-center">
+                          <span className="bg-gray-100 dark:bg-white/5 px-3 py-1 rounded-lg font-black text-gray-400 uppercase">
+                            {item.jam_per_hari / 60} Jam / Hari
+                          </span>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="p-5 font-bold text-custom-merah-terang flex items-center gap-2">
+                          <MdEventNote size={16} /> {item.tanggal}
+                        </td>
+                        <td className="p-5 font-bold text-custom-gelap dark:text-white uppercase">
+                          {item.nama_libur}
+                        </td>
+                        <td className="p-5 text-center">
+                          <span
+                            className={`px-4 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter ${
+                              item.jenis === "nasional"
+                                ? "bg-red-100 text-red-600"
+                                : "bg-blue-100 text-blue-600"
+                            }`}
+                          >
+                            {item.jenis}
+                          </span>
+                        </td>
+                      </>
+                    )}
+                    <td className="p-5 text-center">
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => handleOpenModal(item)}
+                          className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-white/5 rounded-xl transition-all"
                         >
-                          {l.jenis}
-                        </span>
-                      </td>
-                      <td className="p-5 text-center">
-                        <div className="flex justify-center gap-2">
-                          <button className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl">
-                            <MdEdit size={16} />
-                          </button>
-                          <button className="p-2 text-red-500 hover:bg-red-50 rounded-xl">
-                            <MdDeleteOutline size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                          <MdEdit size={16} />
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleDelete(
+                              activeSubTab === "shift"
+                                ? item.id_jam_kerja
+                                : item.id_libur,
+                              activeSubTab === "shift"
+                                ? item.nama_shift
+                                : item.nama_libur
+                            )
+                          }
+                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-white/5 rounded-xl transition-all"
+                        >
+                          <MdDeleteOutline size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -216,6 +317,100 @@ const Jadwal = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal Form */}
+      {showModal && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in zoom-in duration-300">
+          <form
+            onSubmit={handleSubmit}
+            className="bg-white dark:bg-custom-gelap w-full max-w-md rounded-[40px] shadow-2xl overflow-hidden border border-white/20 p-8"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold dark:text-white">
+                Form {activeSubTab === "shift" ? "Shift Kerja" : "Hari Libur"}
+              </h2>
+              <button type="button" onClick={() => setShowModal(false)}>
+                <MdClose size={24} className="text-gray-400" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block tracking-widest">
+                  Nama {activeSubTab === "shift" ? "Shift" : "Keterangan Libur"}
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={formData.nama}
+                  onChange={(e) =>
+                    setFormData({ ...formData, nama: e.target.value })
+                  }
+                  className="w-full p-4 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-sm outline-none dark:text-white focus:border-custom-merah-terang"
+                  placeholder="..."
+                />
+              </div>
+
+              {activeSubTab === "shift" ? (
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block tracking-widest">
+                    Durasi Kerja (Menit)
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    value={formData.value}
+                    onChange={(e) =>
+                      setFormData({ ...formData, value: e.target.value })
+                    }
+                    className="w-full p-4 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-sm outline-none dark:text-white focus:border-custom-merah-terang"
+                    placeholder="Misal: 480"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block tracking-widest">
+                      Tanggal Libur
+                    </label>
+                    <input
+                      required
+                      type="date"
+                      value={formData.value}
+                      onChange={(e) =>
+                        setFormData({ ...formData, value: e.target.value })
+                      }
+                      className="w-full p-4 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-sm outline-none dark:text-white focus:border-custom-merah-terang"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block tracking-widest">
+                      Jenis Libur
+                    </label>
+                    <select
+                      value={formData.jenis}
+                      onChange={(e) =>
+                        setFormData({ ...formData, jenis: e.target.value })
+                      }
+                      className="w-full p-4 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-sm outline-none dark:text-white focus:border-custom-merah-terang"
+                    >
+                      <option value="nasional">Nasional</option>
+                      <option value="internal">Internal</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              <button
+                disabled={isLoading}
+                className="w-full py-4 bg-custom-merah-terang text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-custom-merah-terang/20 mt-4 disabled:opacity-50 transition-all"
+              >
+                {isLoading ? "Memproses..." : "Simpan Data"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

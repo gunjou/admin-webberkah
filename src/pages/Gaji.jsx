@@ -3,9 +3,7 @@ import {
   MdSearch,
   MdFileDownload,
   MdPayments,
-  MdAccountBalanceWallet,
   MdCalendarToday,
-  MdAttachMoney,
   MdOutlineInfo,
 } from "react-icons/md";
 

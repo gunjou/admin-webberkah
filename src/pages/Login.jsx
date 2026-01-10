@@ -6,6 +6,7 @@ import {
   MdOutlineVisibilityOff,
 } from "react-icons/md";
 import { RiLockPasswordLine } from "react-icons/ri";
+import Api from "../utils/Api";
 import LoadingOverlay from "../components/LoadingOverlay";
 
 const Login = () => {
@@ -19,7 +20,7 @@ const Login = () => {
 
   const handleToggle = () => setShowPassword(!showPassword);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -30,26 +31,45 @@ const Login = () => {
 
     setIsLoading(true);
 
-    // Simulasi Proses Login Dummy (Timeout 1.5 detik)
-    setTimeout(() => {
-      if (username === "admin" && password === "admin") {
-        // Simpan data dummy ke localStorage
-        localStorage.setItem("token", "dummy-token-12345");
+    try {
+      const response = await Api.post("/auth/admin/login", {
+        username: username,
+        password: password,
+      });
+
+      if (response.data.success) {
+        const { access_token, refresh_token, user } = response.data.data;
+
+        localStorage.setItem("token", access_token);
+        localStorage.setItem("refresh_token", refresh_token);
+
         localStorage.setItem(
           "user",
           JSON.stringify({
-            nama: "Administrator Berkah",
+            id: user.id_admin,
+            username: user.username,
+            role: user.role,
             account_type: "admin",
           })
         );
 
         setIsLoading(false);
+
         navigate("/dashboard");
-      } else {
-        setIsLoading(false);
-        setError("Username atau password salah!");
       }
-    }, 500);
+    } catch (error) {
+      setIsLoading(false);
+
+      if (error.response) {
+        const message =
+          error.response.data?.status || error.response.data?.message;
+        setError(message || "Gagal Login: Kredensial tidak valid");
+      } else if (error.request) {
+        setError("Tidak ada respon dari server. Pastikan koneksi aktif.");
+      } else {
+        setError("Terjadi kesalahan sistem saat mencoba login.");
+      }
+    }
   };
 
   return (

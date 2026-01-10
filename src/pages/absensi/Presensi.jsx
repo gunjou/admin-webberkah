@@ -5,8 +5,6 @@ import {
   MdFileDownload,
   MdLocationOn,
   MdAccessTime,
-  MdCheckCircle,
-  MdError,
 } from "react-icons/md";
 
 const Presensi = () => {

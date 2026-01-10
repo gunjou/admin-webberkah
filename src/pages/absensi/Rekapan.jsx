@@ -2,13 +2,8 @@ import React, { useState } from "react";
 import {
   MdSearch,
   MdFileDownload,
-  MdTimerOff,
   MdClose,
-  MdLocationOn,
   MdAccessTime,
-  MdLogin,
-  MdLogout,
-  MdCoffee,
 } from "react-icons/md";
 
 const Rekapan = () => {

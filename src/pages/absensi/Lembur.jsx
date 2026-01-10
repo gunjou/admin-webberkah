@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import {
   MdSearch,
-  MdCheckCircle,
-  MdCancel,
   MdRemoveRedEye,
   MdFileDownload,
   MdAccessTime,
