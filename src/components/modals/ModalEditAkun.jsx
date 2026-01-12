@@ -168,9 +168,9 @@ const ModalEditAkun = ({ isOpen, onClose, onRefresh, data }) => {
                   className="w-full h-full object-cover"
                   alt="Preview"
                 />
-              ) : data.auth_pegawai?.img_path ? (
+              ) : data.img_path ? (
                 <img
-                  src={data.auth_pegawai.img_path}
+                  src={data.img_path}
                   className="w-full h-full object-cover opacity-50 grayscale"
                   alt="Current Face"
                 />

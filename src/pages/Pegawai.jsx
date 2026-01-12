@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   MdSearch,
   MdAdd,
@@ -25,8 +25,14 @@ import ModalEditAkun from "../components/modals/ModalEditAkun";
 import ModalEditLokasi from "../components/modals/ModalEditLokasi";
 
 const Pegawai = () => {
+  const [dataPegawai, setDataPegawai] = useState({
+    profile: [],
+    rekening: [],
+    pendidikan: [],
+    akun: [],
+    lokasi: [],
+  });
   const [mainTab, setMainTab] = useState("core");
-  const [dataPegawai, setDataPegawai] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("Semua Status");
@@ -41,17 +47,35 @@ const Pegawai = () => {
   const [isLokasiModalOpen, setIsLokasiModalOpen] = useState(false);
 
   // 1. Fungsi untuk Fetch Data dari API
-  const fetchPegawai = async () => {
+  const fetchPegawai = async (category = "profile", forceRefresh = false) => {
+    // Mapping endpoint
+    const endpointMap = {
+      core: "profile",
+      profile: "profile",
+      rekening: "rekening",
+      pendidikan: "pendidikan",
+      akun: "akun",
+      lokasi: "lokasi",
+    };
+
+    const target = endpointMap[category] || "profile";
+
+    // Logic Cache: Jika data sudah ada dan bukan force refresh, jangan fetch lagi
+    if (!forceRefresh && dataPegawai[target].length > 0) {
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const response = await Api.get("/pegawai/all-data");
+      const response = await Api.get(`/pegawai/${target}`);
       if (response.data.success) {
-        setDataPegawai(response.data.data);
+        setDataPegawai((prev) => ({
+          ...prev,
+          [target]: response.data.data,
+        }));
       }
-      // console.log(response.data.data);
     } catch (error) {
-      console.error("Gagal mengambil data pegawai:", error);
-      // Anda bisa menambahkan alert atau toast di sini
+      console.error(`Gagal mengambil data ${category}:`, error);
     } finally {
       setIsLoading(false);
     }
@@ -59,19 +83,44 @@ const Pegawai = () => {
 
   // 2. useEffect untuk memanggil API saat halaman terbuka
   useEffect(() => {
-    fetchPegawai();
-  }, []);
+    // Panggil fetch setiap kali mainTab berubah
+    fetchPegawai(mainTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainTab]);
+
+  const handleRefresh = () => {
+    // Panggil fetchPegawai dengan parameter forceRefresh = true
+    // Ini akan mengambil data terbaru untuk TAB YANG SEDANG AKTIF saja
+    fetchPegawai(mainTab, true);
+  };
 
   // 3. Logika Client-side Filter
-  const filteredPegawai = dataPegawai.filter((p) => {
-    const matchesSearch =
-      p.nama_lengkap.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.nip.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      selectedStatus === "Semua Status" || p.status_pegawai === selectedStatus;
+  const filteredPegawai = useMemo(() => {
+    // 1. Tentukan data sumber berdasarkan tab
+    // Jika tab adalah 'core', kita ambil dari data 'profile' (sesuaikan dengan state Anda)
+    const sourceKey = mainTab === "core" ? "profile" : mainTab;
+    const rawData = dataPegawai[sourceKey] || [];
 
-    return matchesSearch && matchesStatus;
-  });
+    return rawData.filter((p) => {
+      // 2. Ambil nilai dengan aman (Failsafe)
+      const nama = p.nama_lengkap || "";
+      const nip = p.nip || "";
+      const status = p.status_pegawai || "";
+
+      // 3. Logika Pencarian
+      const matchesSearch =
+        nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        nip.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // 4. Logika Filter Status
+      const matchesStatus =
+        selectedStatus === "Semua Status" || status === selectedStatus;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [dataPegawai, mainTab, searchTerm, selectedStatus]); // Gunakan useMemo agar performa kencang
+
+  console.log(filteredPegawai);
 
   // Fungsi handler klik edit
   const handleEditClick = (pegawai) => {
@@ -211,13 +260,13 @@ const Pegawai = () => {
               <option>Semua Status</option>
               <option value="Pegawai Tetap">Pegawai Tetap</option>
               <option value="Pegawai Tidak Tetap">Pegawai Tidak Tetap</option>
-              <option value="Pegawai Magang">Pegawai Magang</option>
+              <option value="Magang">Pegawai Magang</option>
             </select>
           </div>
 
           {/* Tombol Refresh Manual */}
           <button
-            onClick={fetchPegawai}
+            onClick={handleRefresh}
             className={`p-2.5 bg-white dark:bg-custom-gelap rounded-xl border border-gray-100 dark:border-white/10 shadow-sm transition-all ${
               isLoading ? "animate-spin" : ""
             }`}
@@ -426,8 +475,10 @@ const Pegawai = () => {
                           <div className="flex items-center gap-1 mt-1">
                             <span
                               className={`text-[7px] font-black px-1 rounded-sm uppercase ${
-                                p.status_pegawai === "Tetap"
+                                p.status_pegawai === "Pegawai Tetap"
                                   ? "bg-blue-100 text-blue-600"
+                                  : p.status_pegawai === "Pegawai Tidak Tetap"
+                                  ? "bg-green-100 text-green-600"
                                   : "bg-orange-100 text-orange-600"
                               }`}
                             >
@@ -454,23 +505,28 @@ const Pegawai = () => {
                           <div className="flex flex-col gap-0.5">
                             <span className="flex items-center gap-1">
                               <MdEmail className="text-custom-cerah" />{" "}
-                              {p.pribadi.email}
+                              {p.email}
                             </span>
                             <span className="flex items-center gap-1">
                               <MdPhone className="text-custom-cerah" />{" "}
-                              {p.pribadi.no_telepon}
+                              {p.no_telepon}
                             </span>
                           </div>
                         </td>
                         <td
                           className="p-3 text-gray-500 italic truncate"
-                          title={p.pribadi.alamat}
+                          title={p.alamat}
                         >
-                          <MdLocationOn className="inline mr-1" />{" "}
-                          {p.pribadi.alamat}
+                          <MdLocationOn className="inline mr-1" /> {p.alamat}
                         </td>
                         <td className="p-3 text-center text-gray-500 font-bold">
-                          {p.tanggal_masuk}
+                          {new Date(p.tanggal_masuk)
+                            .toLocaleDateString("id-ID", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                            })
+                            .replace(/\//g, "-")}
                         </td>
                       </>
                     )}
@@ -479,14 +535,14 @@ const Pegawai = () => {
                       <>
                         <td className="p-3 text-center">
                           <span className="bg-blue-50 dark:bg-blue-500/10 text-blue-600 px-3 py-1 rounded-lg font-black">
-                            {p.rekening.bank}
+                            {p.nama_bank}
                           </span>
                         </td>
                         <td className="p-3 font-mono text-sm font-bold text-custom-merah-terang tracking-tighter">
-                          {p.rekening.nomor}
+                          {p.no_rekening}
                         </td>
                         <td className="p-3 text-gray-500 font-bold uppercase">
-                          {p.rekening.an}
+                          {p.atas_nama}
                         </td>
                       </>
                     )}
@@ -495,21 +551,19 @@ const Pegawai = () => {
                       <>
                         <td className="p-3 text-center font-black text-custom-merah-terang">
                           {/* Jika pendidikan adalah object, langsung akses propertinya */}
-                          {p.pendidikan ? p.pendidikan.jenjang : "-"}
+                          {p.jenjang || "-"}
                         </td>
                         <td className="p-3 font-bold text-custom-gelap dark:text-white uppercase">
-                          {p.pendidikan
-                            ? p.pendidikan.institusi
-                            : "Belum Mengisi"}
+                          {p.institusi || "Belum Mengisi"}
                         </td>
                         <td className="p-3 text-gray-500">
-                          {p.pendidikan ? p.pendidikan.jurusan : "-"}
+                          {p.jurusan || "-"}
                         </td>
                         <td className="p-3 text-center font-bold text-gray-400">
-                          {p.pendidikan ? p.pendidikan.tahun_masuk : "-"}
+                          {p.tahun_masuk || "-"}
                         </td>
                         <td className="p-3 text-center font-bold text-gray-400">
-                          {p.pendidikan ? p.pendidikan.tahun_lulus : "-"}
+                          {p.tahun_lulus || "-"}
                         </td>
                       </>
                     )}
@@ -521,7 +575,7 @@ const Pegawai = () => {
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-custom-cerah animate-pulse"></div>
                             <span className="font-bold text-custom-gelap dark:text-white text-sm tracking-tighter">
-                              {p.auth_pegawai?.username || "-"}
+                              {p.username || "-"}
                             </span>
                           </div>
                         </td>
@@ -529,7 +583,7 @@ const Pegawai = () => {
                           <div className="inline-block relative group">
                             <code
                               onClick={(e) => {
-                                const text = p.auth_pegawai?.recovery_code;
+                                const text = p.kode_pemulihan;
                                 if (text) {
                                   navigator.clipboard.writeText(text);
                                   // Opsional: Beri feedback visual sederhana
@@ -542,16 +596,16 @@ const Pegawai = () => {
                               className="px-3 py-1 bg-gray-100 dark:bg-white/5 border border-dashed border-gray-300 dark:border-white/20 rounded-lg text-custom-merah-terang font-mono font-black tracking-[2px] text-[11px] transition-all duration-300 select-none cursor-copy blur-[4px] hover:blur-0 active:scale-95"
                               title="Klik untuk menyalin"
                             >
-                              {p.auth_pegawai?.recovery_code || "------"}
+                              {p.kode_pemulihan || "------"}
                             </code>
                           </div>
                         </td>
                         <td className="p-3 text-center">
-                          {p.auth_pegawai?.img_path ? (
+                          {p.img_path ? (
                             <div className="relative group inline-block">
                               <div className="w-8 h-8 rounded-xl overflow-hidden border-2 border-white dark:border-white/10 shadow-md transition-transform hover:scale-110">
                                 <img
-                                  src={p.auth_pegawai.img_path}
+                                  src={p.img_path}
                                   alt="Data Wajah"
                                   className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-300"
                                 />
@@ -568,17 +622,17 @@ const Pegawai = () => {
                           )}
                         </td>
                         <td className="p-3 text-center text-gray-400 font-medium">
-                          {p.auth_pegawai?.last_login_at || "Belum Aktif"}
+                          {p.last_login_at || "Belum Aktif"}
                         </td>
                         <td className="p-3 text-center">
                           <span
                             className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                              p.auth_pegawai?.status === 1
+                              p.status === 1
                                 ? "bg-green-100 text-green-600 border border-green-200"
                                 : "bg-red-100 text-red-600 border border-red-200"
                             }`}
                           >
-                            {p.auth_pegawai?.status === 1 ? "Aktif" : "Suspend"}
+                            {p.status === 1 ? "Aktif" : "Suspend"}
                           </span>
                         </td>
                       </>
@@ -672,7 +726,7 @@ const Pegawai = () => {
         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
           Total Karyawan Terdaftar:{" "}
           <span className="text-custom-merah-terang">
-            {dataPegawai.length} Orang
+            {filteredPegawai.length} Orang
           </span>
         </p>
         {/* <div className="flex gap-4">
@@ -697,7 +751,7 @@ const Pegawai = () => {
       <ModalEditPegawai
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        onRefresh={fetchPegawai}
+        onRefresh={handleRefresh}
         data={selectedPegawai}
         activeTab={mainTab} // Mengirim tab yang aktif agar modal tahu form mana yang muncul
       />
@@ -706,7 +760,7 @@ const Pegawai = () => {
       <ModalEditRekening
         isOpen={isRekeningModalOpen}
         onClose={() => setIsRekeningModalOpen(false)}
-        onRefresh={fetchPegawai}
+        onRefresh={handleRefresh}
         data={selectedPegawai}
       />
 
@@ -714,7 +768,7 @@ const Pegawai = () => {
       <ModalEditPendidikan
         isOpen={isPendidikanModalOpen}
         onClose={() => setIsPendidikanModalOpen(false)}
-        onRefresh={fetchPegawai}
+        onRefresh={handleRefresh}
         data={selectedPegawai}
       />
 
@@ -722,7 +776,7 @@ const Pegawai = () => {
       <ModalEditAkun
         isOpen={isAkunModalOpen}
         onClose={() => setIsAkunModalOpen(false)}
-        onRefresh={fetchPegawai}
+        onRefresh={handleRefresh}
         data={selectedPegawai}
       />
 
@@ -730,7 +784,7 @@ const Pegawai = () => {
       <ModalEditLokasi
         isOpen={isLokasiModalOpen}
         onClose={() => setIsLokasiModalOpen(false)}
-        onRefresh={fetchPegawai}
+        onRefresh={handleRefresh}
         data={selectedPegawai}
       />
 

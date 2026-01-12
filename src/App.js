@@ -27,7 +27,30 @@ import Kategori from "./pages/master/Kategori";
 
 const ProtectedRoute = () => {
   const token = localStorage.getItem("token");
-  return token ? <Outlet /> : <Navigate to="/login" replace />;
+
+  // Jika tidak ada token, langsung ke login
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Opsional: Cek apakah token secara struktur valid (JWT sederhana)
+  // Anda bisa menggunakan library 'jwt-decode' untuk cek exp date tanpa hit API
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const expiry = payload.exp;
+    const now = Math.floor(Date.now() / 1000);
+
+    if (expiry < now) {
+      localStorage.clear();
+      return <Navigate to="/login" replace />;
+    }
+  } catch (e) {
+    // Jika token corrupt
+    localStorage.clear();
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Outlet />;
 };
 
 function App() {

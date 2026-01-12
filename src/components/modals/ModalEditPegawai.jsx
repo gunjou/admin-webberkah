@@ -83,14 +83,14 @@ const ModalEditPegawai = ({ isOpen, onClose, onRefresh, data }) => {
         id_level_jabatan: data.id_level_jabatan || "",
         id_departemen: data.id_departemen || "",
 
-        nik: data.pribadi?.nik || "",
-        alamat: data.pribadi?.alamat || "",
-        no_telepon: data.pribadi?.no_telepon || "",
-        email_pribadi: data.pribadi?.email || "", // mapping dari pribadi.email di API Anda
-        tempat_lahir: data.pribadi?.tempat_lahir || "",
-        tanggal_lahir: data.pribadi?.tanggal_lahir || "",
-        agama: data.pribadi?.agama || "",
-        status_nikah: data.pribadi?.status_nikah || "",
+        nik: data.nik || "",
+        alamat: data.alamat || "",
+        no_telepon: data.no_telepon || "",
+        email_pribadi: data.email || "", // mapping dari pribadi.email di API Anda
+        tempat_lahir: data.tempat_lahir || "",
+        tanggal_lahir: data.tanggal_lahir || "",
+        agama: data.agama || "",
+        status_nikah: data.status_nikah || "",
       });
     }
   }, [isOpen, data]);

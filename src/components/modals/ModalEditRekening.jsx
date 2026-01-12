@@ -37,9 +37,9 @@ const ModalEditRekening = ({ isOpen, onClose, onRefresh, data }) => {
   useEffect(() => {
     if (isOpen && data) {
       setForm({
-        nama_bank: data.rekening?.bank || "", // Sesuaikan dengan key API Anda: bank
-        no_rekening: data.rekening?.nomor || "", // Sesuaikan dengan key API Anda: nomor
-        atas_nama: data.rekening?.an || "", // Sesuaikan dengan key API Anda: an
+        nama_bank: data.nama_bank || "", // Sesuaikan dengan key API Anda: bank
+        no_rekening: data.no_rekening || "", // Sesuaikan dengan key API Anda: nomor
+        atas_nama: data.atas_nama || "", // Sesuaikan dengan key API Anda: an
       });
     }
   }, [isOpen, data]);

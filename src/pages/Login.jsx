@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MdOutlineAccountCircle,
@@ -19,6 +19,12 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleToggle = () => setShowPassword(!showPassword);
+
+  useEffect(() => {
+    // Jika masuk ke halaman login, bersihkan semua sesi lama
+    localStorage.clear();
+    window.isLoggingOut = false; // Reset flag logout
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();

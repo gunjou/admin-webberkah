@@ -39,11 +39,11 @@ const ModalEditPendidikan = ({ isOpen, onClose, onRefresh, data }) => {
   useEffect(() => {
     if (isOpen && data) {
       setForm({
-        jenjang: data.pendidikan?.jenjang || "",
-        institusi: data.pendidikan?.institusi || "",
-        jurusan: data.pendidikan?.jurusan || "",
-        tahun_masuk: data.pendidikan?.tahun_masuk || "",
-        tahun_lulus: data.pendidikan?.tahun_lulus || "",
+        jenjang: data.jenjang || "",
+        institusi: data.institusi || "",
+        jurusan: data.jurusan || "",
+        tahun_masuk: data.tahun_masuk || "",
+        tahun_lulus: data.tahun_lulus || "",
       });
     }
   }, [isOpen, data]);

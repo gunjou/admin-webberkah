@@ -40,17 +40,15 @@ Api.interceptors.response.use(
     const { config, response } = error;
     const originalRequest = config;
 
-    // Cek jika status 401 dan bukan sedang mencoba login
-    if (response?.status === 401 && !originalRequest._retry) {
-      // Jika pesan error spesifik mengarah ke token expired
-      const statusMessage = response.data?.status;
+    // Jika status 401 (Unauthorized)
+    if (response?.status === 401) {
+      // Kondisi A: Token expired tapi ada Refresh Token (Coba perbarui)
+      const isExpired =
+        response.data?.message?.includes("expired") ||
+        response.data?.status === "Token expired";
 
-      if (
-        statusMessage === "Token expired, Login ulang" ||
-        response.data?.message?.includes("expired")
-      ) {
+      if (isExpired && !originalRequest._retry) {
         if (isRefreshing) {
-          // Jika sedang proses refresh, masukkan request ini ke antrian
           return new Promise((resolve) => {
             subscribeTokenRefresh((token) => {
               originalRequest.headers.Authorization = `Bearer ${token}`;
@@ -61,7 +59,6 @@ Api.interceptors.response.use(
 
         originalRequest._retry = true;
         isRefreshing = true;
-
         const refreshToken = localStorage.getItem("refresh_token");
 
         if (!refreshToken) {
@@ -70,8 +67,6 @@ Api.interceptors.response.use(
         }
 
         try {
-          // Panggil API Refresh Token
-          // Pastikan header Authorization berisi Refresh Token (tergantung backend Anda)
           const res = await axios.post(
             `${baseURL}/auth/refresh`,
             {},
@@ -83,11 +78,8 @@ Api.interceptors.response.use(
           if (res.data.success) {
             const newToken = res.data.data.access_token;
             localStorage.setItem("token", newToken);
-
             isRefreshing = false;
             onRefreshed(newToken);
-
-            // Ulangi request asli dengan token baru
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
             return Api(originalRequest);
           }
@@ -97,18 +89,25 @@ Api.interceptors.response.use(
           return Promise.reject(refreshError);
         }
       }
+
+      // Kondisi B: Token tidak valid sama sekali atau Refresh Token gagal
+      else if (!originalRequest._retry) {
+        handleForceLogout("Sesi tidak valid. Silakan login ulang.");
+      }
     }
 
-    // Jika error lainnya (misal: password salah saat login)
     return Promise.reject(error);
   }
 );
 
-// Helper function untuk logout paksa
 const handleForceLogout = (message) => {
-  alert(message);
-  localStorage.clear();
-  window.location.replace("/login");
+  // Gunakan flag agar alert tidak muncul berkali-kali jika ada banyak request gagal bersamaan
+  if (!window.isLoggingOut) {
+    window.isLoggingOut = true;
+    alert(message);
+    localStorage.clear(); // Hapus semua (token, user data, dll)
+    window.location.href = "/login"; // Force redirect ke login
+  }
 };
 
 export default Api;
