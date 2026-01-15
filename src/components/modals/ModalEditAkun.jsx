@@ -118,8 +118,9 @@ const ModalEditAkun = ({ isOpen, onClose, onRefresh, data }) => {
             <h2 className="text-xl font-bold dark:text-white uppercase tracking-tight">
               Pengaturan Akun
             </h2>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-              Admin Control: {data.nama_lengkap}
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">
+              Admin Control:{" "}
+              <p className="text-black text-[12px]">{data.nama_lengkap}</p>
             </p>
           </div>
           <button

@@ -90,8 +90,9 @@ const ModalEditRekening = ({ isOpen, onClose, onRefresh, data }) => {
             <h2 className="text-xl font-bold dark:text-white uppercase tracking-tight flex items-center gap-2">
               <MdAccountBalance className="text-green-500" /> Rekening Payroll
             </h2>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-              Update Informasi Bank: {data.nama_lengkap}
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">
+              Update Informasi Bank:{" "}
+              <p className="text-black text-[12px]">{data.nama_lengkap}</p>
             </p>
           </div>
           <button

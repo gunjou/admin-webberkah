@@ -30,8 +30,7 @@ const Jadwal = () => {
   // 1. Fetch Data berdasarkan Tab
   const fetchData = async () => {
     setIsLoading(true);
-    const endpoint =
-      activeSubTab === "shift" ? "/master/jam-kerja" : "/master/hari-libur";
+    const endpoint = activeSubTab === "shift" ? "x" : "/master/hari-libur";
     try {
       const response = await Api.get(endpoint);
       if (response.data.success) {

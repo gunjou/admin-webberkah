@@ -97,8 +97,9 @@ const ModalEditLokasi = ({ isOpen, onClose, onRefresh, data }) => {
             <h2 className="text-xl font-bold dark:text-white uppercase tracking-tight flex items-center gap-2">
               <MdLocationOn className="text-custom-cerah" /> Lokasi Absensi
             </h2>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-              Penempatan Wilayah: {data.nama_lengkap}
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">
+              Penempatan Wilayah:{" "}
+              <p className="text-black text-[12px]">{data.nama_lengkap}</p>
             </p>
           </div>
           <button
@@ -147,8 +148,9 @@ const ModalEditLokasi = ({ isOpen, onClose, onRefresh, data }) => {
                         {loc.nama_lokasi}
                       </h4>
                       <p className="text-[9px] text-gray-400 font-medium">
-                        Radius: {loc.radius_meter}m | {loc.latitude.toFixed(4)},{" "}
-                        {loc.longitude.toFixed(4)}
+                        Radius: {loc.radius_meter}m |{" "}
+                        {loc.latitude?.toFixed(4) ?? "0.0000"},{" "}
+                        {loc.longitude?.toFixed(4) ?? "0.0000"}
                       </p>
                     </div>
                   </div>

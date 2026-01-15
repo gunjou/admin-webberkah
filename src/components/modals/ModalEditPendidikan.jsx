@@ -111,8 +111,9 @@ const ModalEditPendidikan = ({ isOpen, onClose, onRefresh, data }) => {
               <MdSchool className="text-custom-merah-terang" /> Pendidikan
               Terakhir
             </h2>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-              Data Akademik: {data.nama_lengkap}
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">
+              Data Akademik:{" "}
+              <p className="text-black text-[12px]">{data.nama_lengkap}</p>
             </p>
           </div>
           <button
