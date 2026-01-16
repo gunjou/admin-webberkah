@@ -11,7 +11,11 @@ import {
 } from "react-icons/md";
 import Swal from "sweetalert2";
 import Api from "../../utils/Api";
-import { formatTanggalIndoLengkap, formatTerlambat } from "../../utils/Helpers";
+import {
+  formatTanggalIndoLengkap,
+  formatTerlambat,
+  toTitleCase,
+} from "../../utils/Helpers";
 import ModalEditPresensi from "../../components/modals/ModalEditPresensi";
 import ModalTambahPresensi from "../../components/modals/ModalTambahPresensi";
 
@@ -21,7 +25,7 @@ const Presensi = () => {
   const [masterDept, setMasterDept] = useState([]);
   const [masterStatus, setMasterStatus] = useState([]);
   const [filter, setFilter] = useState({
-    tanggal: new Date().toISOString().split("T")[0],
+    tanggal: new Date().toLocaleDateString("en-CA"),
     id_departemen: "",
     id_status_pegawai: "",
     search: "",
@@ -268,12 +272,14 @@ const Presensi = () => {
         </div>
       </div>
 
-      {/* Main Table Compact */}
+      {/* Main Table Container dengan Max Height & Scroll */}
       <div className="bg-white dark:bg-custom-gelap rounded-[25px] shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        {/* Kontainer Scrollable */}
+        <div className="overflow-x-auto overflow-y-auto max-h-[380px] custom-scrollbar">
+          <table className="w-full text-left border-collapse relative">
             <thead>
-              <tr className="bg-gray-50/50 dark:bg-white/5 text-[8px] uppercase tracking-[1px] text-gray-400 border-b border-gray-100 dark:border-white/5">
+              {/* Sticky Header: z-index penting agar tidak tertutup konten body */}
+              <tr className="sticky top-0 z-20 bg-gray-50 dark:bg-[#1a1a1a] text-[8px] uppercase tracking-[1px] text-gray-400 border-b border-gray-100 dark:border-white/5 shadow-sm">
                 <th className="px-4 py-3 font-black">Identitas Pegawai</th>
                 <th className="px-4 py-3 font-black text-center">Shift</th>
                 <th className="px-4 py-3 font-black text-center">Masuk</th>
@@ -283,6 +289,7 @@ const Presensi = () => {
                 <th className="px-4 py-3 font-black text-center">Aksi</th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-gray-50 dark:divide-white/5 relative">
               {loading ? (
                 // SPINNER KECIL DI DALAM TABEL
@@ -312,10 +319,24 @@ const Presensi = () => {
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5">
-                              <p className="text-[10px] font-black dark:text-white uppercase tracking-tighter">
-                                {item.pegawai.nama_panggilan}
+                              <p className="text-[10px] font-black dark:text-white tracking-tighter">
+                                {toTitleCase(item.pegawai.nama_panggilan)}
                               </p>
-                              <span className="px-1 py-0.5 rounded-md bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[6px] font-black uppercase tracking-wider border border-blue-100 dark:border-blue-500/20">
+                              <span
+                                className={`text-[7px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider border ${
+                                  item.pegawai.status_pegawai ===
+                                  "Pegawai Tetap"
+                                    ? "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20"
+                                    : item.pegawai.status_pegawai ===
+                                        "Kontrak" ||
+                                      item.pegawai.status_pegawai ===
+                                        "Pegawai Tidak Tetap"
+                                    ? "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
+                                    : item.pegawai.status_pegawai === "Magang"
+                                    ? "bg-purple-50 text-purple-600 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20"
+                                    : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20"
+                                }`}
+                              >
                                 {item.pegawai.status_pegawai}
                               </span>
                             </div>
