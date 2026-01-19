@@ -30,7 +30,7 @@ Api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // 2. Interceptor Response: Handle Token Expired & Refresh
@@ -72,7 +72,7 @@ Api.interceptors.response.use(
             {},
             {
               headers: { Authorization: `Bearer ${refreshToken}` },
-            }
+            },
           );
 
           if (res.data.success) {
@@ -97,7 +97,7 @@ Api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 const handleForceLogout = (message) => {
