@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { MdSearch, MdFileDownload } from "react-icons/md";
 import Api from "../../utils/Api";
+import ModalDetailRekapan from "../../components/modals/ModalDetailRekapan";
 
 const Rekapan = () => {
   const [loading, setLoading] = useState(false);
   const [dataRekapan, setDataRekapan] = useState([]);
   const [masterDept, setMasterDept] = useState([]);
   const [masterStatus, setMasterStatus] = useState([]);
+  const [isModalDetailOpen, setIsModalDetailOpen] = useState(false);
+  const [selectedPegawaiId, setSelectedPegawaiId] = useState(null);
 
   const [filter, setFilter] = useState({
     bulan: new Date().getMonth() + 1,
@@ -85,8 +88,13 @@ const Rekapan = () => {
     return h > 0 ? `${h}j ${m}m` : `${m}m`;
   };
 
+  const handleOpenDetail = (id) => {
+    setSelectedPegawaiId(id);
+    setIsModalDetailOpen(true);
+  };
+
   return (
-    <div className="space-y-4 animate-in fade-in duration-500 pb-10">
+    <div className="space-y-4 animate-in fade-in duration-500 pb-0">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
         <div>
@@ -177,7 +185,7 @@ const Rekapan = () => {
 
       {/* Table Container dengan Sticky & Max Height */}
       <div className="bg-white dark:bg-custom-gelap rounded-[30px] shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden">
-        <div className="overflow-x-auto overflow-y-auto max-h-[60vh] min-h-[400px] relative custom-scrollbar rounded-[30px]">
+        <div className="overflow-x-auto overflow-y-auto max-h-[55vh] min-h-[400px] relative custom-scrollbar rounded-[30px]">
           {/* Loading Spinner Overlay */}
           {loading && (
             <div className="absolute inset-0 bg-white/80 dark:bg-custom-gelap/80 backdrop-blur-[2px] z-[100] flex items-center justify-center">
@@ -195,27 +203,30 @@ const Rekapan = () => {
           <table className="w-full text-left border-separate border-spacing-0 relative min-w-[1200px]">
             <thead>
               <tr className="text-[7px] font-black uppercase tracking-widest text-gray-400">
-                {/* 1. PROFIL PEGAWAI (BG SOLID) */}
+                {/* 1. PROFIL */}
                 <th className="p-3 sticky left-0 top-0 z-[70] bg-gray-100 dark:bg-[#251b22] min-w-[180px] border-b border-r border-gray-200 dark:border-white/10">
                   Profil Pegawai
                 </th>
 
-                {/* 2. STATISTIK UTAMA (BG SOLID, NO GAP) */}
-                {/* Kita atur left secara presisi untuk mengunci posisi */}
-                <th className="p-2 text-center text-green-600 bg-green-100 dark:bg-green-900 sticky top-0 border-b border-r border-green-200 dark:border-white/5">
+                {/* 2. STATISTIK UTAMA (5 KOLOM: H, I, S, A, MINUS) */}
+                {/* Statistik Utama di Header */}
+                <th className="p-2 text-center text-blue-600 bg-blue-100 dark:bg-blue-900/30 sticky top-0 border-b border-r border-blue-200 dark:border-white/5">
                   H
                 </th>
-                <th className="p-2 text-center text-orange-600 bg-orange-100 dark:bg-orange-900 sticky top-0 border-b border-r border-orange-200 dark:border-white/5">
+                <th className="p-2 text-center text-orange-600 bg-orange-100 dark:bg-orange-900/30 sticky top-0 border-b border-r border-orange-200 dark:border-white/5">
                   I
                 </th>
-                <th className="p-2 text-center text-red-600 bg-red-100 dark:bg-red-900 sticky top-0 border-b border-r border-red-200 dark:border-white/5">
+                <th className="p-2 text-center text-green-600 bg-green-100 dark:bg-green-900/30 sticky top-0 border-b border-r border-green-200 dark:border-white/5">
+                  S
+                </th>
+                <th className="p-2 text-center text-red-600 bg-red-100 dark:bg-red-900/30 sticky top-0 border-b border-r border-red-200 dark:border-white/5">
                   A
                 </th>
                 <th className="p-2 text-center text-custom-merah-terang bg-red-100 sticky top-0 dark:bg-red-950 min-w-[80px] border-b border-r border-red-200 dark:border-white/10">
                   Minus
                 </th>
 
-                {/* 3. DAILY (HANYA STICKY TOP) */}
+                {/* 3. DAILY */}
                 {daysArray.map((day) => {
                   const isSunday =
                     new Date(filter.tahun, filter.bulan - 1, day).getDay() ===
@@ -223,11 +234,7 @@ const Rekapan = () => {
                   return (
                     <th
                       key={day}
-                      className={`p-1 text-center min-w-[35px] sticky top-0 z-50 border-b border-r border-gray-100 dark:border-white/5 ${
-                        isSunday
-                          ? "bg-red-200 text-red-600 dark:bg-red-900"
-                          : "bg-gray-50 dark:bg-[#1a1419]"
-                      }`}
+                      className={`p-1 text-center min-w-[35px] sticky top-0 z-50 border-b border-r border-gray-100 dark:border-white/5 ${isSunday ? "bg-red-200 text-red-600 dark:bg-red-900" : "bg-gray-50 dark:bg-[#1a1419]"}`}
                     >
                       {day}
                     </th>
@@ -238,51 +245,49 @@ const Rekapan = () => {
             <tbody className="bg-white dark:bg-custom-gelap">
               {dataRekapan.map((pegawai) => (
                 <tr
+                  onClick={() => handleOpenDetail(pegawai.id_pegawai)}
                   key={pegawai.id_pegawai}
-                  className="hover:bg-gray-50/30 transition-all"
+                  className="cursor-pointer hover:bg-gray-50 transition-all"
                 >
-                  {/* Kolom Profil di Body (BG harus SOLID agar tidak tembus) */}
+                  {/* Profil */}
                   <td className="p-2 sticky left-0 z-30 bg-white dark:bg-custom-gelap border-b border-r border-gray-100 dark:border-white/5">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-custom-merah-terang text-white flex items-center justify-center font-black text-[9px]">
-                        {pegawai.nama_panggilan?.charAt(0) ||
-                          pegawai.nama.charAt(0)}
+                      <div className="w-7 h-7 rounded-lg bg-custom-merah-terang text-white flex items-center justify-center font-black text-[9px] uppercase">
+                        {(() => {
+                          // 1. Ambil nama, hilangkan spasi di awal/akhir, dan pecah berdasarkan spasi
+                          const words = (pegawai.nama || "")
+                            .trim()
+                            .split(/\s+/);
+
+                          // 2. Jika ada lebih dari 1 kata, ambil inisial kata pertama dan kedua
+                          if (words.length > 1) {
+                            return `${words[0].charAt(0)}${words[1].charAt(0)}`;
+                          }
+
+                          // 3. Jika hanya 1 kata, ambil huruf pertamanya saja
+                          return words[0].charAt(0) || "?";
+                        })()}
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-[10px] font-black dark:text-white uppercase truncate tracking-tighter">
-                            {pegawai.nama_panggilan ||
-                              pegawai.nama.split(" ")[0]}
-                          </p>
-                          <span
-                            className={`text-[6px] font-black px-1 rounded-sm border ${
-                              pegawai.nama_status === "Pegawai Tetap"
-                                ? "bg-blue-50 text-blue-600 border-blue-100"
-                                : pegawai.nama_status === "Pegawai Tidak Tetap"
-                                  ? "bg-green-50 text-green-600 border-green-100"
-                                  : "bg-purple-50 text-purple-600 border-purple-100"
-                            }`}
-                          >
-                            {pegawai.id_status_pegawai === 1
-                              ? "Pegawai Tetap"
-                              : pegawai.id_status_pegawai === 2
-                                ? "Pegawai Tidak Tetap"
-                                : "Magang"}
-                          </span>
-                        </div>
+                        <p className="text-[10px] font-black dark:text-white uppercase truncate tracking-tighter">
+                          {pegawai.nama_panggilan || pegawai.nama.split(" ")[0]}
+                        </p>
                         <p className="text-[7px] text-gray-400 font-bold tracking-tight">
-                          {pegawai.nip} • {pegawai.nama_departemen}
+                          {pegawai.nip}
                         </p>
                       </div>
                     </div>
                   </td>
 
-                  {/* Kolom Statistik di Body (BG SOLID) */}
-                  <td className="p-2 text-center text-xs font-black text-green-600 bg-green-50 dark:bg-green-900/10 border-b border-r border-gray-100 dark:border-white/5">
+                  {/* Statistik Body */}
+                  <td className="p-2 text-center text-xs font-black text-blue-600 bg-blue-50 dark:bg-blue-900/10 border-b border-r border-gray-100 dark:border-white/5">
                     {pegawai.hadir}
                   </td>
                   <td className="p-2 text-center text-xs font-black text-orange-600 bg-orange-50 dark:bg-orange-900/10 border-b border-r border-gray-100 dark:border-white/5">
-                    {pegawai.izin}
+                    {(pegawai.izin || 0) + (pegawai.cuti || 0)}
+                  </td>
+                  <td className="p-2 text-center text-xs font-black text-green-600 bg-green-50 dark:bg-green-900/10 border-b border-r border-gray-100 dark:border-white/5">
+                    {pegawai.sakit}
                   </td>
                   <td className="p-2 text-center text-xs font-black text-red-600 bg-red-50 dark:bg-red-900/10 border-b border-r border-gray-100 dark:border-white/5">
                     {pegawai.alpha}
@@ -291,7 +296,7 @@ const Rekapan = () => {
                     {formatMenit(pegawai.total_kurang_jam)}
                   </td>
 
-                  {/* Data Harian */}
+                  {/* Daily Icons/Status */}
                   {daysArray.map((day) => {
                     const status = pegawai.daily[day.toString()];
                     return (
@@ -300,16 +305,20 @@ const Rekapan = () => {
                         className="p-0.5 text-center border-b border-r border-gray-50 dark:border-white/5"
                       >
                         <span
-                          className={`inline-block w-5 h-5 leading-5 rounded-md text-[8px] font-black ${
+                          className={`inline-block w-5 h-5 leading-5 rounded-md text-[8px] font-black transition-all ${
                             status === "H"
-                              ? "text-green-500"
-                              : status === "I"
-                                ? "bg-orange-500 text-white shadow-sm"
-                                : status === "A"
-                                  ? "bg-red-500 text-white shadow-sm"
-                                  : status === "L"
-                                    ? "text-gray-300 dark:text-gray-600 italic font-medium"
-                                    : "text-gray-200 dark:text-gray-800"
+                              ? "text-blue-500 bg-blue-50/50 dark:bg-blue-500/10" // Hadir: Biru lembut
+                              : status === "S"
+                                ? "text-green-600 bg-green-200/60 dark:bg-green-500/20" // Sakit: Hijau Soft
+                                : status === "I"
+                                  ? "text-orange-600 bg-orange-200/60 dark:bg-orange-500/20" // Izin: Oranye Soft
+                                  : status === "C"
+                                    ? "text-purple-600 bg-purple-200/60 dark:bg-purple-500/20" // Cuti: Ungu Soft
+                                    : status === "A"
+                                      ? "bg-red-500 text-white shadow-sm scale-110" // Alpha: Merah Solid & Standout
+                                      : status === "L"
+                                        ? "text-gray-300 dark:text-gray-600 italic font-medium"
+                                        : "text-gray-200 dark:text-gray-800"
                           }`}
                         >
                           {status || "•"}
@@ -323,6 +332,78 @@ const Rekapan = () => {
           </table>
         </div>
       </div>
+
+      {/* Legenda Keterangan Presensi */}
+      <div className="mt-3 px-6 py-2 bg-white dark:bg-custom-gelap rounded-[25px] border border-gray-100 dark:border-white/5 shadow-sm">
+        <div className="flex flex-wrap items-center gap-y-3 gap-x-6">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md flex items-center justify-center bg-blue-50/50 dark:bg-blue-500/10 text-blue-500 text-[8px] font-black border border-blue-100 dark:border-blue-500/20">
+              H
+            </div>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+              Hadir (Waktu Nyata)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md flex items-center justify-center bg-orange-100/60 dark:bg-orange-500/20 text-orange-600 text-[8px] font-black border border-orange-200 dark:border-orange-500/20">
+              I
+            </div>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+              Izin / Cuti Resmi
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md flex items-center justify-center bg-green-100/60 dark:bg-green-500/20 text-green-600 text-[8px] font-black border border-green-200 dark:border-green-500/20">
+              S
+            </div>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+              Sakit (Surat Dokter)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md flex items-center justify-center bg-red-500 text-white text-[8px] font-black shadow-sm shadow-red-500/20">
+              A
+            </div>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+              Tanpa Keterangan (Alpha)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md flex items-center justify-center bg-gray-50 dark:bg-[#1a1419] text-gray-300 dark:text-gray-600 text-[8px] font-black border border-gray-100 dark:border-white/5 italic">
+              L
+            </div>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+              Libur / Akhir Pekan
+            </span>
+          </div>
+
+          <div className="h-4 w-[1px] bg-gray-200 dark:bg-white/10 mx-2 hidden md:block"></div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-custom-merah-terang bg-red-50 dark:bg-red-500/10 px-2 py-0.5 rounded-md uppercase">
+              Minus
+            </span>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+              Akumulasi Kurang Jam Kerja
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal Detail Rekapan */}
+      <ModalDetailRekapan
+        isOpen={isModalDetailOpen}
+        onClose={() => setIsModalDetailOpen(false)}
+        idPegawai={selectedPegawaiId}
+        bulan={filter.bulan}
+        tahun={filter.tahun}
+        monthName={monthNames[filter.bulan - 1]}
+        onRefresh={fetchRekapan}
+      />
     </div>
   );
 };

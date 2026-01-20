@@ -82,7 +82,7 @@ const Presensi = () => {
       () => {
         fetchData();
       },
-      filter.search ? 500 : 0
+      filter.search ? 500 : 0,
     );
 
     return () => clearTimeout(timer);
@@ -314,8 +314,21 @@ const Presensi = () => {
                       {/* ... konten td sama seperti sebelumnya ... */}
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-custom-merah-terang text-white flex items-center justify-center font-black text-[9px] shadow-sm">
-                            {item.pegawai.nama_panggilan.charAt(0)}
+                          <div className="w-7 h-7 rounded-lg bg-custom-merah-terang text-white flex items-center justify-center font-black text-[9px] uppercase">
+                            {(() => {
+                              // 1. Ambil nama, hilangkan spasi di awal/akhir, dan pecah berdasarkan spasi
+                              const words = (item.pegawai.nama_lengkap || "")
+                                .trim()
+                                .split(/\s+/);
+
+                              // 2. Jika ada lebih dari 1 kata, ambil inisial kata pertama dan kedua
+                              if (words.length > 1) {
+                                return `${words[0].charAt(0)}${words[1].charAt(0)}`;
+                              }
+
+                              // 3. Jika hanya 1 kata, ambil huruf pertamanya saja
+                              return words[0].charAt(0) || "?";
+                            })()}
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5">
@@ -328,13 +341,13 @@ const Presensi = () => {
                                   "Pegawai Tetap"
                                     ? "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20"
                                     : item.pegawai.status_pegawai ===
-                                        "Kontrak" ||
-                                      item.pegawai.status_pegawai ===
-                                        "Pegawai Tidak Tetap"
-                                    ? "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
-                                    : item.pegawai.status_pegawai === "Magang"
-                                    ? "bg-purple-50 text-purple-600 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20"
-                                    : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20"
+                                          "Kontrak" ||
+                                        item.pegawai.status_pegawai ===
+                                          "Pegawai Tidak Tetap"
+                                      ? "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
+                                      : item.pegawai.status_pegawai === "Magang"
+                                        ? "bg-purple-50 text-purple-600 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20"
+                                        : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20"
                                 }`}
                               >
                                 {item.pegawai.status_pegawai}
@@ -412,7 +425,7 @@ const Presensi = () => {
                           <p className="text-[8px] font-black uppercase">
                             {isTerlambat
                               ? `-${formatTerlambat(
-                                  item.presensi.menit_terlambat
+                                  item.presensi.menit_terlambat,
                                 )}`
                               : "OK"}
                           </p>
@@ -434,7 +447,7 @@ const Presensi = () => {
                             onClick={() =>
                               handleDeletePresensi(
                                 item.presensi.id_absensi,
-                                item.pegawai.nama_lengkap
+                                item.pegawai.nama_lengkap,
                               )
                             }
                             className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"

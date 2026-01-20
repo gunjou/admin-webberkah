@@ -44,6 +44,16 @@ export const formatTerlambat = (totalMenit) => {
 };
 
 /**
+ * Memformat menit menjadi jam
+ */
+export const formatJam = (menit) => {
+  const jam = Math.floor(menit / 60);
+  const sisaMenit = menit % 60;
+  if (sisaMenit === 0) return `${jam} Jam`;
+  return `${jam} Jam ${sisaMenit} Menit`;
+};
+
+/**
  * Format tanggal: 2026-01-16
  * → Jum'at, 16 Januari 2026
  */
