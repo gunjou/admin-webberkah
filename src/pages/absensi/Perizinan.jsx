@@ -57,7 +57,7 @@ const Perizinan = () => {
       try {
         const [resStatus, resPegawai] = await Promise.all([
           Api.get("/master/status-pegawai"),
-          Api.get("/lembur/pegawai"), // Menggunakan list pegawai yang sama
+          Api.get("/perizinan/pegawai"), // Menggunakan list pegawai yang sama
         ]);
         setMasterStatus(resStatus.data.data);
         setMasterPegawai(resPegawai.data.data);
