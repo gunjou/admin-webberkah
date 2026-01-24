@@ -1,7 +1,8 @@
 import React from "react";
+import ReactDOM from "react-dom";
 
 const LoadingOverlay = ({ message = "Mohon Tunggu..." }) => {
-  return (
+  return ReactDOM.createPortal(
     <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="relative flex items-center justify-center">
         {/* Ring Luar */}
@@ -14,7 +15,8 @@ const LoadingOverlay = ({ message = "Mohon Tunggu..." }) => {
       <p className="mt-4 text-white font-medium tracking-widest text-sm animate-pulse">
         {message}
       </p>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

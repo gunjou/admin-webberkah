@@ -24,6 +24,7 @@ import Lokasi from "./pages/master/Lokasi";
 import Jadwal from "./pages/master/Jadwal";
 import Rules from "./pages/master/Rules";
 import Kategori from "./pages/master/Kategori";
+import Perizinan from "./pages/absensi/Perizinan";
 
 const ProtectedRoute = () => {
   const token = localStorage.getItem("token");
@@ -66,6 +67,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/absensi/presensi" element={<Presensi />} />
             <Route path="/absensi/rekapan" element={<Rekapan />} />
+            <Route path="/absensi/perizinan" element={<Perizinan />} />
             <Route path="/absensi/lembur" element={<Lembur />} />
             <Route path="/gaji" element={<Gaji />} />
             <Route path="/hutang" element={<Hutang />} />

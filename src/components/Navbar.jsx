@@ -5,50 +5,58 @@ import {
   MdLightMode,
   MdLogout,
   MdPerson,
+  MdNotificationsNone,
 } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
+import NotificationModal from "./modals/NotificationModal";
+import Api from "../utils/Api";
 
 const Navbar = ({ isDark, setIsDark, toggleSidebar }) => {
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
-
-  // 1. Inisialisasi Ref untuk kontainer profile
   const profileRef = useRef(null);
+  const notifRef = useRef(null);
 
-  // 2. Effect untuk menangani klik di luar
+  // FUNGSI REFRESH COUNT
+  const fetchNotifCount = async () => {
+    setIsRefreshing(true); // Mulai loading
+    try {
+      const res = await Api.get("/dashboard/notifikasi/count");
+      if (res.data.success) {
+        setNotifCount(res.data.data.total);
+      }
+    } catch (err) {
+      console.error("Gagal mengambil count:", err);
+    } finally {
+      // Beri sedikit delay (misal 500ms) agar transisi spinner terlihat smooth
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
+
+  // Panggil saat pertama kali load aplikasi
+  useEffect(() => {
+    fetchNotifCount();
+  }, []);
+
+  // Handle Klik Luar
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Jika ref ada dan klik TIDAK berada di dalam elemen ref tersebut
-      if (profileRef.current && !profileRef.current.contains(event.target)) {
+      if (profileRef.current && !profileRef.current.contains(event.target))
         setProfileOpen(false);
-      }
+      if (notifRef.current && !notifRef.current.contains(event.target))
+        setNotifOpen(false);
     };
-
-    // Tambahkan event listener saat dropdown terbuka
-    if (profileOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    // Bersihkan event listener saat komponen unmount atau dropdown tertutup
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [profileOpen]);
-
-  // Efek untuk mengganti tema (Tetap sama)
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  }, [isDark]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
-    <header className="bg-white dark:bg-custom-gelap border-b border-gray-200 dark:border-white/10 h-16 flex items-center justify-between px-6 transition-colors duration-300 relative z-40">
+    <header className="bg-white dark:bg-custom-gelap border-b border-gray-200 dark:border-white/10 h-16 flex items-center justify-between px-6 transition-colors duration-300 relative z-200">
       <button
         onClick={toggleSidebar}
         className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-custom-gelap dark:text-white"
@@ -57,6 +65,36 @@ const Navbar = ({ isDark, setIsDark, toggleSidebar }) => {
       </button>
 
       <div className="flex items-center gap-4">
+        {/* BELL NOTIFICATION */}
+        <div className="relative" ref={notifRef}>
+          <button
+            onClick={() => setNotifOpen(!notifOpen)}
+            disabled={isRefreshing}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 dark:text-custom-cerah relative transition-all"
+          >
+            {/* LOGIKA IKON: Tampilkan Spinner jika sedang refresh, jika tidak tampilkan Lonceng */}
+            {isRefreshing ? (
+              <div className="w-6 h-6 border-2 border-custom-merah-terang border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <MdNotificationsNone size={24} />
+            )}
+
+            {/* Badge Angka (Sembunyikan saat refresh agar tidak tumpang tindih) */}
+            {!isRefreshing && notifCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[8px] font-black flex items-center justify-center rounded-full border-2 border-white dark:border-custom-gelap animate-in zoom-in duration-300">
+                {notifCount}
+              </span>
+            )}
+          </button>
+
+          <NotificationModal
+            isOpen={notifOpen}
+            onClose={() => setNotifOpen(false)}
+            onAction={(id, status, type) => console.log(id, status, type)}
+            refreshCount={fetchNotifCount}
+          />
+        </div>
+
         <button
           onClick={() => setIsDark(!isDark)}
           className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 dark:text-custom-cerah transition-all"

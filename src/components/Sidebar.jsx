@@ -24,6 +24,7 @@ const Sidebar = ({ isOpen, isDark }) => {
       subMenu: [
         { name: "Presensi", path: "/absensi/presensi" },
         { name: "Rekapan", path: "/absensi/rekapan" },
+        { name: "Perizinan", path: "/absensi/perizinan" },
         { name: "Lembur", path: "/absensi/lembur" },
       ],
     },
