@@ -11,16 +11,21 @@ import {
   MdAccessTime,
   MdAttachMoney,
   MdBadge,
+  MdEdit,
+  MdDelete,
+  MdAdd,
 } from "react-icons/md";
 import Api from "../../utils/Api";
 import Swal from "sweetalert2";
 import { formatJam } from "../../utils/Helpers";
 
-const Lembur = () => {
+const Lembur = ({ refreshCount }) => {
   const [loading, setLoading] = useState(false);
   const [dataLembur, setDataLembur] = useState([]);
+  const [masterAllPegawai, setMasterAllPegawai] = useState([]);
   const [masterPegawai, setMasterPegawai] = useState([]);
   const [masterStatus, setMasterStatus] = useState([]);
+  const [masterJenisLembur, setMasterJenisLembur] = useState([]);
 
   const [filter, setFilter] = useState({
     bulan: new Date().getMonth() + 1,
@@ -28,6 +33,28 @@ const Lembur = () => {
     id_pegawai: "",
     status_approval: "pending",
     search: "",
+  });
+
+  const [showAddLemburModal, setShowAddLemburModal] = useState(false);
+  const [addLemburData, setAddLemburData] = useState({
+    id_pegawai: "",
+    id_jenis_lembur: "",
+    tanggal: "",
+    jam_mulai: "",
+    jam_selesai: "",
+    keterangan: "",
+    lampiran: null,
+  });
+
+  const [showEditLembur, setShowEditLembur] = useState(false);
+  const [editLemburData, setEditLemburData] = useState({
+    id_lembur: "",
+    id_jenis_lembur: "",
+    tanggal: "",
+    jam_mulai: "",
+    jam_selesai: "",
+    keterangan: "",
+    lampiran: null,
   });
 
   const [showModal, setShowModal] = useState(false);
@@ -55,18 +82,17 @@ const Lembur = () => {
   useEffect(() => {
     const fetchMaster = async () => {
       try {
-        const [resStatus, resPegawai] = await Promise.all([
-          Api.get("/master/status-pegawai"), // Index 0 -> resStatus
-          Api.get("/lembur/pegawai"), // Index 1 -> resPegawai
-        ]);
-
-        // Pastikan mengakses .data.data sesuai struktur response curl
+        const [resAllPegawai, resStatus, resPegawai, resJenisLembur] =
+          await Promise.all([
+            Api.get("/pegawai/basic"),
+            Api.get("/master/status-pegawai"),
+            Api.get("/lembur/pegawai"),
+            Api.get("/master/jenis-lembur"),
+          ]);
+        setMasterAllPegawai(resAllPegawai.data.data);
         setMasterStatus(resStatus.data.data);
         setMasterPegawai(resPegawai.data.data);
-
-        // Debugging untuk memastikan data masuk
-        console.log("Status Pegawai Load:", resStatus.data.data);
-        console.log("Pegawai Lembur Load:", resPegawai.data.data);
+        setMasterJenisLembur(resJenisLembur.data.data);
       } catch (err) {
         console.error("Gagal load data master lembur", err);
       }
@@ -200,6 +226,125 @@ const Lembur = () => {
     }
   };
 
+  const handleSubmitAddLembur = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append("id_pegawai", addLemburData.id_pegawai);
+    formData.append("id_jenis_lembur", addLemburData.id_jenis_lembur);
+    formData.append("tanggal", addLemburData.tanggal);
+    formData.append("jam_mulai", addLemburData.jam_mulai);
+    formData.append("jam_selesai", addLemburData.jam_selesai);
+    formData.append("keterangan", addLemburData.keterangan || "");
+    if (addLemburData.lampiran)
+      formData.append("lampiran", addLemburData.lampiran);
+
+    try {
+      const res = await Api.post("/lembur/admin/pengajuan-lembur", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (res.data.success) {
+        Swal.fire({
+          icon: "success",
+          title: "Lembur Terdaftar",
+          text: "Data lembur pegawai berhasil ditambahkan.",
+          timer: 2000,
+          showConfirmButton: false,
+          customClass: { popup: "rounded-[30px]" },
+        });
+
+        setShowAddLemburModal(false);
+        setAddLemburData({
+          id_pegawai: "",
+          id_jenis_lembur: "",
+          tanggal: "",
+          jam_mulai: "",
+          jam_selesai: "",
+          keterangan: "",
+          lampiran: null,
+        });
+        fetchData(); // Refresh tabel
+      }
+    } catch (err) {
+      Swal.fire(
+        "Gagal",
+        err.response?.data?.message || "Terjadi kesalahan server",
+        "error",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenEditLembur = (row) => {
+    setEditLemburData({
+      id_lembur: row.id_lembur,
+      id_jenis_lembur: row.id_jenis_lembur,
+      tanggal: row.tanggal,
+      jam_mulai: row.jam_mulai,
+      jam_selesai: row.jam_selesai,
+      keterangan: row.keterangan,
+      lampiran: null,
+    });
+    setShowEditLembur(true);
+  };
+
+  const handleDeleteLembur = async (id) => {
+    const result = await Swal.fire({
+      title: "Hapus Data Lembur?",
+      text: "Tindakan ini tidak dapat dibatalkan!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      confirmButtonText: "Ya, Hapus!",
+      cancelButtonText: "Batal",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await Api.delete(`/lembur/${id}`);
+        Swal.fire("Terhapus!", "Data lembur telah dihapus.", "success");
+        fetchData(); // Refresh table
+        if (refreshCount) refreshCount(); // Refresh Navbar count
+      } catch (err) {
+        Swal.fire("Gagal", "Server Error: Gagal menghapus data.", "error");
+      }
+    }
+  };
+
+  const handleSubmitEditLembur = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append("id_jenis_lembur", editLemburData.id_jenis_lembur);
+    formData.append("tanggal", editLemburData.tanggal);
+    formData.append("jam_mulai", editLemburData.jam_mulai);
+    formData.append("jam_selesai", editLemburData.jam_selesai);
+    formData.append("keterangan", editLemburData.keterangan);
+    if (editLemburData.lampiran)
+      formData.append("lampiran", editLemburData.lampiran);
+
+    try {
+      setLoading(true);
+      await Api.put(`/lembur/admin/${editLemburData.id_lembur}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      Swal.fire({
+        icon: "success",
+        title: "Berhasil Update",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+      setShowEditLembur(false);
+      fetchData();
+    } catch (err) {
+      Swal.fire("Gagal", "Gagal memperbarui data lembur.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-5 animate-in fade-in duration-500 pb-10">
       {/* JUDUL & EXPORT */}
@@ -212,38 +357,42 @@ const Lembur = () => {
             {monthNames[filter.bulan - 1]} {filter.tahun}
           </p>
         </div>
-        <button className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-600/20">
-          <MdFileDownload size={18} /> Export Laporan
-        </button>
+
+        <div className="flex items-center gap-3">
+          {/* BUTTON TAMBAH LEMBUR */}
+          <button
+            onClick={() => setShowAddLemburModal(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-custom-gelap dark:bg-custom-cerah text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all hover:scale-105 active:scale-95"
+          >
+            <MdAdd size={18} /> Tambah Lembur
+          </button>
+
+          <button className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-600/20 transition-all hover:opacity-90">
+            <MdFileDownload size={18} /> Export Laporan
+          </button>
+        </div>
       </div>
 
-      {/* FILTER BOX - Tanpa Search */}
+      {/* FILTER BOX LEMBUR - WITH ACTIVE INDICATORS */}
       <div className="bg-white dark:bg-custom-gelap p-4 rounded-[30px] shadow-sm border border-gray-100 dark:border-white/5">
-        {/* Mengubah grid-cols menjadi 6 untuk distribusi yang lebih merata tanpa search */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          {/* Toggle Status: Pending / Approved / Rejected dengan Warna Spesifik */}
-          <div className="col-span-2 md:col-span-2 flex bg-gray-100 dark:bg-white/5 p-1 rounded-xl border border-gray-200 dark:border-white/10">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 items-center">
+          {/* 1. Toggle Status (Tetap col-span-2) */}
+          <div className="col-span-2 md:col-span-2 flex h-[42px] bg-gray-100 dark:bg-white/5 p-1 rounded-xl border border-gray-200 dark:border-white/10 items-center">
             {["pending", "approved", "rejected"].map((s) => {
-              // Tentukan warna teks dan shadow berdasarkan status saat aktif
-              const activeStyles = {
-                pending:
-                  "bg-orange-600 dark:bg-orange-600 text-white dark:text-white shadow-orange-500/20",
-                approved:
-                  "bg-green-600 dark:bg-green-600 text-white dark:text-white shadow-green-500/20",
-                rejected:
-                  "bg-red-600 dark:bg-red-600 text-white dark:text-white shadow-red-500/20",
-              };
-
               const isActive = filter.status_approval === s;
-
+              const activeStyles = {
+                pending: "bg-orange-600 text-white shadow-orange-500/20",
+                approved: "bg-green-600 text-white shadow-green-500/20",
+                rejected: "bg-red-600 text-white shadow-red-500/20",
+              };
               return (
                 <button
                   key={s}
                   onClick={() => setFilter({ ...filter, status_approval: s })}
-                  className={`flex-1 py-2 text-[8px] md:text-[9px] font-black uppercase rounded-lg transition-all duration-300 shadow-sm ${
+                  className={`flex-1 h-full py-2 text-[8px] md:text-[9px] font-black uppercase rounded-lg transition-all duration-300 ${
                     isActive
                       ? `${activeStyles[s]} shadow-md scale-[1.02]`
-                      : "text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                      : "text-gray-400"
                   }`}
                 >
                   {s === "pending"
@@ -256,62 +405,16 @@ const Lembur = () => {
             })}
           </div>
 
-          {/* Filter Bulan */}
-          <select
-            value={filter.bulan}
-            onChange={(e) =>
-              setFilter({ ...filter, bulan: parseInt(e.target.value) })
-            }
-            className="bg-gray-50 dark:bg-white/5 border border-gray-100 p-2.5 rounded-xl text-[10px] font-bold dark:text-white outline-none cursor-pointer"
+          {/* 2. Filter Nama Pegawai - Highlight jika terpilih */}
+          <div
+            className={`relative h-[42px] flex items-center rounded-xl transition-all duration-300 ${
+              filter.id_pegawai
+                ? "bg-orange-50 dark:bg-orange-500/10 ring-2 ring-orange-500/50"
+                : "bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10"
+            }`}
           >
-            {monthNames.map((name, i) => (
-              <option key={i} value={i + 1}>
-                {name}
-              </option>
-            ))}
-          </select>
-
-          {/* Filter Tahun */}
-          <select
-            value={filter.tahun}
-            onChange={(e) =>
-              setFilter({ ...filter, tahun: parseInt(e.target.value) })
-            }
-            className="bg-gray-50 dark:bg-white/5 border border-gray-100 p-2.5 rounded-xl text-[10px] font-bold dark:text-white outline-none cursor-pointer"
-          >
-            {[2025, 2026].map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-
-          {/* Filter Status Pegawai */}
-          <div className="relative">
-            <MdBadge
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-cerah"
-              size={14}
-            />
-            <select
-              value={filter.id_status_pegawai}
-              onChange={(e) =>
-                setFilter({ ...filter, id_status_pegawai: e.target.value })
-              }
-              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 dark:bg-white/5 border border-gray-100 rounded-xl text-[10px] font-bold dark:text-white outline-none appearance-none cursor-pointer"
-            >
-              <option value="">Semua Status</option>
-              {masterStatus.map((s) => (
-                <option key={s.id_status_pegawai} value={s.id_status_pegawai}>
-                  {s.nama_status}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Filter Nama Pegawai */}
-          <div className="relative">
             <MdPerson
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-cerah"
+              className={`absolute left-3 ${filter.id_pegawai ? "text-orange-600" : "text-custom-cerah"}`}
               size={14}
             />
             <select
@@ -319,12 +422,86 @@ const Lembur = () => {
               onChange={(e) =>
                 setFilter({ ...filter, id_pegawai: e.target.value })
               }
-              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 dark:bg-white/5 border border-gray-100 rounded-xl text-[10px] font-bold dark:text-white outline-none appearance-none cursor-pointer"
+              className="w-full h-full pl-9 pr-4 bg-transparent text-[10px] font-bold dark:text-white outline-none appearance-none cursor-pointer"
             >
               <option value="">Semua Pegawai</option>
               {masterPegawai.map((p) => (
                 <option key={p.id_pegawai} value={p.id_pegawai}>
                   {p.nama_panggilan}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. Filter Bulan - Highlight jika bukan bulan berjalan */}
+          <div
+            className={`h-[42px] flex items-center rounded-xl transition-all duration-300 ${
+              filter.bulan !== new Date().getMonth() + 1
+                ? "bg-orange-50 dark:bg-orange-500/10 ring-2 ring-orange-500/50"
+                : "bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10"
+            }`}
+          >
+            <select
+              value={filter.bulan}
+              onChange={(e) =>
+                setFilter({ ...filter, bulan: parseInt(e.target.value) })
+              }
+              className="w-full h-full px-3 bg-transparent text-[10px] font-bold dark:text-white outline-none cursor-pointer"
+            >
+              {monthNames.map((name, i) => (
+                <option key={i} value={i + 1}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 4. Filter Tahun - Highlight jika bukan 2026 */}
+          <div
+            className={`h-[42px] flex items-center rounded-xl transition-all duration-300 ${
+              filter.tahun !== 2026
+                ? "bg-orange-50 dark:bg-orange-500/10 ring-2 ring-orange-500/50"
+                : "bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10"
+            }`}
+          >
+            <select
+              value={filter.tahun}
+              onChange={(e) =>
+                setFilter({ ...filter, tahun: parseInt(e.target.value) })
+              }
+              className="w-full h-full px-3 bg-transparent text-[10px] font-bold dark:text-white outline-none cursor-pointer"
+            >
+              {[2025, 2026].map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 5. Filter Status Pegawai - Highlight jika terpilih */}
+          <div
+            className={`relative h-[42px] flex items-center rounded-xl transition-all duration-300 ${
+              filter.id_status_pegawai
+                ? "bg-orange-50 dark:bg-orange-500/10 ring-2 ring-orange-500/50"
+                : "bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10"
+            }`}
+          >
+            <MdBadge
+              className={`absolute left-3 ${filter.id_status_pegawai ? "text-orange-600" : "text-custom-cerah"}`}
+              size={14}
+            />
+            <select
+              value={filter.id_status_pegawai}
+              onChange={(e) =>
+                setFilter({ ...filter, id_status_pegawai: e.target.value })
+              }
+              className="w-full h-full pl-9 pr-4 bg-transparent text-[10px] font-bold dark:text-white outline-none appearance-none cursor-pointer"
+            >
+              <option value="">Semua Status</option>
+              {masterStatus.map((s) => (
+                <option key={s.id_status_pegawai} value={s.id_status_pegawai}>
+                  {s.nama_status}
                 </option>
               ))}
             </select>
@@ -452,15 +629,37 @@ const Lembur = () => {
                       </td>
 
                       <td className="px-6 py-3 text-center">
-                        <button
-                          onClick={() => {
-                            setSelectedData(row);
-                            setShowModal(true);
-                          }}
-                          className="p-1.5 bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-custom-cerah transition-colors rounded-lg shadow-sm"
-                        >
-                          <MdRemoveRedEye size={16} />
-                        </button>
+                        <div className="flex justify-center gap-2">
+                          {/* Preview */}
+                          <button
+                            onClick={() => {
+                              setSelectedData(row);
+                              setShowModal(true);
+                            }}
+                            className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-xl transition-all shadow-sm"
+                            title="Detail"
+                          >
+                            <MdRemoveRedEye size={16} />
+                          </button>
+
+                          {/* Edit */}
+                          <button
+                            onClick={() => handleOpenEditLembur(row)}
+                            className="p-2 bg-orange-50 dark:bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-xl transition-all shadow-sm"
+                            title="Edit"
+                          >
+                            <MdEdit size={16} />
+                          </button>
+
+                          {/* Delete */}
+                          <button
+                            onClick={() => handleDeleteLembur(row.id_lembur)}
+                            className="p-2 bg-red-50 dark:bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm"
+                            title="Hapus"
+                          >
+                            <MdDelete size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -590,25 +789,361 @@ const Lembur = () => {
           document.body,
         )}
 
-      {/* IMAGE POPUP */}
-      {isImagePopupOpen && (
-        <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300"
-          onClick={() => setIsImagePopupOpen(false)}
-        >
-          <div className="relative max-w-4xl w-full flex flex-col items-center">
-            <button className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white">
-              <MdClose size={32} />
-            </button>
-            <img
-              src={selectedImage}
-              alt="Bukti"
-              className="max-w-full max-h-[80vh] rounded-[30px] shadow-2xl border border-white/10 object-contain animate-in zoom-in duration-300"
+      {showAddLemburModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto"
+            onClick={() => setShowAddLemburModal(false)}
+          >
+            <div
+              className="bg-white dark:bg-custom-gelap w-full max-w-lg rounded-[40px] shadow-2xl border border-white/20 flex flex-col my-auto overflow-hidden"
               onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        </div>
-      )}
+            >
+              <div className="p-8 pb-4 flex justify-between items-center border-b border-gray-100 dark:border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                    <MdAdd size={24} />
+                  </div>
+                  <h3 className="text-lg font-black text-custom-gelap dark:text-white uppercase italic tracking-tighter">
+                    Tambah Lembur Pegawai
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowAddLemburModal(false)}
+                  className="p-2 text-gray-400 hover:text-custom-merah-terang"
+                >
+                  <MdClose size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitAddLembur} className="p-8 space-y-4">
+                {/* Pilih Pegawai */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Pilih Pegawai
+                  </label>
+                  <select
+                    required
+                    value={addLemburData.id_pegawai}
+                    onChange={(e) =>
+                      setAddLemburData({
+                        ...addLemburData,
+                        id_pegawai: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white outline-none appearance-none"
+                  >
+                    <option value="">-- Pilih Pegawai --</option>
+                    {masterAllPegawai.map((p) => (
+                      <option key={p.id_pegawai} value={p.id_pegawai}>
+                        {p.nama_lengkap}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Jenis Lembur & Tanggal */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                      Jenis Lembur
+                    </label>
+                    <select
+                      required
+                      value={addLemburData.id_jenis_lembur}
+                      onChange={(e) =>
+                        setAddLemburData({
+                          ...addLemburData,
+                          id_jenis_lembur: e.target.value,
+                        })
+                      }
+                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white outline-none"
+                    >
+                      <option value="">-- Pilih --</option>
+                      {masterJenisLembur.map((j) => (
+                        <option
+                          key={j.id_jenis_lembur}
+                          value={j.id_jenis_lembur}
+                        >
+                          {j.nama_jenis}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                      Tanggal
+                    </label>
+                    <input
+                      required
+                      type="date"
+                      value={addLemburData.tanggal}
+                      onChange={(e) =>
+                        setAddLemburData({
+                          ...addLemburData,
+                          tanggal: e.target.value,
+                        })
+                      }
+                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Jam Mulai & Selesai */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                      Jam Mulai
+                    </label>
+                    <input
+                      required
+                      type="time"
+                      value={addLemburData.jam_mulai}
+                      onChange={(e) =>
+                        setAddLemburData({
+                          ...addLemburData,
+                          jam_mulai: e.target.value,
+                        })
+                      }
+                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                      Jam Selesai
+                    </label>
+                    <input
+                      required
+                      type="time"
+                      value={addLemburData.jam_selesai}
+                      onChange={(e) =>
+                        setAddLemburData({
+                          ...addLemburData,
+                          jam_selesai: e.target.value,
+                        })
+                      }
+                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Keterangan */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Keterangan Pekerjaan
+                  </label>
+                  <textarea
+                    value={addLemburData.keterangan}
+                    onChange={(e) =>
+                      setAddLemburData({
+                        ...addLemburData,
+                        keterangan: e.target.value,
+                      })
+                    }
+                    className="w-full h-20 p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-medium italic dark:text-white outline-none"
+                    placeholder="Tugas apa yang dikerjakan saat lembur..."
+                  />
+                </div>
+
+                {/* Lampiran */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Lampiran Bukti (Opsional)
+                  </label>
+                  <input
+                    type="file"
+                    onChange={(e) =>
+                      setAddLemburData({
+                        ...addLemburData,
+                        lampiran: e.target.files[0],
+                      })
+                    }
+                    className="w-full p-2 text-[10px] text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-custom-gelap file:text-white"
+                  />
+                </div>
+
+                <button
+                  disabled={loading}
+                  type="submit"
+                  className="w-full py-4 bg-orange-600 text-white rounded-[25px] text-xs font-black uppercase tracking-[3px] hover:bg-orange-700 transition-all shadow-xl disabled:opacity-50"
+                >
+                  {loading ? "Memproses..." : "Simpan Pengajuan Lembur"}
+                </button>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {showEditLembur &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto"
+            onClick={() => setShowEditLembur(false)}
+          >
+            <div
+              className="bg-white dark:bg-custom-gelap w-full max-w-lg rounded-[40px] shadow-2xl border border-white/20 flex flex-col my-auto overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-8 pb-4 flex justify-between items-center border-b border-gray-100 dark:border-white/5">
+                <h3 className="text-lg font-black text-custom-gelap dark:text-white uppercase italic tracking-tighter">
+                  Edit Data Lembur
+                </h3>
+                <button
+                  onClick={() => setShowEditLembur(false)}
+                  className="p-2 text-gray-400 hover:text-custom-merah-terang"
+                >
+                  <MdClose size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitEditLembur} className="p-8 space-y-4">
+                {/* Jenis Lembur */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Jenis Lembur
+                  </label>
+                  <select
+                    value={editLemburData.id_jenis_lembur}
+                    onChange={(e) =>
+                      setEditLemburData({
+                        ...editLemburData,
+                        id_jenis_lembur: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white outline-none"
+                  >
+                    {masterJenisLembur.map((jl) => (
+                      <option
+                        key={jl.id_jenis_lembur}
+                        value={jl.id_jenis_lembur}
+                      >
+                        {jl.nama_jenis}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tanggal & Jam */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Tanggal Lembur
+                  </label>
+                  <input
+                    type="date"
+                    value={editLemburData.tanggal}
+                    onChange={(e) =>
+                      setEditLemburData({
+                        ...editLemburData,
+                        tanggal: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                      Jam Mulai
+                    </label>
+                    <input
+                      type="time"
+                      value={editLemburData.jam_mulai}
+                      onChange={(e) =>
+                        setEditLemburData({
+                          ...editLemburData,
+                          jam_mulai: e.target.value,
+                        })
+                      }
+                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                      Jam Selesai
+                    </label>
+                    <input
+                      type="time"
+                      value={editLemburData.jam_selesai}
+                      onChange={(e) =>
+                        setEditLemburData({
+                          ...editLemburData,
+                          jam_selesai: e.target.value,
+                        })
+                      }
+                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Keterangan */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Keterangan Pekerjaan
+                  </label>
+                  <textarea
+                    value={editLemburData.keterangan}
+                    onChange={(e) =>
+                      setEditLemburData({
+                        ...editLemburData,
+                        keterangan: e.target.value,
+                      })
+                    }
+                    className="w-full h-20 p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-medium italic dark:text-white outline-none"
+                  />
+                </div>
+
+                {/* Lampiran */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Ganti Lampiran Bukti
+                  </label>
+                  <input
+                    type="file"
+                    onChange={(e) =>
+                      setEditLemburData({
+                        ...editLemburData,
+                        lampiran: e.target.files[0],
+                      })
+                    }
+                    className="w-full p-2 text-[10px] text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-custom-merah-terang file:text-white"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-4 bg-custom-gelap text-white rounded-[25px] text-xs font-black uppercase tracking-[3px] hover:bg-black transition-all shadow-xl"
+                >
+                  Simpan Data Lembur
+                </button>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* IMAGE POPUP */}
+      {isImagePopupOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300"
+            onClick={() => setIsImagePopupOpen(false)}
+          >
+            <div className="relative max-w-4xl w-full flex flex-col items-center">
+              <button className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white">
+                <MdClose size={32} />
+              </button>
+              <img
+                src={selectedImage}
+                alt="Bukti"
+                className="max-w-full max-h-[80vh] rounded-[30px] shadow-2xl border border-white/10 object-contain animate-in zoom-in duration-300"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

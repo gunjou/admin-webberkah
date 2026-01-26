@@ -10,15 +10,20 @@ import {
   MdInfoOutline,
   MdBadge,
   MdCalendarToday,
+  MdDelete,
+  MdEdit,
+  MdAdd,
 } from "react-icons/md";
 import Api from "../../utils/Api";
 import Swal from "sweetalert2";
 
-const Perizinan = () => {
+const Perizinan = ({ refreshCount }) => {
   const [loading, setLoading] = useState(false);
   const [dataIzin, setDataIzin] = useState([]);
+  const [masterAllPegawai, setMasterAllPegawai] = useState([]);
   const [masterPegawai, setMasterPegawai] = useState([]);
   const [masterStatus, setMasterStatus] = useState([]);
+  const [masterJenisIzin, setMasterJenisIzin] = useState([]);
 
   // Filter sesuai parser API Perizinan
   const [filter, setFilter] = useState({
@@ -28,6 +33,26 @@ const Perizinan = () => {
     kategori_izin: "", // IZIN | SAKIT | CUTI
     id_pegawai: "",
     id_status_pegawai: "",
+  });
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addData, setAddData] = useState({
+    id_pegawai: "",
+    id_jenis_izin: "",
+    tanggal_mulai: "",
+    tanggal_selesai: "",
+    alasan: "",
+    lampiran: null,
+  });
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editData, setEditData] = useState({
+    id_izin: "",
+    id_jenis_izin: "",
+    tanggal_mulai: "",
+    tanggal_selesai: "",
+    alasan: "",
+    lampiran: null,
   });
 
   const [showModal, setShowModal] = useState(false);
@@ -55,12 +80,17 @@ const Perizinan = () => {
   useEffect(() => {
     const fetchMaster = async () => {
       try {
-        const [resStatus, resPegawai] = await Promise.all([
-          Api.get("/master/status-pegawai"),
-          Api.get("/perizinan/pegawai"), // Menggunakan list pegawai yang sama
-        ]);
+        const [resAllPegawai, resStatus, resPegawai, resJenisIzin] =
+          await Promise.all([
+            Api.get("/pegawai/basic"),
+            Api.get("/master/status-pegawai"),
+            Api.get("/perizinan/pegawai"),
+            Api.get("/master/jenis-izin"),
+          ]);
+        setMasterAllPegawai(resAllPegawai.data.data);
         setMasterStatus(resStatus.data.data);
         setMasterPegawai(resPegawai.data.data);
+        setMasterJenisIzin(resJenisIzin.data.data);
       } catch (err) {
         console.error("Gagal load data master perizinan", err);
       }
@@ -181,6 +211,125 @@ const Perizinan = () => {
     };
   }, [showModal]);
 
+  const handleSubmitAdd = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append("id_pegawai", addData.id_pegawai);
+    formData.append("id_jenis_izin", addData.id_jenis_izin);
+    formData.append("tanggal_mulai", addData.tanggal_mulai);
+    formData.append("tanggal_selesai", addData.tanggal_selesai);
+    formData.append("alasan", addData.alasan);
+    if (addData.lampiran) formData.append("lampiran", addData.lampiran);
+
+    try {
+      const res = await Api.post("/perizinan/admin/pengajuan-izin", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (res.data.success) {
+        Swal.fire({
+          icon: "success",
+          title: "Pengajuan Berhasil",
+          text: "Izin pegawai telah berhasil didaftarkan.",
+          timer: 2000,
+          showConfirmButton: false,
+          customClass: { popup: "rounded-[30px]" },
+        });
+
+        setShowAddModal(false);
+        setAddData({
+          id_pegawai: "",
+          id_jenis_izin: "",
+          tanggal_mulai: "",
+          tanggal_selesai: "",
+          alasan: "",
+          lampiran: null,
+        });
+        fetchData(); // Refresh table
+        if (refreshCount) refreshCount(); // Refresh Navbar count
+      }
+    } catch (err) {
+      Swal.fire(
+        "Gagal",
+        err.response?.data?.message || "Terjadi kesalahan server",
+        "error",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handler Hapus
+  const handleDelete = async (id) => {
+    const result = await Swal.fire({
+      title: "Hapus Perizinan?",
+      text: "Data yang dihapus tidak dapat dikembalikan!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      confirmButtonText: "Ya, Hapus!",
+      cancelButtonText: "Batal",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await Api.delete(`/perizinan/${id}`);
+        Swal.fire("Berhasil", "Data perizinan telah dihapus.", "success");
+        fetchData();
+        if (refreshCount) refreshCount();
+      } catch (err) {
+        Swal.fire("Gagal", "Terjadi kesalahan saat menghapus data.", "error");
+      }
+    }
+  };
+
+  // Handler Buka Modal Edit
+  const handleOpenEdit = (row) => {
+    setEditData({
+      id_izin: row.id_izin,
+      id_jenis_izin: row.id_jenis_izin,
+      tanggal_mulai: row.tgl_mulai,
+      tanggal_selesai: row.tgl_selesai,
+      alasan: row.keterangan,
+      lampiran: null,
+    });
+    setShowEditModal(true);
+  };
+
+  // Handler Submit Edit (Menggunakan FormData karena ada File)
+  const handleSubmitEdit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append("id_jenis_izin", editData.id_jenis_izin);
+    formData.append("tanggal_mulai", editData.tanggal_mulai);
+    formData.append("tanggal_selesai", editData.tanggal_selesai);
+    formData.append("alasan", editData.alasan);
+    if (editData.lampiran) formData.append("lampiran", editData.lampiran);
+
+    try {
+      await Api.put(`/perizinan/admin/${editData.id_izin}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      Swal.fire({
+        icon: "success",
+        title: "Berhasil Update",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+      setShowEditModal(false);
+      fetchData();
+    } catch (err) {
+      Swal.fire("Gagal", "Gagal memperbarui data perizinan", "error");
+    } finally {
+      setLoading(true);
+    }
+  };
+
   return (
     <div className="space-y-5 animate-in fade-in duration-500 pb-10">
       {/* HEADER */}
@@ -193,32 +342,37 @@ const Perizinan = () => {
             {monthNames[filter.bulan - 1]} {filter.tahun}
           </p>
         </div>
-        <button className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-600/20">
-          <MdFileDownload size={18} /> Export Rekap Izin
-        </button>
+
+        <div className="flex items-center gap-3">
+          {/* BUTTON TAMBAH IZIN */}
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-custom-gelap dark:bg-custom-cerah text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all hover:scale-105 active:scale-95"
+          >
+            <MdAdd size={18} /> Tambah Izin
+          </button>
+
+          <button className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-600/20 transition-all hover:opacity-90">
+            <MdFileDownload size={18} /> Export Rekap
+          </button>
+        </div>
       </div>
 
       {/* FILTER BOX */}
       <div className="bg-white dark:bg-custom-gelap p-4 rounded-[30px] shadow-sm border border-gray-100 dark:border-white/5">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          {/* Status Toggle */}
-          <div className="col-span-2 md:col-span-2 flex bg-gray-100 dark:bg-white/5 p-1 rounded-xl border border-gray-200 dark:border-white/10">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-3 items-center">
+          {" "}
+          {/* Tambahkan items-center di grid utama */}
+          {/* 1. Status Toggle - Pastikan tinggi (h) sama dengan yang lain */}
+          <div className="col-span-2 md:col-span-2 flex h-[42px] bg-gray-100 dark:bg-white/5 p-1 rounded-xl border border-gray-200 dark:border-white/10 items-center">
             {["pending", "approved", "rejected"].map((s) => {
-              const activeStyles = {
-                pending: "bg-orange-600 text-white shadow-orange-500/20",
-                approved: "bg-green-600 text-white shadow-green-500/20",
-                rejected: "bg-red-600 text-white shadow-red-500/20",
-              };
               const isActive = filter.status_approval === s;
+              // ... (activeStyles tetap sama)
               return (
                 <button
                   key={s}
                   onClick={() => setFilter({ ...filter, status_approval: s })}
-                  className={`flex-1 py-2 text-[8px] md:text-[9px] font-black uppercase rounded-lg transition-all duration-300 ${
-                    isActive
-                      ? `${activeStyles[s]} shadow-md scale-[1.02]`
-                      : "text-gray-400 hover:text-gray-500"
-                  }`}
+                  className={`flex-1 h-full py-2 text-[8px] md:text-[9px] font-black uppercase rounded-lg transition-all duration-300 ${isActive ? "bg-orange-600 text-white shadow-md scale-[1.02]" : "text-gray-400"}`}
                 >
                   {s === "pending"
                     ? "Menunggu"
@@ -229,59 +383,12 @@ const Perizinan = () => {
               );
             })}
           </div>
-
-          <select
-            value={filter.bulan}
-            onChange={(e) =>
-              setFilter({ ...filter, bulan: parseInt(e.target.value) })
-            }
-            className="bg-gray-50 dark:bg-white/5 border border-gray-100 p-2.5 rounded-xl text-[10px] font-bold dark:text-white outline-none"
+          {/* 2. Filter Pegawai */}
+          <div
+            className={`relative h-[42px] flex items-center rounded-xl transition-all duration-300 ${filter.id_pegawai ? "bg-orange-50 dark:bg-orange-500/10 ring-1 ring-orange-500/50" : "bg-gray-50 dark:bg-white/5"}`}
           >
-            {monthNames.map((name, i) => (
-              <option key={i} value={i + 1}>
-                {name}
-              </option>
-            ))}
-          </select>
-
-          {/* Filter Kategori Izin */}
-          <select
-            value={filter.kategori_izin}
-            onChange={(e) =>
-              setFilter({ ...filter, kategori_izin: e.target.value })
-            }
-            className="bg-gray-50 dark:bg-white/5 border border-gray-100 p-2.5 rounded-xl text-[10px] font-bold dark:text-white outline-none uppercase"
-          >
-            <option value="">Semua Kategori</option>
-            <option value="IZIN">IZIN</option>
-            <option value="SAKIT">SAKIT</option>
-            <option value="CUTI">CUTI</option>
-          </select>
-
-          <div className="relative">
-            <MdBadge
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-cerah"
-              size={14}
-            />
-            <select
-              value={filter.id_status_pegawai}
-              onChange={(e) =>
-                setFilter({ ...filter, id_status_pegawai: e.target.value })
-              }
-              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 dark:bg-white/5 border border-gray-100 rounded-xl text-[10px] font-bold dark:text-white outline-none appearance-none"
-            >
-              <option value="">Semua Status Pegawai</option>
-              {masterStatus.map((s) => (
-                <option key={s.id_status_pegawai} value={s.id_status_pegawai}>
-                  {s.nama_status}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="relative">
             <MdPerson
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-cerah"
+              className={`absolute left-3 ${filter.id_pegawai ? "text-orange-600" : "text-custom-cerah"}`}
               size={14}
             />
             <select
@@ -289,7 +396,7 @@ const Perizinan = () => {
               onChange={(e) =>
                 setFilter({ ...filter, id_pegawai: e.target.value })
               }
-              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 dark:bg-white/5 border border-gray-100 rounded-xl text-[10px] font-bold dark:text-white outline-none appearance-none"
+              className="w-full h-full pl-9 pr-2 bg-transparent text-[10px] font-bold dark:text-white outline-none appearance-none cursor-pointer"
             >
               <option value="">Semua Pegawai</option>
               {masterPegawai.map((p) => (
@@ -297,6 +404,82 @@ const Perizinan = () => {
                   {p.nama_panggilan}
                 </option>
               ))}
+            </select>
+          </div>
+          {/* 3. Filter Bulan */}
+          <div
+            className={`h-[42px] flex items-center rounded-xl transition-all duration-300 ${filter.bulan !== new Date().getMonth() + 1 ? "bg-orange-50 dark:bg-orange-500/10 ring-1 ring-orange-500/50" : "bg-gray-50 dark:bg-white/5"}`}
+          >
+            <select
+              value={filter.bulan}
+              onChange={(e) =>
+                setFilter({ ...filter, bulan: parseInt(e.target.value) })
+              }
+              className="w-full h-full px-3 bg-transparent text-[10px] font-bold dark:text-white outline-none cursor-pointer"
+            >
+              {monthNames.map((name, i) => (
+                <option key={i} value={i + 1}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* 4. Filter Tahun */}
+          <div
+            className={`h-[42px] flex items-center rounded-xl transition-all duration-300 ${filter.tahun !== 2026 ? "bg-orange-50 dark:bg-orange-500/10 ring-1 ring-orange-500/50" : "bg-gray-50 dark:bg-white/5"}`}
+          >
+            <select
+              value={filter.tahun}
+              onChange={(e) =>
+                setFilter({ ...filter, tahun: parseInt(e.target.value) })
+              }
+              className="w-full h-full px-3 bg-transparent text-[10px] font-bold dark:text-white outline-none cursor-pointer"
+            >
+              {[2025, 2026].map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* 5. Filter Status Pegawai */}
+          <div
+            className={`relative h-[42px] flex items-center rounded-xl transition-all duration-300 ${filter.id_status_pegawai ? "bg-orange-50 dark:bg-orange-500/10 ring-1 ring-orange-500/50" : "bg-gray-50 dark:bg-white/5"}`}
+          >
+            <MdBadge
+              className={`absolute left-3 ${filter.id_status_pegawai ? "text-orange-600" : "text-custom-cerah"}`}
+              size={14}
+            />
+            <select
+              value={filter.id_status_pegawai}
+              onChange={(e) =>
+                setFilter({ ...filter, id_status_pegawai: e.target.value })
+              }
+              className="w-full h-full pl-9 pr-2 bg-transparent text-[10px] font-bold dark:text-white outline-none appearance-none cursor-pointer"
+            >
+              <option value="">Status</option>
+              {masterStatus.map((s) => (
+                <option key={s.id_status_pegawai} value={s.id_status_pegawai}>
+                  {s.nama_status}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* 6. Filter Kategori Izin */}
+          <div
+            className={`h-[42px] flex items-center rounded-xl transition-all duration-300 ${filter.kategori_izin ? "bg-orange-50 dark:bg-orange-500/10 ring-1 ring-orange-500/50" : "bg-gray-50 dark:bg-white/5"}`}
+          >
+            <select
+              value={filter.kategori_izin}
+              onChange={(e) =>
+                setFilter({ ...filter, kategori_izin: e.target.value })
+              }
+              className="w-full h-full px-3 bg-transparent text-[10px] font-bold dark:text-white outline-none cursor-pointer"
+            >
+              <option value="">Kategori</option>
+              <option value="IZIN">IZIN</option>
+              <option value="SAKIT">SAKIT</option>
+              <option value="CUTI">CUTI</option>
             </select>
           </div>
         </div>
@@ -318,8 +501,6 @@ const Perizinan = () => {
                 <th className="px-4 py-4 text-center">Periode Izin</th>{" "}
                 {/* Ter-expand */}
                 <th className="px-4 py-4 text-center">Durasi</th>{" "}
-                {/* Kolom Baru */}
-                <th className="px-4 py-4 text-center">Status Pegawai</th>
                 <th className="px-4 py-4 text-center">Status Approval</th>
                 <th className="px-4 py-4 text-center">Bukti</th>
                 <th className="px-6 py-4 text-center">Aksi</th>
@@ -392,23 +573,6 @@ const Perizinan = () => {
                       </td>
 
                       <td className="px-4 py-3 text-center">
-                        <span
-                          className={`
-                            px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border
-                            ${
-                              row.status_pegawai === "Pegawai Tetap"
-                                ? "bg-green-100 text-green-600 border-green-200/50 dark:bg-green-500/10 dark:text-green-400"
-                                : row.status_pegawai === "Pegawai Tidak Tetap"
-                                  ? "bg-blue-100 text-blue-600 border-blue-200/50 dark:bg-blue-500/10 dark:text-blue-400"
-                                  : "bg-purple-100 text-purple-600 border-purple-200/50 dark:bg-purple-500/10 dark:text-purple-400" // Untuk Magang
-                            }
-                            `}
-                        >
-                          {row.status_pegawai}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-3 text-center">
                         <div
                           className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[8px] font-black uppercase ${
                             row.status_approval === "approved"
@@ -441,15 +605,37 @@ const Perizinan = () => {
                       </td>
 
                       <td className="px-6 py-3 text-center">
-                        <button
-                          onClick={() => {
-                            setSelectedData(row);
-                            setShowModal(true);
-                          }}
-                          className="p-1.5 bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-custom-cerah rounded-lg transition-colors"
-                        >
-                          <MdRemoveRedEye size={16} />
-                        </button>
+                        <div className="flex justify-center gap-2">
+                          {/* Tombol Detail/Preview */}
+                          <button
+                            onClick={() => {
+                              setSelectedData(row);
+                              setShowModal(true);
+                            }}
+                            className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-xl transition-all shadow-sm"
+                            title="Detail"
+                          >
+                            <MdRemoveRedEye size={16} />
+                          </button>
+
+                          {/* Tombol Edit */}
+                          <button
+                            onClick={() => handleOpenEdit(row)}
+                            className="p-2 bg-orange-50 dark:bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-xl transition-all shadow-sm"
+                            title="Edit"
+                          >
+                            <MdEdit size={16} />
+                          </button>
+
+                          {/* Tombol Delete */}
+                          <button
+                            onClick={() => handleDelete(row.id_izin)}
+                            className="p-2 bg-red-50 dark:bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm"
+                            title="Hapus"
+                          >
+                            <MdDelete size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -582,25 +768,310 @@ const Perizinan = () => {
           document.body, // Ini yang membuat modal pindah ke luar hierarki komponen
         )}
 
-      {/* IMAGE POPUP */}
-      {isImagePopupOpen && (
-        <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300"
-          onClick={() => setIsImagePopupOpen(false)}
-        >
-          <div className="relative max-w-4xl w-full flex flex-col items-center">
-            <button className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white">
-              <MdClose size={32} />
-            </button>
-            <img
-              src={selectedImage}
-              alt="Bukti"
-              className="max-w-full max-h-[80vh] rounded-[30px] shadow-2xl border border-white/10 object-contain animate-in zoom-in duration-300"
+      {showAddModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto"
+            onClick={() => setShowAddModal(false)}
+          >
+            <div
+              className="bg-white dark:bg-custom-gelap w-full max-w-lg rounded-[40px] shadow-2xl border border-white/20 flex flex-col my-auto overflow-hidden"
               onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        </div>
-      )}
+            >
+              <div className="p-8 pb-4 flex justify-between items-center border-b border-gray-100 dark:border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-custom-cerah/10 text-custom-cerah flex items-center justify-center">
+                    <MdAdd size={24} />
+                  </div>
+                  <h3 className="text-lg font-black text-custom-gelap dark:text-white uppercase italic tracking-tighter">
+                    Tambah Izin Pegawai
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="p-2 text-gray-400 hover:text-custom-merah-terang"
+                >
+                  <MdClose size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitAdd} className="p-8 space-y-4">
+                {/* Pilih Pegawai */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Pilih Pegawai
+                  </label>
+                  <select
+                    required
+                    value={addData.id_pegawai}
+                    onChange={(e) =>
+                      setAddData({ ...addData, id_pegawai: e.target.value })
+                    }
+                    className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white outline-none"
+                  >
+                    <option value="">-- Pilih Pegawai --</option>
+                    {masterAllPegawai.map((p) => (
+                      <option key={p.id_pegawai} value={p.id_pegawai}>
+                        {p.nama_lengkap}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Jenis Izin */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Jenis Izin
+                  </label>
+                  <select
+                    required
+                    value={addData.id_jenis_izin}
+                    onChange={(e) =>
+                      setAddData({ ...addData, id_jenis_izin: e.target.value })
+                    }
+                    className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white outline-none"
+                  >
+                    <option value="">-- Pilih Jenis --</option>
+                    {masterJenisIzin.map((j) => (
+                      <option key={j.id_jenis_izin} value={j.id_jenis_izin}>
+                        {j.nama_izin}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tanggal */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                      Mulai
+                    </label>
+                    <input
+                      required
+                      type="date"
+                      value={addData.tanggal_mulai}
+                      onChange={(e) =>
+                        setAddData({
+                          ...addData,
+                          tanggal_mulai: e.target.value,
+                        })
+                      }
+                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                      Selesai
+                    </label>
+                    <input
+                      required
+                      type="date"
+                      value={addData.tanggal_selesai}
+                      onChange={(e) =>
+                        setAddData({
+                          ...addData,
+                          tanggal_selesai: e.target.value,
+                        })
+                      }
+                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Alasan */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Alasan / Keterangan
+                  </label>
+                  <textarea
+                    required
+                    value={addData.alasan}
+                    onChange={(e) =>
+                      setAddData({ ...addData, alasan: e.target.value })
+                    }
+                    className="w-full h-20 p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-medium italic dark:text-white outline-none"
+                    placeholder="Tulis alasan izin..."
+                  />
+                </div>
+
+                {/* Lampiran */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Upload Bukti (Opsional)
+                  </label>
+                  <input
+                    type="file"
+                    onChange={(e) =>
+                      setAddData({ ...addData, lampiran: e.target.files[0] })
+                    }
+                    className="w-full p-2 text-[10px] text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-custom-gelap file:text-white"
+                  />
+                </div>
+
+                <button
+                  disabled={loading}
+                  type="submit"
+                  className="w-full py-4 bg-custom-merah-terang text-white rounded-[25px] text-xs font-black uppercase tracking-[3px] hover:bg-red-700 transition-all shadow-xl disabled:opacity-50"
+                >
+                  {loading ? "Memproses..." : "Kirim Pengajuan"}
+                </button>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {showEditModal &&
+        createPortal(
+          <div
+            onClick={() => setShowEditModal(false)}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto"
+          >
+            <div
+              ref={modalRef}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-custom-gelap w-full max-w-lg rounded-[40px] shadow-2xl border border-white/20 flex flex-col my-auto overflow-hidden"
+            >
+              <div className="p-8 pb-4 flex justify-between items-center border-b border-gray-100 dark:border-white/5">
+                <h3 className="text-lg font-black text-custom-gelap dark:text-white uppercase italic tracking-tighter">
+                  Edit Perizinan
+                </h3>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="p-2 text-gray-400 hover:text-custom-merah-terang"
+                >
+                  <MdClose size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitEdit} className="p-8 space-y-4">
+                {/* Jenis Izin */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Jenis Izin
+                  </label>
+                  <select
+                    value={editData.id_jenis_izin}
+                    onChange={(e) =>
+                      setEditData({
+                        ...editData,
+                        id_jenis_izin: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold outline-none dark:text-white cursor-pointer"
+                  >
+                    <option value="" disabled>
+                      Pilih Jenis Izin
+                    </option>
+                    {masterJenisIzin.map((jenis) => (
+                      <option
+                        key={jenis.id_jenis_izin}
+                        value={jenis.id_jenis_izin}
+                      >
+                        {jenis.nama_izin}{" "}
+                        {/* Sesuaikan "nama_jenis_izin" dengan key dari API Anda */}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tanggal Mulai & Selesai */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                      Tgl Mulai
+                    </label>
+                    <input
+                      type="date"
+                      value={editData.tanggal_mulai}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          tanggal_mulai: e.target.value,
+                        })
+                      }
+                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                      Tgl Selesai
+                    </label>
+                    <input
+                      type="date"
+                      value={editData.tanggal_selesai}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          tanggal_selesai: e.target.value,
+                        })
+                      }
+                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Alasan */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Keterangan / Alasan
+                  </label>
+                  <textarea
+                    value={editData.alasan}
+                    onChange={(e) =>
+                      setEditData({ ...editData, alasan: e.target.value })
+                    }
+                    className="w-full h-24 p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-medium italic dark:text-white outline-none"
+                  />
+                </div>
+
+                {/* Lampiran */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Ganti Lampiran (Opsional)
+                  </label>
+                  <input
+                    type="file"
+                    onChange={(e) =>
+                      setEditData({ ...editData, lampiran: e.target.files[0] })
+                    }
+                    className="w-full p-2 text-[10px] text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-custom-merah-terang file:text-white hover:file:bg-red-700"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-4 bg-custom-gelap text-white rounded-[25px] text-xs font-black uppercase tracking-[3px] hover:bg-black transition-all shadow-xl"
+                >
+                  Simpan Perubahan
+                </button>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* IMAGE POPUP */}
+      {isImagePopupOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300"
+            onClick={() => setIsImagePopupOpen(false)}
+          >
+            <div className="relative max-w-4xl w-full flex flex-col items-center">
+              <button className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white">
+                <MdClose size={32} />
+              </button>
+              <img
+                src={selectedImage}
+                alt="Bukti"
+                className="max-w-full max-h-[80vh] rounded-[30px] shadow-2xl border border-white/10 object-contain animate-in zoom-in duration-300"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };
