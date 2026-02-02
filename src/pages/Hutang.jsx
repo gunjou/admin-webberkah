@@ -48,6 +48,21 @@ const Hutang = () => {
     keterangan: "",
   });
 
+  const monthNames = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+  ];
+
   // Fetch data pegawai untuk dropdown
   useEffect(() => {
     const fetchPegawaiBasic = async () => {
@@ -177,15 +192,21 @@ const Hutang = () => {
 
   // Fungsi untuk memicu modal bayar dari tabel
   const openPayModal = (pegawai) => {
+    const def = getDefaultPeriode();
+    const lastDate = getLastDateOfMonth(def.month, def.year);
+
     setPayData({
       ...payData,
       id_pegawai: pegawai.id_pegawai,
       nama_pegawai: pegawai.nama,
       sisa_hutang_maksimal: pegawai.sisa_hutang,
-      jumlah_bayar: "", // Kosongkan agar diinput manual
-      tanggal: new Date().toISOString().split("T")[0],
+      jumlah_bayar: "",
+      // Simpan bulan/tahun untuk UI, tapi simpan tanggal akhir untuk API
+      selectedMonth: def.month,
+      selectedYear: def.year,
+      tanggal: lastDate,
       metode: "potong_gaji",
-      keterangan: `Pembayaran hutang - ${pegawai.nama}`,
+      keterangan: `Potongan cicilan hutang periode ${monthNames[def.month - 1]} ${def.year}`,
     });
     setShowPayModal(true);
   };
@@ -270,6 +291,35 @@ const Hutang = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Fungsi untuk mendapatkan tanggal terakhir (YYYY-MM-DD)
+  const getLastDateOfMonth = (month, year) => {
+    // Jam 0 di hari ke-0 bulan berikutnya adalah hari terakhir bulan ini
+    const date = new Date(year, month, 0);
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  // Logika Default Periode (Cutoff tanggal 5)
+  const getDefaultPeriode = () => {
+    const today = new Date();
+    const day = today.getDate();
+    let month = today.getMonth() + 1; // 1-12
+    let year = today.getFullYear();
+
+    if (day <= 5) {
+      // Jika tanggal 1-5, default adalah bulan sebelumnya
+      if (month === 1) {
+        month = 12;
+        year -= 1;
+      } else {
+        month -= 1;
+      }
+    }
+    return { month, year };
   };
 
   return (
@@ -866,22 +916,56 @@ const Hutang = () => {
               </div>
 
               <form onSubmit={handleSubmitBayar} className="p-8 space-y-4">
-                {/* Tanggal & Metode */}
+                {/* GRID PERIODE & METODE */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
-                      Tanggal
+                      Periode Potongan
                     </label>
-                    <input
-                      required
-                      type="date"
-                      value={payData.tanggal}
-                      onChange={(e) =>
-                        setPayData({ ...payData, tanggal: e.target.value })
-                      }
-                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-xs font-bold dark:text-white outline-none"
-                    />
+                    <div className="flex gap-1 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl p-1">
+                      <select
+                        value={payData.selectedMonth}
+                        onChange={(e) => {
+                          const m = parseInt(e.target.value);
+                          const y = payData.selectedYear;
+                          setPayData({
+                            ...payData,
+                            selectedMonth: m,
+                            tanggal: getLastDateOfMonth(m, y), // Update YYYY-MM-DD
+                            keterangan: `Potongan cicilan hutang periode ${monthNames[m - 1]} ${y}`,
+                          });
+                        }}
+                        className="flex-1 bg-transparent text-[10px] font-black dark:text-white outline-none p-2 cursor-pointer"
+                      >
+                        {monthNames.map((name, i) => (
+                          <option key={i} value={i + 1}>
+                            {name.substring(0, 3)}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={payData.selectedYear}
+                        onChange={(e) => {
+                          const y = parseInt(e.target.value);
+                          const m = payData.selectedMonth;
+                          setPayData({
+                            ...payData,
+                            selectedYear: y,
+                            tanggal: getLastDateOfMonth(m, y), // Update YYYY-MM-DD
+                            keterangan: `Potongan cicilan hutang periode ${monthNames[m - 1]} ${y}`,
+                          });
+                        }}
+                        className="bg-transparent text-[10px] font-black dark:text-white outline-none p-2 cursor-pointer"
+                      >
+                        {[2025, 2026, 2027].map((y) => (
+                          <option key={y} value={y}>
+                            {y}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
+
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
                       Metode
@@ -891,7 +975,7 @@ const Hutang = () => {
                       onChange={(e) =>
                         setPayData({ ...payData, metode: e.target.value })
                       }
-                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-[10px] font-black dark:text-white outline-none uppercase"
+                      className="w-full p-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-[10px] font-black dark:text-white outline-none uppercase cursor-pointer"
                     >
                       <option value="potong_gaji">POTONG GAJI</option>
                       <option value="kas">KAS TUNAI</option>
@@ -899,6 +983,12 @@ const Hutang = () => {
                     </select>
                   </div>
                 </div>
+
+                {/* Info Tanggal Akhir (Sebagai Validasi Visual) */}
+                <p className="text-[8px] text-gray-400 font-bold italic ml-1 mt-[-8px]">
+                  * Transaksi akan dicatat pada tanggal:{" "}
+                  <span className="text-custom-cerah">{payData.tanggal}</span>
+                </p>
 
                 {/* Nominal Bayar */}
                 <div className="space-y-1">
