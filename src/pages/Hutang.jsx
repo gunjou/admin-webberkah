@@ -10,9 +10,12 @@ import {
   MdTrendingDown,
   MdAccountBalanceWallet,
   MdPerson,
+  MdDownload,
 } from "react-icons/md";
 import Swal from "sweetalert2";
 import Api from "../utils/Api";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 // import { formatTanggal } from "../../utils/Helpers"; // Asumsi Anda punya helper format tanggal
 
 const Hutang = () => {
@@ -62,6 +65,107 @@ const Hutang = () => {
     "November",
     "Desember",
   ];
+
+  const exportHutangToPDF = () => {
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const statusLabel = viewStatus === "aktif" ? "BELUM LUNAS" : "SUDAH LUNAS";
+
+    // 1. Header Laporan
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("LAPORAN PIUTANG & KASBON PEGAWAI", 14, 15);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Status: ${statusLabel}`, 14, 21);
+    doc.text(`Dicetak: ${new Date().toLocaleString("id-ID")}`, 14, 26);
+
+    // 2. Persiapan Data Table
+    const tableColumn = [
+      "No",
+      "Nama Pegawai",
+      "NIP",
+      "Trans",
+      "Total Pinjaman",
+      "Total Dibayar",
+      "Sisa Tagihan",
+      "Update Terakhir",
+    ];
+
+    const tableRows = filteredData.map((item, index) => [
+      index + 1,
+      item.nama.toUpperCase(),
+      item.nip,
+      `${item.total_hutang} Trx`,
+      `Rp ${item.total_pinjaman.toLocaleString("id-ID")}`,
+      `Rp ${item.total_dibayar.toLocaleString("id-ID")}`,
+      `Rp ${item.sisa_hutang.toLocaleString("id-ID")}`,
+      item.last_update.split("T")[0],
+    ]);
+
+    autoTable(doc, {
+      startY: 32,
+      head: [tableColumn],
+      body: tableRows,
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: {
+        fillColor: [239, 68, 68],
+        halign: "center",
+        fontStyle: "bold",
+      },
+      columnStyles: {
+        0: { cellWidth: 10, halign: "center" },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 30, halign: "center" },
+        3: { cellWidth: 20, halign: "center" },
+        4: { halign: "right" },
+        5: { halign: "right" },
+        6: { halign: "right", fontStyle: "bold" },
+        7: { halign: "center" },
+      },
+      // Footer di dalam tabel untuk akumulasi kolom
+      foot: [
+        [
+          {
+            content: "TOTAL AKUMULASI",
+            colSpan: 4,
+            styles: { halign: "center", fontStyle: "bold" },
+          },
+          `Rp ${filteredData.reduce((a, b) => a + b.total_pinjaman, 0).toLocaleString("id-ID")}`,
+          `Rp ${filteredData.reduce((a, b) => a + b.total_dibayar, 0).toLocaleString("id-ID")}`,
+          `Rp ${filteredData.reduce((a, b) => a + b.sisa_hutang, 0).toLocaleString("id-ID")}`,
+          "",
+        ],
+      ],
+      footStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0] },
+    });
+
+    // 3. Summary Block di Bawah Tabel
+    const finalY = doc.lastAutoTable.finalY + 15;
+    doc.setDrawColor(220, 220, 220);
+    doc.line(14, finalY - 5, 283, finalY - 5);
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("RINGKASAN PIUTANG:", 14, finalY);
+
+    doc.setFontSize(18);
+    doc.setTextColor(239, 68, 68); // Merah Custom
+    const totalSisa = filteredData
+      .reduce((a, b) => a + b.sisa_hutang, 0)
+      .toLocaleString("id-ID");
+    doc.text(`TOTAL SISA PIUTANG: Rp ${totalSisa}`, 283, finalY + 2, {
+      align: "right",
+    });
+
+    // 4. Save
+    doc.save(`Laporan_Hutang_${statusLabel.replace(" ", "_")}.pdf`);
+  };
 
   // Fetch data pegawai untuk dropdown
   useEffect(() => {
@@ -334,12 +438,23 @@ const Hutang = () => {
             Manajemen Piutang Pegawai Berkah Angsana
           </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-custom-merah-terang text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 hover:scale-105 transition-all"
-        >
-          <MdAddCircle size={18} /> Input Transaksi Baru
-        </button>
+        <div className="flex gap-3">
+          {/* TOMBOL EXPORT PDF */}
+          <button
+            onClick={exportHutangToPDF}
+            disabled={loading || filteredData.length === 0}
+            className="flex items-center gap-2 px-6 py-3 bg-custom-merah-terang text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 hover:scale-105 transition-all"
+          >
+            <MdDownload size={18} className="text-white" /> Export PDF
+          </button>
+
+          <button
+            className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-white/5 text-custom-gelap dark:text-white border border-gray-200 dark:border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-gray-50 transition-all disabled:opacity-50"
+            onClick={() => setShowAddModal(true)}
+          >
+            <MdAddCircle size={18} /> Input Transaksi Baru
+          </button>
+        </div>
       </div>
       {/* Toolbar Filter */}
       <div className="bg-white dark:bg-custom-gelap p-4 rounded-[30px] shadow-sm border border-gray-100 dark:border-white/5 flex flex-col md:flex-row gap-4 items-center">

@@ -10,6 +10,8 @@ import {
 } from "react-icons/md";
 import Api from "../utils/Api";
 import Swal from "sweetalert2";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const Gaji = () => {
   const [loading, setLoading] = useState(false);
@@ -37,6 +39,158 @@ const Gaji = () => {
     "November",
     "Desember",
   ];
+
+  const exportToPDF = () => {
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const periode = `${monthNames[selectedMonth - 1]} ${selectedYear}`;
+
+    // 1. Header Laporan
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("LAPORAN PENGGAJIAN PT. BERKAH ANGSANA TEKNIKA", 14, 15);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Periode: ${periode}`, 14, 21);
+    doc.text(`Dicetak: ${new Date().toLocaleString("id-ID")}`, 14, 26);
+
+    // 2. Data Preparation
+    const tableColumn = [
+      "No",
+      "Nama Pegawai",
+      "HK",
+      "Gapok",
+      "T.Jab",
+      "T.Mkn",
+      "T.Trp",
+      "T.Khs",
+      "Pot.Abs",
+      "Pot.Hut",
+      "Subtotal",
+      "Lembur",
+      "TOTAL NET",
+    ];
+
+    const tableRows = payrollData.map((row, index) => [
+      index + 1,
+      row.nama_lengkap,
+      row.total_hari_kerja,
+      Math.floor(row.gapok).toLocaleString(),
+      Math.floor(row.t_jab).toLocaleString(),
+      Math.floor(row.t_mkn).toLocaleString(),
+      Math.floor(row.t_trp).toLocaleString(),
+      Math.floor(row.t_khs || 0).toLocaleString(),
+      Math.floor(row.total_potongan).toLocaleString(),
+      Math.floor(row.potongan_hutang || 0).toLocaleString(),
+      Math.floor(
+        row.total_diterima - (row.potongan_hutang || 0),
+      ).toLocaleString(),
+      Math.floor(row.lembur || 0).toLocaleString(),
+      Math.floor(
+        row.total_diterima - (row.potongan_hutang || 0) + (row.lembur || 0),
+      ).toLocaleString(),
+    ]);
+
+    // 3. Generate Table dengan Footer Kolom
+    autoTable(doc, {
+      startY: 32,
+      head: [tableColumn],
+      body: tableRows,
+      theme: "grid",
+      styles: { fontSize: 6.5, cellPadding: 2 },
+      headStyles: { fillColor: [239, 68, 68], halign: "center" },
+      columnStyles: {
+        0: { cellWidth: 7, halign: "center" },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 8, halign: "center" },
+      },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.column.index >= 3)
+          data.cell.styles.halign = "right";
+      },
+      // Menambahkan Footer di dalam tabel PDF
+      foot: [
+        [
+          {
+            content: "TOTAL PER KOLOM",
+            colSpan: 3,
+            styles: { halign: "center", fontStyle: "bold" },
+          },
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          Math.floor(summary.total_pot_hutang).toLocaleString(),
+          Math.floor(summary.total_basic).toLocaleString(),
+          Math.floor(summary.total_lembur).toLocaleString(),
+          Math.floor(summary.grand_total).toLocaleString(),
+        ],
+      ],
+      footStyles: {
+        fillColor: [245, 245, 245],
+        textColor: [0, 0, 0],
+        fontStyle: "bold",
+        halign: "right",
+      },
+    });
+
+    // 4. SUMMARY BLOCK (Teks Besar di Bawah Tabel)
+    const finalY = doc.lastAutoTable.finalY + 15;
+
+    // Garis pemisah
+    doc.setDrawColor(220, 220, 220);
+    doc.line(14, finalY - 5, 283, finalY - 5);
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("REKAPITULASI PEMBAYARAN:", 14, finalY);
+
+    // Baris 1: Subtotal
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text("Total Gaji (Pokok + Tunjangan - Potongan):", 14, finalY + 8);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      `Rp ${Math.floor(summary.total_basic).toLocaleString()}`,
+      283,
+      finalY + 8,
+      { align: "right" },
+    );
+
+    // Baris 2: Lembur
+    doc.setFont("helvetica", "normal");
+    doc.text("Total Upah Lembur Karyawan:", 14, finalY + 15);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 140, 0); // Orange
+    doc.text(
+      `+ Rp ${Math.floor(summary.total_lembur).toLocaleString()}`,
+      283,
+      finalY + 15,
+      { align: "right" },
+    );
+
+    // Baris 3: Grand Total
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(14);
+    doc.text("TOTAL DANA YANG DIKELUARKAN:", 14, finalY + 26);
+    doc.setFontSize(16);
+    doc.setTextColor(34, 197, 94); // Hijau
+    doc.text(
+      `Rp ${Math.floor(summary.grand_total).toLocaleString()}`,
+      283,
+      finalY + 26,
+      { align: "right" },
+    );
+
+    // 5. Save PDF
+    doc.save(`Rekapan_Gaji_${periode.replace(" ", "_")}.pdf`);
+  };
 
   const fetchPayroll = useCallback(async () => {
     setLoading(true);
@@ -208,8 +362,12 @@ const Gaji = () => {
             </select>
           </div>
 
-          <button className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-600/20">
-            <MdFileDownload size={18} /> Export Laporan
+          <button
+            onClick={exportToPDF}
+            disabled={loading || payrollData.length === 0}
+            className="flex items-center gap-2 px-5 py-2.5 bg-custom-merah-terang text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-custom-merah-terang/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+          >
+            <MdFileDownload size={18} /> Export PDF
           </button>
         </div>
       </div>
