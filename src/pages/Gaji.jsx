@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   MdSearch,
@@ -7,14 +7,18 @@ import {
   MdCalendarToday,
   MdOutlineInfo,
   MdClose,
+  MdPerson,
 } from "react-icons/md";
 import Api from "../utils/Api";
 import Swal from "sweetalert2";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { exportPayrollToPDF } from "./export/ExportPayroll";
 
 const Gaji = () => {
   const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [selectedStatus, setSelectedStatus] = useState("Semua Status");
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(2026);
   const [payrollData, setPayrollData] = useState([]);
@@ -41,155 +45,64 @@ const Gaji = () => {
   ];
 
   const exportToPDF = () => {
-    const doc = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4",
-    });
+    // 1. Tentukan data mana yang akan di-export
+    const dataToExport =
+      selectedIds.length > 0
+        ? filteredPayroll.filter((p) => selectedIds.includes(p.id_pegawai))
+        : filteredPayroll;
 
-    const periode = `${monthNames[selectedMonth - 1]} ${selectedYear}`;
+    // 2. Hitung ulang summary khusus untuk data yang akan di-export
+    const exportSummary = {
+      jumlah_pegawai: dataToExport.length,
+      total_potongan: dataToExport.reduce(
+        (acc, row) => acc + (row.total_potongan || 0),
+        0,
+      ),
+      total_pot_hutang: dataToExport.reduce(
+        (acc, row) => acc + (row.potongan_hutang || 0),
+        0,
+      ),
+      total_lembur: dataToExport.reduce(
+        (acc, row) => acc + (row.lembur || 0),
+        0,
+      ),
+      total_basic: dataToExport.reduce(
+        (acc, row) => acc + (row.total_diterima - (row.potongan_hutang || 0)),
+        0,
+      ),
+      grand_total: dataToExport.reduce(
+        (acc, row) =>
+          acc +
+          (row.total_diterima - (row.potongan_hutang || 0) + (row.lembur || 0)),
+        0,
+      ),
+    };
 
-    // 1. Header Laporan
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text("LAPORAN PENGGAJIAN PT. BERKAH ANGSANA TEKNIKA", 14, 15);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Periode: ${periode}`, 14, 21);
-    doc.text(`Dicetak: ${new Date().toLocaleString("id-ID")}`, 14, 26);
-
-    // 2. Data Preparation
-    const tableColumn = [
-      "No",
-      "Nama Pegawai",
-      "HK",
-      "Gapok",
-      "T.Jab",
-      "T.Mkn",
-      "T.Trp",
-      "T.Khs",
-      "Pot.Abs",
-      "Pot.Hut",
-      "Subtotal",
-      "Lembur",
-      "TOTAL NET",
-    ];
-
-    const tableRows = payrollData.map((row, index) => [
-      index + 1,
-      row.nama_lengkap,
-      row.total_hari_kerja,
-      Math.floor(row.gapok).toLocaleString(),
-      Math.floor(row.t_jab).toLocaleString(),
-      Math.floor(row.t_mkn).toLocaleString(),
-      Math.floor(row.t_trp).toLocaleString(),
-      Math.floor(row.t_khs || 0).toLocaleString(),
-      Math.floor(row.total_potongan).toLocaleString(),
-      Math.floor(row.potongan_hutang || 0).toLocaleString(),
-      Math.floor(
-        row.total_diterima - (row.potongan_hutang || 0),
-      ).toLocaleString(),
-      Math.floor(row.lembur || 0).toLocaleString(),
-      Math.floor(
-        row.total_diterima - (row.potongan_hutang || 0) + (row.lembur || 0),
-      ).toLocaleString(),
-    ]);
-
-    // 3. Generate Table dengan Footer Kolom
-    autoTable(doc, {
-      startY: 32,
-      head: [tableColumn],
-      body: tableRows,
-      theme: "grid",
-      styles: { fontSize: 6.5, cellPadding: 2 },
-      headStyles: { fillColor: [239, 68, 68], halign: "center" },
-      columnStyles: {
-        0: { cellWidth: 7, halign: "center" },
-        1: { cellWidth: 30 },
-        2: { cellWidth: 8, halign: "center" },
-      },
-      didParseCell: (data) => {
-        if (data.section === "body" && data.column.index >= 3)
-          data.cell.styles.halign = "right";
-      },
-      // Menambahkan Footer di dalam tabel PDF
-      foot: [
-        [
-          {
-            content: "TOTAL PER KOLOM",
-            colSpan: 3,
-            styles: { halign: "center", fontStyle: "bold" },
-          },
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          Math.floor(summary.total_pot_hutang).toLocaleString(),
-          Math.floor(summary.total_basic).toLocaleString(),
-          Math.floor(summary.total_lembur).toLocaleString(),
-          Math.floor(summary.grand_total).toLocaleString(),
-        ],
-      ],
-      footStyles: {
-        fillColor: [245, 245, 245],
-        textColor: [0, 0, 0],
-        fontStyle: "bold",
-        halign: "right",
-      },
-    });
-
-    // 4. SUMMARY BLOCK (Teks Besar di Bawah Tabel)
-    const finalY = doc.lastAutoTable.finalY + 15;
-
-    // Garis pemisah
-    doc.setDrawColor(220, 220, 220);
-    doc.line(14, finalY - 5, 283, finalY - 5);
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("REKAPITULASI PEMBAYARAN:", 14, finalY);
-
-    // Baris 1: Subtotal
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "normal");
-    doc.text("Total Gaji (Pokok + Tunjangan - Potongan):", 14, finalY + 8);
-    doc.setFont("helvetica", "bold");
-    doc.text(
-      `Rp ${Math.floor(summary.total_basic).toLocaleString()}`,
-      283,
-      finalY + 8,
-      { align: "right" },
+    // 3. Panggil fungsi export PDF
+    exportPayrollToPDF(
+      dataToExport,
+      exportSummary,
+      monthNames,
+      selectedMonth,
+      selectedYear,
     );
+  };
 
-    // Baris 2: Lembur
-    doc.setFont("helvetica", "normal");
-    doc.text("Total Upah Lembur Karyawan:", 14, finalY + 15);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(255, 140, 0); // Orange
-    doc.text(
-      `+ Rp ${Math.floor(summary.total_lembur).toLocaleString()}`,
-      283,
-      finalY + 15,
-      { align: "right" },
+  // Fungsi Pilih/Hapus Semua yang tampil di tabel (sesuai filter status)
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = filteredPayroll.map((p) => p.id_pegawai);
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // Fungsi Pilih/Hapus per baris
+  const handleSelectRow = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
-
-    // Baris 3: Grand Total
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(14);
-    doc.text("TOTAL DANA YANG DIKELUARKAN:", 14, finalY + 26);
-    doc.setFontSize(16);
-    doc.setTextColor(34, 197, 94); // Hijau
-    doc.text(
-      `Rp ${Math.floor(summary.grand_total).toLocaleString()}`,
-      283,
-      finalY + 26,
-      { align: "right" },
-    );
-
-    // 5. Save PDF
-    doc.save(`Rekapan_Gaji_${periode.replace(" ", "_")}.pdf`);
   };
 
   const fetchPayroll = useCallback(async () => {
@@ -197,7 +110,7 @@ const Gaji = () => {
     try {
       const periode = `${String(selectedMonth).padStart(2, "0")}-${selectedYear}`;
 
-      // FETCH SEMUA SUMBER DATA SECARA PARALEL
+      // 1. FETCH SEMUA SUMBER DATA SECARA PARALEL
       const [resPayroll, resKomponen, resPotHutang, resLembur] =
         await Promise.all([
           Api.get("/payroll", { params: { periode } }),
@@ -217,19 +130,18 @@ const Gaji = () => {
       const listPayroll = resPayroll.data.data.data;
       const listKomponen = resKomponen.data.data.data;
       const listPotHutang = resPotHutang.data.data;
-      const listLembur = resLembur.data.data; // Data lembur pegawai
+      const listLembur = resLembur.data.data;
 
+      // 2. MERGE DATA INDIVIDUAL
       const mergedData = listPayroll.map((p) => {
         const detailK = listKomponen.find((k) => k.id_pegawai === p.id_pegawai);
 
-        // 1. Ambil Potongan Hutang (Hanya metode potong_gaji)
         const hutangPegawai = listPotHutang
           .filter(
             (h) => h.id_pegawai === p.id_pegawai && h.metode === "potong_gaji",
           )
           .reduce((acc, curr) => acc + curr.jumlah, 0);
 
-        // 2. Ambil Upah Lembur dari Rekap Summary
         const upahLembur =
           listLembur.find((l) => l.id_pegawai === p.id_pegawai)
             ?.total_upah_lembur || 0;
@@ -245,29 +157,40 @@ const Gaji = () => {
           t_trp: getVal("T_TRP"),
           t_khs: getVal("T_KHS"),
           potongan_hutang: hutangPegawai,
-          lembur: upahLembur, // Sekarang nilai lembur diambil dari API Lembur
+          lembur: upahLembur,
         };
       });
 
-      // HITUNG AKUMULASI UNTUK FOOTER SUMMARY
+      // 3. HITUNG AKUMULASI (UPDATE DISINI)
+      // Ambil total potongan absensi dari semua pegawai
+      const totalPotonganAbsensi = mergedData.reduce(
+        (acc, row) => acc + (row.total_potongan || 0),
+        0,
+      );
+
+      // Total potongan hutang
       const totalHutang = mergedData.reduce(
         (acc, row) => acc + row.potongan_hutang,
         0,
       );
+
+      // Total upah lembur
       const totalLembur = mergedData.reduce((acc, row) => acc + row.lembur, 0);
 
-      // Subtotal = (Total Diterima Backend - Potongan Hutang)
+      // Subtotal (Pokok + Tunj - Potongan Absen - Potongan Hutang)
       const totalSubtotal = mergedData.reduce(
         (acc, row) => acc + (row.total_diterima - row.potongan_hutang),
         0,
       );
 
-      // Grand Total = Subtotal + Lembur
+      // Grand Total (Final Net yang dibayarkan perusahaan)
       const grandTotal = totalSubtotal + totalLembur;
 
+      // 4. UPDATE STATE
       setPayrollData(mergedData);
       setSummary({
         jumlah_pegawai: mergedData.length,
+        total_potongan: totalPotonganAbsensi, // Variable baru untuk Export PDF
         total_pot_hutang: totalHutang,
         total_lembur: totalLembur,
         total_basic: totalSubtotal,
@@ -283,6 +206,44 @@ const Gaji = () => {
   useEffect(() => {
     fetchPayroll();
   }, [fetchPayroll]);
+
+  const filteredPayroll = useMemo(() => {
+    return payrollData.filter((row) => {
+      const matchesStatus =
+        selectedStatus === "Semua Status" || row.nama_status === selectedStatus;
+      return matchesStatus;
+    });
+  }, [payrollData, selectedStatus]);
+
+  const displaySummary = useMemo(() => {
+    if (filteredPayroll.length === 0) return summary;
+
+    const totalPotonganAbsensi = filteredPayroll.reduce(
+      (acc, row) => acc + (row.total_potongan || 0),
+      0,
+    );
+    const totalHutang = filteredPayroll.reduce(
+      (acc, row) => acc + row.potongan_hutang,
+      0,
+    );
+    const totalLembur = filteredPayroll.reduce(
+      (acc, row) => acc + row.lembur,
+      0,
+    );
+    const totalSubtotal = filteredPayroll.reduce(
+      (acc, row) => acc + (row.total_diterima - row.potongan_hutang),
+      0,
+    );
+
+    return {
+      jumlah_pegawai: filteredPayroll.length,
+      total_potongan: totalPotonganAbsensi,
+      total_pot_hutang: totalHutang,
+      total_lembur: totalLembur,
+      total_basic: totalSubtotal,
+      grand_total: totalSubtotal + totalLembur,
+    };
+  }, [filteredPayroll, summary]);
 
   const handleSimulate = async (id_pegawai) => {
     setShowSimulasi(true);
@@ -337,6 +298,20 @@ const Gaji = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
+          {/* Status Filter Dropdown */}
+          <div className="flex items-center gap-1 bg-white dark:bg-custom-gelap p-1 rounded-xl border border-gray-100 dark:border-white/10 shadow-sm">
+            <MdPerson className="ml-2 text-custom-cerah" size={14} />
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="bg-transparent border-none text-[10px] font-black outline-none dark:text-white cursor-pointer px-1 py-1.5 uppercase tracking-tighter"
+            >
+              <option value="Semua Status">SEMUA STATUS</option>
+              <option value="Pegawai Tetap">PEGAWAI TETAP</option>
+              <option value="Pegawai Tidak Tetap">TIDAK TETAP</option>
+              <option value="Magang">MAGANG</option>
+            </select>
+          </div>
           {/* Month & Year Selector */}
           <div className="flex items-center gap-1 bg-white dark:bg-custom-gelap p-1 rounded-xl border border-gray-100 dark:border-white/10 shadow-sm">
             <MdCalendarToday className="ml-2 text-custom-cerah" size={14} />
@@ -373,30 +348,30 @@ const Gaji = () => {
       </div>
 
       {/* Summary Cards */}
-      {summary && (
+      {displaySummary && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 animate-in zoom-in duration-300">
           {[
             {
               label: "Total Pegawai",
-              val: `${summary.jumlah_pegawai} Pegawai`,
+              val: `${displaySummary.jumlah_pegawai} Pegawai`,
               color: "border-gray-200",
               text: "dark:text-white",
             },
             {
               label: "Gaji Pokok & Tunj",
-              val: `Rp ${Math.floor(summary.total_basic).toLocaleString()}`,
+              val: `Rp ${Math.floor(displaySummary.total_basic).toLocaleString()}`,
               color: "border-l-blue-500",
               text: "text-blue-600",
             },
             {
               label: "Total Lemburan",
-              val: `Rp ${summary.total_lembur.toLocaleString()}`,
+              val: `Rp ${displaySummary.total_lembur.toLocaleString()}`,
               color: "border-l-orange-500",
               text: "text-orange-500",
             },
             {
               label: "Grand Total (Net)",
-              val: `Rp ${Math.floor(summary.grand_total).toLocaleString()}`,
+              val: `Rp ${Math.floor(displaySummary.grand_total).toLocaleString()}`,
               color: "border-l-green-600",
               text: "text-green-600",
             },
@@ -424,7 +399,20 @@ const Gaji = () => {
             <thead>
               <tr className="bg-gray-50 dark:bg-[#3d2e39] font-black uppercase tracking-widest text-gray-400">
                 {/* HEADER STICKY TOP */}
-                <th className="p-3 text-left sticky left-0 top-0 bg-gray-50 dark:bg-[#3d2e39] z-[50] w-[180px] border-b border-gray-100 dark:border-white/10 text-[8.5px]">
+                <th className="p-3 sticky left-0 top-0 bg-gray-50 dark:bg-[#3d2e39] z-[60] w-[40px] border-b border-gray-100 dark:border-white/10 text-center">
+                  {" "}
+                  <input
+                    type="checkbox"
+                    onChange={handleSelectAll}
+                    checked={
+                      filteredPayroll.length > 0 &&
+                      selectedIds.length === filteredPayroll.length
+                    }
+                    className="cursor-pointer"
+                  />
+                </th>
+                <th className="p-3 text-left sticky left-[40px] top-0 bg-gray-50 dark:bg-[#3d2e39] z-[60] w-[180px] border-b border-gray-100 dark:border-white/10 text-[8.5px] shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                  {" "}
                   Data Pegawai
                 </th>
                 <th className="px-1 py-2 text-center sticky top-0 bg-gray-50 dark:bg-[#3d2e39] z-[40] border-b border-gray-100 dark:border-white/10 italic w-[40px]">
@@ -485,7 +473,7 @@ const Gaji = () => {
                     </div>
                   </td>
                 </tr>
-              ) : payrollData.length === 0 ? (
+              ) : filteredPayroll.length === 0 ? (
                 /* EMPTY STATE */
                 <tr>
                   <td colSpan="13" className="py-20 text-center">
@@ -496,7 +484,7 @@ const Gaji = () => {
                 </tr>
               ) : (
                 /* DATA STATE */
-                payrollData.map((row) => {
+                filteredPayroll.map((row) => {
                   const potHutang = row.potongan_hutang || 0;
                   const tKhusus = row.t_khs || 0;
                   const subtotalBase = row.total_diterima - potHutang;
@@ -508,7 +496,17 @@ const Gaji = () => {
                       key={row.id_payroll}
                       className="group hover:bg-gray-50/50 dark:hover:bg-white/5 transition-all"
                     >
-                      <td className="p-2 sticky left-0 bg-white dark:bg-custom-gelap z-[30] border-r border-gray-100 dark:border-white/10 shadow-sm">
+                      <td className="p-2 sticky left-0 bg-white dark:bg-custom-gelap z-[30] border-r border-gray-100 dark:border-white/10 text-center">
+                        {" "}
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(row.id_pegawai)}
+                          onChange={() => handleSelectRow(row.id_pegawai)}
+                          className="cursor-pointer"
+                        />
+                      </td>
+                      <td className="p-2 sticky left-[40px] bg-white dark:bg-custom-gelap z-[30] border-r border-gray-100 dark:border-white/10 shadow-[4px_0_8px_rgba(0,0,0,0.03)]">
+                        {" "}
                         <div className="flex items-center gap-2 pl-1">
                           <div className="w-6 h-6 rounded-lg bg-custom-merah-terang text-white flex items-center justify-center font-black text-[8px] uppercase shadow-sm">
                             {row.nama_lengkap.charAt(0)}
@@ -572,40 +570,52 @@ const Gaji = () => {
               )}
             </tbody>
 
-            {/* FOOTER STICKY BOTTOM - RAMPING */}
+            {/* FOOTER STICKY BOTTOM - CLEAN & READABLE */}
             <tfoot className="sticky bottom-0 z-[60]">
-              <tr className="text-custom-gelap dark:text-white italic bg-gray-100 dark:bg-[#322730] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] text-[7.5px]">
-                <td className="p-3 sticky left-0 bg-gray-100 dark:bg-[#322730] border-r border-gray-200 dark:border-white/10 uppercase tracking-widest font-black z-[70]">
+              <tr className="text-custom-gelap dark:text-white bg-gray-100 dark:bg-[#322730] shadow-[0_-4px_10px_rgba(0,0,0,0.1)] border-t border-gray-200 dark:border-white/10 font-black">
+                {/* Kolom 1 (Sticky Left 0) */}
+                <td className="p-3 sticky left-0 bg-gray-100 dark:bg-[#322730] z-[70] w-[40px] border-r border-gray-200 dark:border-white/10"></td>
+
+                {/* Kolom 2 (Sticky Left 40px) */}
+                <td className="p-3 sticky left-[40px] bg-gray-100 dark:bg-[#322730] border-r border-gray-200 dark:border-white/10 uppercase tracking-widest text-[10px] z-[70]">
                   Total Akumulasi
                 </td>
+
                 <td className="w-[40px] bg-gray-100 dark:bg-[#322730]"></td>
                 <td
                   colSpan="6"
-                  className="p-1 text-right opacity-40 uppercase tracking-tighter bg-gray-100 dark:bg-[#322730] font-black italic"
+                  className="p-1 text-right opacity-30 uppercase tracking-[2px] text-[9px] bg-gray-100 dark:bg-[#322730] italic"
                 >
                   Summary Report —&gt;
                 </td>
 
                 {/* Total Potongan Hutang */}
-                <td className="px-1 py-2 text-right text-orange-600 font-black bg-gray-100 dark:bg-[#322730]">
-                  -Rp {summary?.total_pot_hutang?.toLocaleString()}
+                <td className="px-1 py-3 text-right text-red-600 text-[11px] bg-gray-100 dark:bg-[#322730]">
+                  -Rp {displaySummary?.total_pot_hutang?.toLocaleString()}
                 </td>
 
-                {/* Total Subtotal (Setelah Potong Hutang) */}
-                <td className="px-2 py-2 text-right text-custom-merah-terang font-black border-l border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-[#322730] min-w-[110px]">
-                  Rp {Math.floor(summary?.total_basic || 0).toLocaleString()}
+                {/* Total Subtotal */}
+                <td className="px-2 py-3 text-right text-custom-merah-terang text-[11px] border-l border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-[#322730] min-w-[110px]">
+                  Rp{" "}
+                  {Math.floor(
+                    displaySummary?.total_basic || 0,
+                  ).toLocaleString()}
                 </td>
 
                 {/* Total Lembur */}
-                <td className="px-2 py-2 text-right text-orange-600 font-black bg-gray-100 dark:bg-[#322730] min-w-[90px]">
-                  Rp {(summary?.total_lembur || 0).toLocaleString()}
+                <td className="px-2 py-3 text-right text-orange-600 text-[11px] bg-gray-100 dark:bg-[#322730] min-w-[90px]">
+                  Rp {(displaySummary?.total_lembur || 0).toLocaleString()}
                 </td>
 
                 {/* Grand Total */}
-                <td className="px-3 py-2 text-right text-green-700 dark:text-green-400 text-[9.5px] font-black bg-gray-100 dark:bg-[#322730] min-w-[120px]">
-                  Rp {Math.floor(summary?.grand_total || 0).toLocaleString()}
+                <td className="px-3 py-3 text-right text-green-700 dark:text-green-400 text-[13px] bg-gray-100 dark:bg-[#322730] min-w-[120px] italic underline decoration-double underline-offset-4">
+                  Rp{" "}
+                  {Math.floor(
+                    displaySummary?.grand_total || 0,
+                  ).toLocaleString()}
                 </td>
-                <td className="px-3 py-2 bg-gray-100 dark:bg-[#322730]"></td>
+
+                <td className="px-3 py-3 bg-gray-100 dark:bg-[#322730]"></td>
               </tr>
             </tfoot>
           </table>

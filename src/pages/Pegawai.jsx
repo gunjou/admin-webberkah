@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   MdSearch,
   MdAdd,
@@ -15,6 +15,7 @@ import {
   MdDownload,
 } from "react-icons/md";
 import ReactDOM from "react-dom";
+import Swal from "sweetalert2";
 
 import Api from "../utils/Api";
 import ModalTambahPegawai from "../components/modals/ModalTambahPegawai";
@@ -46,6 +47,9 @@ const Pegawai = () => {
   const [isAkunModalOpen, setIsAkunModalOpen] = useState(false);
   const [isLokasiModalOpen, setIsLokasiModalOpen] = useState(false);
 
+  const tableContainerRef = useRef(null);
+  const scrollPosRef = useRef(0);
+
   // 1. Fungsi untuk Fetch Data dari API
   const fetchPegawai = async (category = "profile", forceRefresh = false) => {
     // Mapping endpoint
@@ -65,6 +69,11 @@ const Pegawai = () => {
       return;
     }
 
+    // REKAM POSISI SCROLL SEBELUM LOADING
+    if (tableContainerRef.current) {
+      scrollPosRef.current = tableContainerRef.current.scrollTop;
+    }
+
     setIsLoading(true);
     try {
       const response = await Api.get(`/pegawai/${target}`);
@@ -73,6 +82,11 @@ const Pegawai = () => {
           ...prev,
           [target]: response.data.data,
         }));
+        setTimeout(() => {
+          if (tableContainerRef.current) {
+            tableContainerRef.current.scrollTop = scrollPosRef.current;
+          }
+        }, 0);
       }
     } catch (error) {
       console.error(`Gagal mengambil data ${category}:`, error);
@@ -139,22 +153,53 @@ const Pegawai = () => {
   };
 
   const handleDeletePegawai = async (id, nama) => {
-    const confirmDelete = window.confirm(
-      `Apakah Anda yakin ingin menghapus data pegawai "${nama}"? Semua data terkait (akun, lokasi, & riwayat) akan ikut terhapus.`
-    );
+    // Styling Custom Swal (Samakan dengan Modal Edit Akun agar konsisten)
+    const swalCustom = {
+      popup: "rounded-[35px] dark:bg-custom-gelap dark:text-white border-none",
+      confirmButton:
+        "rounded-2xl px-6 py-3 text-[10px] font-black uppercase tracking-widest",
+      cancelButton:
+        "rounded-2xl px-6 py-3 text-[10px] font-black uppercase tracking-widest",
+    };
 
-    if (confirmDelete) {
+    const result = await Swal.fire({
+      title: "Hapus Pegawai?",
+      html: `Apakah Anda yakin ingin menghapus <b class="text-custom-merah-terang uppercase">${nama}</b>?<br/>
+           <span class="text-[10px] text-gray-400">Semua data akun, lokasi, & riwayat akan terhapus permanen.</span>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "YA, HAPUS PERMANEN",
+      cancelButtonText: "BATAL",
+      confirmButtonColor: "#ef4444", // Merah Terang
+      cancelButtonColor: "#9ca3af", // Gray 400
+      customClass: swalCustom,
+      reverseButtons: true, // Tombol Batal di kiri, Hapus di kanan
+    });
+
+    if (result.isConfirmed) {
       setIsDeleting(true); // Aktifkan overlay spinner
       try {
         const res = await Api.delete(`/pegawai/delete/${id}`);
 
         if (res.data.success) {
-          alert("Pegawai berhasil dihapus dari sistem.");
-          fetchPegawai();
+          Swal.fire({
+            title: "Terhapus!",
+            text: `Data pegawai ${nama} telah dibersihkan dari sistem.`,
+            icon: "success",
+            confirmButtonColor: "#22c55e",
+            customClass: swalCustom,
+          });
+          fetchPegawai(mainTab, true);
         }
       } catch (err) {
         console.error("Gagal menghapus pegawai:", err);
-        alert(err.response?.data?.message || "Gagal menghapus data pegawai.");
+        Swal.fire({
+          title: "Gagal Menghapus!",
+          text: err.response?.data?.message || "Terjadi kesalahan pada server.",
+          icon: "error",
+          confirmButtonColor: "#ef4444",
+          customClass: swalCustom,
+        });
       } finally {
         setIsDeleting(false); // Matikan overlay spinner
       }
@@ -334,7 +379,10 @@ const Pegawai = () => {
 
       {/* TABLE DATA LIST */}
       <div className="bg-white dark:bg-custom-gelap rounded-[40px] shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden flex flex-col max-h-[380px]">
-        <div className="flex-1 overflow-auto custom-scrollbar">
+        <div
+          ref={tableContainerRef}
+          className="flex-1 overflow-auto custom-scrollbar"
+        >
           <table className="w-full text-[10px] border-collapse min-w-[400px] table-fixed">
             <thead>
               <tr className="bg-gray-50 dark:bg-[#3d2e39] font-black uppercase tracking-widest text-gray-400">
@@ -478,8 +526,8 @@ const Pegawai = () => {
                                 p.status_pegawai === "Pegawai Tetap"
                                   ? "bg-blue-100 text-blue-600"
                                   : p.status_pegawai === "Pegawai Tidak Tetap"
-                                  ? "bg-green-100 text-green-600"
-                                  : "bg-purple-100 text-purple-600"
+                                    ? "bg-green-100 text-green-600"
+                                    : "bg-purple-100 text-purple-600"
                               }`}
                             >
                               {p.status_pegawai}
@@ -800,7 +848,7 @@ const Pegawai = () => {
               </p>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
     </div>
   );
