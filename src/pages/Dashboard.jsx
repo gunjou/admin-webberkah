@@ -195,12 +195,21 @@ const Dashboard = () => {
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateObj = new Date(year, month, d);
-      const dateStr = dateObj.toISOString().split("T")[0]; // Format YYYY-MM-DD
+      const yearStr = dateObj.getFullYear();
+      const monthStr = String(dateObj.getMonth() + 1).padStart(2, "0");
+      const dayStr = String(dateObj.getDate()).padStart(2, "0");
+      const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
+      // const dateStr = dateObj.toISOString().split("T")[0]; // Format YYYY-MM-DD
 
       // Cari apakah tanggal ini ada di data libur API
       const holiday = dataLibur.find((h) => h.tanggal === dateStr);
       const isSunday = dateObj.getDay() === 0;
-      const isToday = new Date().toDateString() === dateObj.toDateString();
+      // const isToday = new Date().toDateString() === dateObj.toDateString();
+      const today = new Date();
+      const isToday =
+        dateObj.getDate() === today.getDate() &&
+        dateObj.getMonth() === today.getMonth() &&
+        dateObj.getFullYear() === today.getFullYear();
 
       days.push(
         <div
