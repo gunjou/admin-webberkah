@@ -10,6 +10,7 @@ import {
   MdChevronRight,
   MdSettingsSuggest,
 } from "react-icons/md";
+import { FaMedal } from "react-icons/fa";
 
 const Sidebar = ({ isOpen, isDark }) => {
   const location = useLocation();
@@ -29,6 +30,7 @@ const Sidebar = ({ isOpen, isDark }) => {
       ],
     },
     // ------------------------
+    { name: "Leaderboard", path: "/leaderboard", icon: <FaMedal /> }, // Bisa ganti icon ke MdAssessment jika ada
     { name: "Perhitungan Gaji", path: "/gaji", icon: <MdPayments /> },
     { name: "Hutang Pegawai", path: "/hutang", icon: <MdMoneyOff /> },
     { name: "Data Pegawai", path: "/pegawai", icon: <MdPeople /> },

@@ -25,6 +25,8 @@ import Jadwal from "./pages/master/Jadwal";
 import Rules from "./pages/master/Rules";
 import Kategori from "./pages/master/Kategori";
 import Perizinan from "./pages/absensi/Perizinan";
+import { MdLeaderboard } from "react-icons/md";
+import Leaderboard from "./pages/Leaderboard";
 
 const ProtectedRoute = () => {
   const token = localStorage.getItem("token");
@@ -69,6 +71,7 @@ function App() {
             <Route path="/absensi/rekapan" element={<Rekapan />} />
             <Route path="/absensi/perizinan" element={<Perizinan />} />
             <Route path="/absensi/lembur" element={<Lembur />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/gaji" element={<Gaji />} />
             <Route path="/hutang" element={<Hutang />} />
             <Route path="/pegawai" element={<Pegawai />} />
