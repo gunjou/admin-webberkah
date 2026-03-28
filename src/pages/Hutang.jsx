@@ -454,7 +454,7 @@ const Hutang = () => {
                 <th className="p-4 text-right sticky top-0 bg-gray-50 dark:bg-custom-gelap z-40 border-b border-gray-100 dark:border-white/5">
                   Total Pinjaman
                 </th>
-                <th className="p-4 text-right sticky top-0 bg-gray-50 dark:bg-custom-gelap z-40 border-b border-gray-100 dark:border-white/5 text-custom-merah-terang">
+                <th className="p-4 text-right sticky top-0 bg-gray-50 dark:bg-custom-gelap z-40 border-b border-gray-100 dark:border-white/5 text-green-600">
                   Total Dibayar
                 </th>
                 <th className="p-4 text-right sticky top-0 bg-gray-50 dark:bg-custom-gelap z-40 border-b border-gray-100 dark:border-white/5 text-custom-merah-terang">
