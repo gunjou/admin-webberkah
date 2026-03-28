@@ -29,6 +29,14 @@ const Gaji = () => {
   const [simulasiData, setSimulasiData] = useState(null);
   const [loadingSimulasi, setLoadingSimulasi] = useState(false);
 
+  // Generate payroll gaji
+  const [lastGenerated, setLastGenerated] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [jobId, setJobId] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [jobStatus, setJobStatus] = useState(null);
+  const [jobStep, setJobStep] = useState(null);
+
   const monthNames = [
     "Januari",
     "Februari",
@@ -131,6 +139,14 @@ const Gaji = () => {
       const listKomponen = resKomponen.data.data.data;
       const listPotHutang = resPotHutang.data.data;
       const listLembur = resLembur.data.data;
+
+      // Di dalam fetchPayroll, setelah mendapatkan listPayroll:
+      if (listPayroll.length > 0) {
+        // Ambil tanggal generate dari data pertama sebagai perwakilan periode
+        setLastGenerated(listPayroll[0].updated_at);
+      } else {
+        setLastGenerated(null);
+      }
 
       // 2. MERGE DATA INDIVIDUAL
       const mergedData = listPayroll.map((p) => {
@@ -245,6 +261,128 @@ const Gaji = () => {
     };
   }, [filteredPayroll, summary]);
 
+  const startPolling = (jobId) => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await Api.get(`/payroll/generate/status/${jobId}`);
+        const data = res.data;
+
+        setProgress(data.progress || 0);
+        setJobStatus(data.status);
+        setJobStep(data.step);
+
+        // ✅ SELESAI
+        if (data.status === "done") {
+          clearInterval(interval);
+          localStorage.removeItem("payroll_job_id"); // 🔥 WAJIB
+          setIsGenerating(false);
+
+          Swal.fire({
+            title: "BERHASIL!",
+            text: "Payroll selesai diproses.",
+            icon: "success",
+            confirmButtonColor: "#22c55e",
+          });
+
+          fetchPayroll();
+        }
+
+        // ❌ ERROR
+        if (data.status === "error") {
+          clearInterval(interval);
+          localStorage.removeItem("payroll_job_id"); // 🔥 WAJIB
+          setIsGenerating(false);
+
+          Swal.fire({
+            title: "GAGAL!",
+            text: data.error || "Terjadi kesalahan",
+            icon: "error",
+          });
+        }
+      } catch (err) {
+        clearInterval(interval);
+        setIsGenerating(false);
+      }
+    }, 1000); // tiap 1 detik
+  };
+
+  const handleGenerate = async () => {
+    const result = await Swal.fire({
+      title: "Generate Payroll?",
+      html: `Sistem akan menghitung ulang gaji seluruh pegawai untuk periode <b class="text-custom-merah-terang">${monthNames[selectedMonth - 1]} ${selectedYear}</b>.<br/><span class="text-[10px] text-gray-400">Proses ini akan memperbarui data absensi, lembur, dan potongan terbaru.</span>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "YA, GENERATE SEKARANG",
+      cancelButtonText: "BATAL",
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#9ca3af",
+      customClass: {
+        popup:
+          "rounded-[35px] dark:bg-custom-gelap dark:text-white border-none",
+        confirmButton:
+          "rounded-2xl px-6 py-3 text-[10px] font-black uppercase tracking-widest",
+        cancelButton:
+          "rounded-2xl px-6 py-3 text-[10px] font-black uppercase tracking-widest",
+      },
+      reverseButtons: true,
+    });
+
+    if (result.isConfirmed) {
+      setIsGenerating(true);
+      try {
+        // Pastikan nilai dikonversi ke Integer murni sebelum dikirim
+        const payload = {
+          bulan: Number(selectedMonth),
+          tahun: Number(selectedYear),
+        };
+
+        const res = await Api.post("/payroll/generate", payload);
+
+        const job_id = res.data.job_id;
+
+        localStorage.setItem("payroll_job_id", job_id); // 🔥 TAMBAH
+
+        setJobId(job_id);
+        setIsGenerating(true);
+        setProgress(0);
+        setJobStatus("running");
+
+        startPolling(job_id);
+      } catch (err) {
+        // 🔥 HANDLE JOB SUDAH ADA
+        if (err.response?.status === 409) {
+          const job_id = err.response.data.job_id;
+
+          localStorage.setItem("payroll_job_id", job_id);
+
+          setJobId(job_id);
+          setIsGenerating(true);
+          setJobStatus("running");
+
+          startPolling(job_id);
+
+          return;
+        }
+
+        console.error(err);
+      } finally {
+        // setIsGenerating(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const savedJobId = localStorage.getItem("payroll_job_id");
+
+    if (savedJobId) {
+      setJobId(savedJobId);
+      setIsGenerating(true);
+      setJobStatus("running");
+
+      startPolling(savedJobId); // 🔥 RESUME
+    }
+  }, []);
+
   const handleSimulate = async (id_pegawai) => {
     setShowSimulasi(true);
     setLoadingSimulasi(true);
@@ -295,6 +433,71 @@ const Gaji = () => {
               {monthNames[selectedMonth - 1]} {selectedYear}
             </span>
           </p>
+        </div>
+
+        {/* TOMBOL GENERATE & INFO STATUS */}
+        <div className="flex items-center gap-3 mr-2 bg-gray-50 dark:bg-white/5 p-1.5 rounded-[22px] border border-gray-100 dark:border-white/5 shadow-inner">
+          {/* Info Status Generate */}
+          <div className="flex flex-col items-end px-2 leading-none">
+            <span className="text-[7px] pb-1 font-black text-gray-400 uppercase tracking-widest">
+              Status Sinkronisasi
+            </span>
+            {lastGenerated ? (
+              <span className="text-[9px] font-black text-custom-gelap dark:text-white italic">
+                {new Date(lastGenerated).toLocaleString("id-ID", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            ) : (
+              <span className="text-[9px] font-black text-custom-merah-terang animate-pulse uppercase italic tracking-tighter">
+                Belum Pernah Generate
+              </span>
+            )}
+          </div>
+
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating || loading}
+            className={`
+        flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg
+        ${
+          isGenerating
+            ? "bg-gray-400 cursor-not-allowed"
+            : lastGenerated
+              ? "bg-custom-cerah text-white shadow-custom-cerah/30 hover:scale-105 active:scale-95"
+              : "bg-red-600 text-white shadow-red-600/40 hover:scale-105 active:scale-95"
+        }
+      `}
+          >
+            {isGenerating ? (
+              <div className="flex flex-col items-start w-full">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>{progress}%</span>
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full h-1 bg-white/30 rounded-full mt-1 overflow-hidden">
+                  <div
+                    className="h-full bg-white transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <MdPayments size={14} />
+            )}
+          </button>
+          {isGenerating && (
+            <div className="text-[9px] text-gray-400 italic">
+              {jobStep === "simulate" && "Menghitung data pegawai..."}
+              {jobStep === "writing" && "Menyimpan ke database..."}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
