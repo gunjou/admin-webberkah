@@ -419,6 +419,29 @@ const Gaji = () => {
     }
   };
 
+  const downloadRekening = async () => {
+    setLoading(true);
+    try {
+      const { data: blobData } = await Api.get("/export/report/rekening/pdf", {
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([blobData]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Data_Rekening_Seluruh_Pegawai_Berkah_Angsana.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download Error:", err);
+      Swal.fire("Gagal!", "Gagal mengunduh daftar rekening.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-1">
       {/* Header Section */}
@@ -540,12 +563,22 @@ const Gaji = () => {
             </select>
           </div>
 
+          {/* TOMBOL BARU: DOWNLOAD REKENING (LIST TRANSFER) */}
+          <button
+            onClick={downloadRekening}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+          >
+            <MdPayments size={16} /> Rekening
+          </button>
+
+          {/* TOMBOL LAMA: EXPORT PAYROLL */}
           <button
             onClick={exportToPDF}
             disabled={loading || payrollData.length === 0}
             className="flex items-center gap-2 px-5 py-2.5 bg-custom-merah-terang text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-custom-merah-terang/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
           >
-            <MdFileDownload size={18} /> Export PDF
+            <MdFileDownload size={18} /> Export
           </button>
         </div>
       </div>
