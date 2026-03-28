@@ -11,6 +11,7 @@ import {
   MdAccountBalanceWallet,
   MdPerson,
   MdDownload,
+  MdEdit,
 } from "react-icons/md";
 import Swal from "sweetalert2";
 import Api from "../utils/Api";
@@ -48,6 +49,14 @@ const Hutang = () => {
     jumlah_bayar: "",
     tanggal: new Date().toISOString().split("T")[0],
     metode: "potong_gaji",
+    keterangan: "",
+  });
+
+  // state edit keterangan
+  const [showEditKeterangan, setShowEditKeterangan] = useState(false);
+  const [keteranganData, setKeteranganData] = useState({
+    id_pegawai: "",
+    nama_pegawai: "",
     keterangan: "",
   });
 
@@ -426,6 +435,37 @@ const Hutang = () => {
     return { month, year };
   };
 
+  const handleUpdateKeterangan = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      // Sesuai endpoint: /hutang/keterangan?id_pegawai=X&keterangan=Y
+      const res = await Api.post("/hutang/keterangan", null, {
+        params: {
+          id_pegawai: keteranganData.id_pegawai,
+          keterangan: keteranganData.keterangan,
+        },
+      });
+
+      if (res.data.success) {
+        Swal.fire({
+          icon: "success",
+          title: "Tersimpan",
+          text: "Keterangan berhasil diperbarui",
+          timer: 1500,
+          showConfirmButton: false,
+          customClass: { popup: "rounded-[30px]" },
+        });
+        setShowEditKeterangan(false);
+        fetchData(); // Refresh table
+      }
+    } catch (err) {
+      Swal.fire("Gagal", "Gagal memperbarui keterangan", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-1">
       {/* Header & Stats Ringkas */}
@@ -514,6 +554,7 @@ const Hutang = () => {
                 <th className="p-4 text-right text-custom-merah-terang">
                   Sisa Tagihan
                 </th>
+                <th className="p-4 text-left">Keterangan</th>
                 <th className="p-4 text-center">Update Terakhir</th>
                 <th className="p-6 text-center">Aksi</th>
               </tr>
@@ -551,18 +592,45 @@ const Hutang = () => {
                       </span>
                     </td>
 
-                    <td className="p-4 text-right text-[11px] font-bold text-gray-600 dark:text-gray-400">
+                    <td className="p-4 whitespace-nowrap text-right text-[11px] font-bold text-gray-600 dark:text-gray-400">
                       Rp {item.total_pinjaman.toLocaleString("id-ID")}
                     </td>
-                    <td className="p-4 text-right text-[11px] font-bold text-green-600">
+                    <td className="p-4 whitespace-nowrap text-right text-[11px] font-bold text-green-600">
                       Rp {item.total_dibayar.toLocaleString("id-ID")}
                     </td>
 
                     {/* Sisa Hutang */}
                     <td className="p-4 text-right">
-                      <span className="text-xs font-black text-custom-merah-terang bg-red-50 dark:bg-red-500/10 px-3 py-1.5 rounded-xl border border-red-100 dark:border-red-500/20 shadow-sm">
+                      <span className="inline-block whitespace-nowrap text-xs font-black text-custom-merah-terang bg-red-50 dark:bg-red-500/10 px-3 py-1.5 rounded-xl border border-red-100 dark:border-red-500/20 shadow-sm">
                         Rp {item.sisa_hutang.toLocaleString("id-ID")}
                       </span>
+                    </td>
+
+                    {/* Kolom Keterangan Baru */}
+                    <td className="p-4 min-w-[220px]">
+                      <div className="flex items-center justify-between gap-3 bg-gray-50/50 dark:bg-white/5 p-2 rounded-2xl border border-transparent hover:border-gray-200 dark:hover:border-white/10 transition-all">
+                        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 italic leading-relaxed line-clamp-2 flex-1">
+                          {item.keterangan || (
+                            <span className="opacity-30 underline decoration-dotted">
+                              Tambah catatan...
+                            </span>
+                          )}
+                        </p>
+                        <button
+                          onClick={() => {
+                            setKeteranganData({
+                              id_pegawai: item.id_pegawai,
+                              nama_pegawai: item.nama,
+                              keterangan: item.keterangan || "",
+                            });
+                            setShowEditKeterangan(true);
+                          }}
+                          className="p-2 bg-white dark:bg-custom-gelap text-custom-cerah shadow-sm rounded-xl hover:scale-110 active:scale-95 transition-all flex-shrink-0"
+                          title="Edit Keterangan"
+                        >
+                          <MdEdit size={14} />
+                        </button>
+                      </div>
                     </td>
 
                     <td className="p-4 text-center text-[9px] text-gray-400 font-bold italic">
@@ -637,6 +705,69 @@ const Hutang = () => {
           </div>
         </div>
       </div>
+
+      {/* MODAL ADD / EDIT KETERANGAN */}
+      {showEditKeterangan &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-custom-gelap w-full max-w-md rounded-[35px] shadow-2xl border border-white/20 overflow-hidden">
+              <div className="p-6 border-b border-gray-100 dark:border-white/5 flex justify-between items-center bg-gray-50/50 dark:bg-white/5">
+                <div>
+                  <h3 className="text-sm font-black text-custom-gelap dark:text-white uppercase tracking-tighter">
+                    Edit Catatan Piutang
+                  </h3>
+                  <p className="text-[10px] text-custom-merah-terang font-bold uppercase tracking-widest">
+                    {keteranganData.nama_pegawai}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowEditKeterangan(false)}
+                  className="text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <MdClose size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateKeterangan} className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">
+                    Keterangan / Memo
+                  </label>
+                  <textarea
+                    value={keteranganData.keterangan}
+                    onChange={(e) =>
+                      setKeteranganData({
+                        ...keteranganData,
+                        keterangan: e.target.value,
+                      })
+                    }
+                    placeholder="Contoh: Potong 1jt / bulan melalui payroll..."
+                    className="w-full p-4 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-[11px] font-bold outline-none dark:text-white focus:ring-2 focus:ring-custom-merah-terang/20 min-h-[100px] resize-none"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditKeterangan(false)}
+                    className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 py-3 bg-custom-merah-terang text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 hover:scale-105 transition-all disabled:opacity-50"
+                  >
+                    {loading ? "Menyimpan..." : "Simpan Catatan"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* MODAL ADD HUTANG BARU */}
       {showAddModal &&
