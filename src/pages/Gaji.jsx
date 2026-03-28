@@ -14,6 +14,7 @@ import Swal from "sweetalert2";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { exportPayrollToPDF } from "./export/ExportPayroll";
+import { exportSlipGajiPDF } from "./export/ExportSlipGaji";
 
 const Gaji = () => {
   const [loading, setLoading] = useState(false);
@@ -908,12 +909,24 @@ const Gaji = () => {
                         {simulasiData?.periode}
                       </p>
                     </div>
-                    <button
-                      onClick={() => setShowSimulasi(false)}
-                      className="p-2 text-gray-400 hover:text-custom-merah-terang transition-all"
-                    >
-                      <MdClose size={24} />
-                    </button>
+
+                    <div className="flex flex-col items-end gap-2">
+                      {/* TOMBOL CLOSE - Posisi Atas */}
+                      <button
+                        onClick={() => setShowSimulasi(false)}
+                        className="p-1 text-gray-400 hover:text-custom-merah-terang transition-all hover:rotate-90 duration-300"
+                      >
+                        <MdClose size={24} />
+                      </button>
+
+                      {/* TOMBOL DOWNLOAD SLIP - Posisi Bawah */}
+                      <button
+                        onClick={() => exportSlipGajiPDF(simulasiData)}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-green-600/20"
+                      >
+                        <MdFileDownload size={14} /> Cetak Slip
+                      </button>
+                    </div>
                   </div>
 
                   {/* Body Modal - Scrollable */}

@@ -14,27 +14,70 @@ export const exportPayrollToPDF = (
     format: "a4",
   });
 
-  const periode = `${monthNames[selectedMonth - 1]} ${selectedYear}`;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const logoPath = "/images/logo.png";
+  const periodeFormal = `${monthNames[selectedMonth - 1]} ${selectedYear}`;
 
-  // 1. Header Laporan
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("LAPORAN PENGGAJIAN PT. BERKAH ANGSANA TEKNIKA", 14, 15);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Periode: ${periode}`, 14, 21);
-  // penyesuaian format tanggal dengan locale Indonesia
-  const now = new Date();
-  const tgl = String(now.getDate()).padStart(2, "0");
-  const bln = String(now.getMonth() + 1).padStart(2, "0");
-  const thn = now.getFullYear();
-  const jam = String(now.getHours()).padStart(2, "0");
-  const mnt = String(now.getMinutes()).padStart(2, "0");
-  const dtk = String(now.getSeconds()).padStart(2, "0");
+  // --- 1. HEADER KHUSUS HALAMAN PERTAMA ---
+  const renderHeaderHalamanUtama = () => {
+    try {
+      doc.addImage(logoPath, "PNG", margin, 10, 20, 20);
+    } catch (e) {}
 
-  doc.text(`Dicetak: ${tgl}/${bln}/${thn} ${jam}:${mnt}:${dtk}`, 14, 26);
+    const textStartX = margin + 25;
+    doc.setFontSize(14).setFont("helvetica", "bold").setTextColor(0);
+    doc.text("PT. BERKAH ANGSANA TEKNIKA", textStartX, 15);
 
-  // 2. Data Preparation
+    doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(80);
+    doc.text(
+      "Perumahan Bukit Citra Kencana, Block B no. 35, Jl. Pengsong Raya,",
+      textStartX,
+      20,
+    );
+    doc.text(
+      "Desa Perampuan, Kecamatan Labuapi, Lombok Barat, NTB.",
+      textStartX,
+      24,
+    );
+    doc.text(
+      "Phone : 0370 785 3692, Email : admin@berkahangsana.com",
+      textStartX,
+      28,
+    );
+
+    doc.setLineWidth(0.5).line(margin, 32, pageWidth - margin, 32);
+    doc.setLineWidth(0.1).line(margin, 33, pageWidth - margin, 33);
+
+    doc.setTextColor(0).setFontSize(12).setFont("helvetica", "bold");
+    doc.text("LAPORAN REKAPITULASI PENGGAJIAN KARYAWAN", pageWidth / 2, 42, {
+      align: "center",
+    });
+    doc
+      .setFontSize(10)
+      .text(`PERIODE: ${periodeFormal.toUpperCase()}`, pageWidth / 2, 47, {
+        align: "center",
+      });
+  };
+
+  // --- 2. FOOTER STICKY UNTUK SEMUA HALAMAN ---
+  const renderEveryPageFooter = (data) => {
+    const footerY = pageHeight - 10;
+    doc.setFont("helvetica", "italic").setFontSize(7).setTextColor(150);
+    doc.text(
+      `*Laporan ini dicetak otomatis melalui sistem PT. Berkah Angsana Teknika pada: ${new Date().toLocaleString("id-ID")}`,
+      margin,
+      footerY,
+    );
+    doc.text(`Halaman ${data.pageNumber}`, pageWidth - margin, footerY, {
+      align: "right",
+    });
+  };
+
+  renderHeaderHalamanUtama();
+
+  // --- 3. DATA PREPARATION ---
   const tableColumn = [
     "No",
     "Nama Pegawai",
@@ -57,113 +100,86 @@ export const exportPayrollToPDF = (
   ];
 
   const tableRows = payrollData.map((row, index) => {
-    let statusSingkat = row.nama_status;
-    if (row.nama_status === "Pegawai Tetap") statusSingkat = "PT";
-    else if (row.nama_status === "Pegawai Tidak Tetap") statusSingkat = "PTT";
-    else if (row.nama_status?.toLowerCase().includes("magang"))
-      statusSingkat = "M";
-
-    const potAbsen = Math.floor(row.total_potongan || 0);
-    const potHutang = Math.floor(row.potongan_hutang || 0);
-
+    let statusSingkat =
+      row.nama_status === "Pegawai Tetap"
+        ? "PT"
+        : row.nama_status === "Pegawai Tidak Tetap"
+          ? "PTT"
+          : "M";
     return [
       index + 1,
       row.nama_lengkap,
       statusSingkat,
       row.total_hari_kerja,
-      row.total_sakit || 0, // Index 4
-      row.total_izin || 0, // Index 5
-      row.total_cuti || 0, // Index 6
-      row.total_alpha || 0, // Index 7
+      row.total_sakit || 0,
+      row.total_izin || 0,
+      row.total_cuti || 0,
+      row.total_alpha || 0,
       Math.floor(row.gapok).toLocaleString(),
       Math.floor(row.t_jab).toLocaleString(),
       Math.floor(row.t_mkn).toLocaleString(),
       Math.floor(row.t_trp).toLocaleString(),
       Math.floor(row.t_khs || 0).toLocaleString(),
-      // Tambahkan simbol minus jika nilai > 0
-      potAbsen > 0 ? `-${potAbsen.toLocaleString()}` : "0", // Index 13
-      potHutang > 0 ? `-${potHutang.toLocaleString()}` : "0", // Index 14
-      Math.floor(row.total_diterima - potHutang).toLocaleString(),
+      row.total_potongan > 0
+        ? `-${Math.floor(row.total_potongan).toLocaleString()}`
+        : "0",
+      row.potongan_hutang > 0
+        ? `-${Math.floor(row.potongan_hutang).toLocaleString()}`
+        : "0",
+      Math.floor(
+        row.total_diterima - (row.potongan_hutang || 0),
+      ).toLocaleString(),
       Math.floor(row.lembur || 0).toLocaleString(),
       Math.floor(
-        row.total_diterima - potHutang + (row.lembur || 0),
+        row.total_diterima - (row.potongan_hutang || 0) + (row.lembur || 0),
       ).toLocaleString(),
     ];
   });
 
-  // 3. Generate Table
+  // --- 4. GENERATE TABLE DENGAN BARIS AKUMULASI ---
   autoTable(doc, {
-    startY: 32,
+    startY: 52,
     head: [tableColumn],
     body: tableRows,
     theme: "grid",
-    styles: { fontSize: 6, cellPadding: 1.5, font: "helvetica" },
+    styles: { fontSize: 6.5, cellPadding: 1.5 },
     headStyles: {
       fillColor: [239, 68, 68],
       halign: "center",
       fontStyle: "bold",
     },
+    margin: { top: 15, bottom: 20 },
+    didDrawPage: (data) => renderEveryPageFooter(data),
     columnStyles: {
       0: { cellWidth: 7, halign: "center" },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 8, halign: "center" },
-      3: { cellWidth: 7, halign: "center" },
-      4: { cellWidth: 5, halign: "center" },
-      5: { cellWidth: 5, halign: "center" },
-      6: { cellWidth: 5, halign: "center" },
-      7: { cellWidth: 5, halign: "center" },
+      1: { cellWidth: 32 },
+      13: { halign: "right" }, // Pot.Abs
+      14: { halign: "right" }, // Pot.Hut
+      17: { halign: "right", fontStyle: "bold", textColor: [22, 101, 52] }, // Total Net (Hijau)
     },
+    // LOGIKA WARNA DINAMIS UNTUK CELL
     didParseCell: (data) => {
-      // --- LOGIKA BODY (Tetap Sama) ---
-      if (data.section === "body" && data.column.index >= 8) {
-        data.cell.styles.halign = "right";
-      }
-
-      // Logika Warna SICA & Potongan di Body
+      // 1. Warna merah untuk angka minus di baris BODY
       if (data.section === "body") {
-        const numVal = parseInt(data.cell.raw);
-        if (numVal > 0) {
-          if (data.column.index === 4) {
-            data.cell.styles.textColor = [34, 197, 94];
-            data.cell.styles.fontStyle = "bold";
-          }
-          if (data.column.index === 5) {
-            data.cell.styles.textColor = [234, 179, 8];
-            data.cell.styles.fontStyle = "bold";
-          }
-          if (data.column.index === 6) {
-            data.cell.styles.textColor = [0, 0, 0];
-            data.cell.styles.fontStyle = "bold";
-          }
-          if (data.column.index === 7) {
+        if (data.column.index === 13 || data.column.index === 14) {
+          if (data.cell.text[0] && data.cell.text[0].includes("-")) {
             data.cell.styles.textColor = [239, 68, 68];
-            data.cell.styles.fontStyle = "bold";
           }
-        }
-        // Warna merah untuk potongan di baris pegawai
-        if (
-          (data.column.index === 13 || data.column.index === 14) &&
-          data.cell.raw.toString().startsWith("-")
-        ) {
-          data.cell.styles.textColor = [239, 68, 68];
         }
       }
 
-      // --- LOGIKA FOOTER (Penyesuaian Baru) ---
+      // 2. Warna merah untuk angka minus di baris FOOTER (Akumulasi)
       if (data.section === "foot") {
-        // Index 13 = Pot.Abs, Index 14 = Pot.Hut
-        if (data.column.index === 13 || data.column.index === 14) {
-          // Cek jika nilainya bukan "0" atau mengandung tanda minus
-          if (data.cell.text[0] !== "0") {
-            data.cell.styles.textColor = [239, 68, 68]; // Set warna merah
-          }
+        // Cek apakah teks di cell tersebut mengandung tanda minus
+        if (data.cell.text[0] && data.cell.text[0].includes("-")) {
+          data.cell.styles.textColor = [239, 68, 68]; // Merah
         }
       }
     },
     foot: [
       [
         {
-          content: "TOTAL PER KOLOM",
+          content: "TOTAL AKUMULASI PER KOLOM",
           colSpan: 8,
           styles: { halign: "center", fontStyle: "bold" },
         },
@@ -172,12 +188,11 @@ export const exportPayrollToPDF = (
         "",
         "",
         "",
-        // Pastikan index kolom ini pas dengan index 13 dan 14
         `-${Math.floor(summary.total_potongan || 0).toLocaleString()}`,
         `-${Math.floor(summary.total_pot_hutang || 0).toLocaleString()}`,
-        Math.floor(summary.total_basic).toLocaleString(),
-        Math.floor(summary.total_lembur).toLocaleString(),
-        Math.floor(summary.grand_total).toLocaleString(),
+        Math.floor(summary.total_basic || 0).toLocaleString(),
+        Math.floor(summary.total_lembur || 0).toLocaleString(),
+        Math.floor(summary.grand_total || 0).toLocaleString(),
       ],
     ],
     footStyles: {
@@ -188,48 +203,87 @@ export const exportPayrollToPDF = (
     },
   });
 
-  // 4. SUMMARY BLOCK (Tetap sama)
-  const finalY = doc.lastAutoTable.finalY + 15;
-  doc.setDrawColor(220, 220, 220);
-  doc.line(14, finalY - 5, 283, finalY - 5);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(0, 0, 0);
-  doc.text("REKAPITULASI PEMBAYARAN:", 14, finalY);
+  // --- 5. PROFESSIONAL SUMMARY BLOCK ---
+  let finalY = doc.lastAutoTable.finalY + 5;
 
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "normal");
-  doc.text("Total Gaji (Pokok + Tunjangan - Potongan):", 14, finalY + 8);
-  doc.setFont("helvetica", "bold");
+  if (finalY > pageHeight - 75) {
+    doc.addPage();
+    finalY = 25;
+  }
+
+  doc.setFillColor(248, 249, 250);
+  doc.roundedRect(margin, finalY, pageWidth - margin * 2, 35, 3, 3, "F");
+  doc.setDrawColor(230, 230, 230);
+  doc.roundedRect(margin, finalY, pageWidth - margin * 2, 35, 3, 3, "S");
+
+  doc.setFontSize(10).setFont("helvetica", "bold").setTextColor(50);
+  doc.text("RINGKASAN PEMBAYARAN PENGGAJIAN", margin + 5, finalY + 7);
+
+  doc.setFontSize(9).setFont("helvetica", "normal").setTextColor(100);
+  doc.text(
+    "Total Gaji Bersih (Pokok + Tunjangan - Potongan):",
+    margin + 5,
+    finalY + 15,
+  );
+  doc.setFont("helvetica", "bold").setTextColor(0);
   doc.text(
     `Rp ${Math.floor(summary.total_basic).toLocaleString()}`,
-    283,
-    finalY + 8,
-    { align: "right" },
-  );
-
-  doc.setFont("helvetica", "normal");
-  doc.text("Total Upah Lembur Karyawan:", 14, finalY + 15);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 140, 0);
-  doc.text(
-    `+ Rp ${Math.floor(summary.total_lembur).toLocaleString()}`,
-    283,
+    pageWidth - margin - 5,
     finalY + 15,
     { align: "right" },
   );
 
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(14);
-  doc.text("TOTAL DANA YANG DIKELUARKAN:", 14, finalY + 26);
-  doc.setFontSize(16);
-  doc.setTextColor(34, 197, 94);
+  doc.setFont("helvetica", "normal").setTextColor(100);
+  doc.text("Total Akumulasi Upah Lembur Karyawan:", margin + 5, finalY + 21);
+  doc.setFont("helvetica", "bold").setTextColor(245, 158, 11);
   doc.text(
-    `Rp ${Math.floor(summary.grand_total).toLocaleString()}`,
-    283,
-    finalY + 26,
+    `+ Rp ${Math.floor(summary.total_lembur).toLocaleString()}`,
+    pageWidth - margin - 5,
+    finalY + 21,
     { align: "right" },
   );
 
-  doc.save(`Rekapan_Gaji_${periode.replace(" ", "_")}.pdf`);
+  doc
+    .setDrawColor(220)
+    .line(margin + 5, finalY + 24, pageWidth - margin - 5, finalY + 24);
+
+  doc.setFontSize(11).setFont("helvetica", "bold").setTextColor(0);
+  doc.text(
+    "TOTAL DANA YANG DIKELUARKAN (GRAND TOTAL):",
+    margin + 5,
+    finalY + 30,
+  );
+  doc.setFontSize(13).setTextColor(22, 101, 52);
+  doc.text(
+    `Rp ${Math.floor(summary.grand_total).toLocaleString()}`,
+    pageWidth - margin - 5,
+    finalY + 30,
+    { align: "right" },
+  );
+
+  // --- 6. TANDA TANGAN DIREKTUR ---
+  finalY += 43;
+  const signatureX = pageWidth - margin - 60;
+  doc.setFontSize(9).setFont("helvetica", "normal").setTextColor(0);
+  doc.text(
+    `Perampuan, ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`,
+    signatureX + 30,
+    finalY,
+    { align: "center" },
+  );
+  doc.text(
+    "Direktur PT. Berkah Angsana Teknika,",
+    signatureX + 30,
+    finalY + 5,
+    {
+      align: "center",
+    },
+  );
+  doc.setFont("helvetica", "bold").setFontSize(10);
+  doc.text("JAYADI", signatureX + 30, finalY + 25, { align: "center" });
+  doc
+    .setLineWidth(0.3)
+    .line(signatureX + 10, finalY + 26, signatureX + 50, finalY + 26);
+
+  doc.save(`Rekapan_Gaji_${periodeFormal.replace(" ", "_")}.pdf`);
 };
