@@ -442,18 +442,33 @@ const Hutang = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 dark:bg-white/5 font-black uppercase tracking-widest text-[9px] text-gray-400 border-b border-gray-100 dark:border-white/5">
-                <th className="p-6 sticky left-0 bg-gray-50 dark:bg-[#2d1f29] z-40">
+                {/* Kolom Pegawai: Sticky Kiri DAN Sticky Atas */}
+                <th className="p-6 sticky left-0 top-0 bg-gray-50 dark:bg-[#2d1f29] z-50 border-b border-gray-100 dark:border-white/5">
                   Pegawai
                 </th>
-                <th className="p-4 text-center">Jumlah Hutang</th>
-                <th className="p-4 text-right">Total Pinjaman</th>
-                <th className="p-4 text-right">Total Dibayar</th>
-                <th className="p-4 text-right text-custom-merah-terang">
+
+                {/* Kolom Lainnya: Cukup Sticky Atas */}
+                <th className="p-4 text-center sticky top-0 bg-gray-50 dark:bg-custom-gelap z-40 border-b border-gray-100 dark:border-white/5">
+                  Jumlah Hutang
+                </th>
+                <th className="p-4 text-right sticky top-0 bg-gray-50 dark:bg-custom-gelap z-40 border-b border-gray-100 dark:border-white/5">
+                  Total Pinjaman
+                </th>
+                <th className="p-4 text-right sticky top-0 bg-gray-50 dark:bg-custom-gelap z-40 border-b border-gray-100 dark:border-white/5 text-custom-merah-terang">
+                  Total Dibayar
+                </th>
+                <th className="p-4 text-right sticky top-0 bg-gray-50 dark:bg-custom-gelap z-40 border-b border-gray-100 dark:border-white/5 text-custom-merah-terang">
                   Sisa Tagihan
                 </th>
-                <th className="p-4 text-left">Keterangan</th>
-                <th className="p-4 text-center">Update Terakhir</th>
-                <th className="p-6 text-center">Aksi</th>
+                <th className="p-4 text-left sticky top-0 bg-gray-50 dark:bg-custom-gelap z-40 border-b border-gray-100 dark:border-white/5">
+                  Keterangan
+                </th>
+                <th className="p-4 text-center sticky top-0 bg-gray-50 dark:bg-custom-gelap z-40 border-b border-gray-100 dark:border-white/5">
+                  Update Terakhir
+                </th>
+                <th className="p-6 text-center sticky top-0 bg-gray-50 dark:bg-custom-gelap z-40 border-b border-gray-100 dark:border-white/5">
+                  Aksi
+                </th>
               </tr>
             </thead>
 
