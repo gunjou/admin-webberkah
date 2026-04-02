@@ -92,6 +92,7 @@ export const exportPayrollToPDF = (
     "T.Mkn",
     "T.Trp",
     "T.Khs",
+    "Gaji Bruto", // Tambahan kolom baru
     "Pot.Abs",
     "Pot.Hut",
     "Subtotal",
@@ -106,6 +107,15 @@ export const exportPayrollToPDF = (
         : row.nama_status === "Pegawai Tidak Tetap"
           ? "PTT"
           : "M";
+
+    // Hitung Bruto: Gapok + Semua Tunjangan
+    const bruto =
+      (row.gapok || 0) +
+      (row.t_jab || 0) +
+      (row.t_mkn || 0) +
+      (row.t_trp || 0) +
+      (row.t_khs || 0);
+
     return [
       index + 1,
       row.nama_lengkap,
@@ -120,6 +130,7 @@ export const exportPayrollToPDF = (
       Math.floor(row.t_mkn).toLocaleString(),
       Math.floor(row.t_trp).toLocaleString(),
       Math.floor(row.t_khs || 0).toLocaleString(),
+      Math.floor(bruto).toLocaleString(), // Data Gaji Bruto
       row.total_potongan > 0
         ? `-${Math.floor(row.total_potongan).toLocaleString()}`
         : "0",
@@ -142,7 +153,7 @@ export const exportPayrollToPDF = (
     head: [tableColumn],
     body: tableRows,
     theme: "grid",
-    styles: { fontSize: 6.5, cellPadding: 1.5 },
+    styles: { fontSize: 6, cellPadding: 1.2 }, // Sedikit dikecilkan agar muat tambahan kolom
     headStyles: {
       fillColor: [239, 68, 68],
       halign: "center",
@@ -151,28 +162,26 @@ export const exportPayrollToPDF = (
     margin: { top: 15, bottom: 20 },
     didDrawPage: (data) => renderEveryPageFooter(data),
     columnStyles: {
-      0: { cellWidth: 7, halign: "center" },
-      1: { cellWidth: 32 },
-      13: { halign: "right" }, // Pot.Abs
-      14: { halign: "right" }, // Pot.Hut
-      17: { halign: "right", fontStyle: "bold", textColor: [22, 101, 52] }, // Total Net (Hijau)
+      0: { cellWidth: 6, halign: "center" },
+      1: { cellWidth: 30 },
+      13: { halign: "right", fontStyle: "bold" }, // Gaji Bruto
+      14: { halign: "right" }, // Pot.Abs
+      15: { halign: "right" }, // Pot.Hut
+      18: { halign: "right", fontStyle: "bold", textColor: [22, 101, 52] }, // Total Net
     },
-    // LOGIKA WARNA DINAMIS UNTUK CELL
     didParseCell: (data) => {
-      // 1. Warna merah untuk angka minus di baris BODY
+      // Warna merah untuk potongan di Body (Index kolom bergeser karena ada Bruto)
       if (data.section === "body") {
-        if (data.column.index === 13 || data.column.index === 14) {
+        if (data.column.index === 14 || data.column.index === 15) {
           if (data.cell.text[0] && data.cell.text[0].includes("-")) {
             data.cell.styles.textColor = [239, 68, 68];
           }
         }
       }
-
-      // 2. Warna merah untuk angka minus di baris FOOTER (Akumulasi)
+      // Warna merah untuk potongan di Footer
       if (data.section === "foot") {
-        // Cek apakah teks di cell tersebut mengandung tanda minus
         if (data.cell.text[0] && data.cell.text[0].includes("-")) {
-          data.cell.styles.textColor = [239, 68, 68]; // Merah
+          data.cell.styles.textColor = [239, 68, 68];
         }
       }
     },
@@ -180,15 +189,16 @@ export const exportPayrollToPDF = (
       [
         {
           content: "TOTAL AKUMULASI PER KOLOM",
-          colSpan: 8,
+          colSpan: 8, // Tetap 8 (No sampai A)
           styles: { halign: "center", fontStyle: "bold" },
         },
         "",
         "",
         "",
         "",
-        "",
-        `-${Math.floor(summary.total_potongan || 0).toLocaleString()}`,
+        "", // Gapok sampai T.Khs
+        "", // Kolom Gaji Bruto (Kosong sesuai permintaan frontend)
+        `-${Math.floor(summary.total_potongan || 0).toLocaleString()}`, // Total Pot.Absen
         `-${Math.floor(summary.total_pot_hutang || 0).toLocaleString()}`,
         Math.floor(summary.total_basic || 0).toLocaleString(),
         Math.floor(summary.total_lembur || 0).toLocaleString(),

@@ -173,6 +173,12 @@ const Gaji = () => {
           t_mkn: getVal("T_MKN"),
           t_trp: getVal("T_TRP"),
           t_khs: getVal("T_KHS"),
+          total_bruto:
+            getVal("GAPOK") +
+            getVal("T_JAB") +
+            getVal("T_MKN") +
+            getVal("T_TRP") +
+            getVal("T_KHS"),
           potongan_hutang: hutangPegawai,
           lembur: upahLembur,
         };
@@ -670,6 +676,9 @@ const Gaji = () => {
                 <th className="px-1 py-2 text-right sticky top-0 bg-gray-50 dark:bg-[#3d2e39] z-[40] border-b border-gray-100 dark:border-white/10">
                   T.Khs
                 </th>
+                <th className="px-2 py-2 text-right sticky top-0 bg-blue-50 dark:bg-[#2b3a4d] z-[40] border-b border-blue-100 dark:border-white/10 font-black text-blue-600">
+                  Gaji Bruto
+                </th>
                 <th className="px-1 py-2 text-right sticky top-0 bg-gray-50 dark:bg-[#3d2e39] z-[40] text-red-500 border-b border-gray-100 dark:border-white/10">
                   Pot.Abs
                 </th>
@@ -776,6 +785,9 @@ const Gaji = () => {
                       <td className="px-1 py-2 text-right text-gray-500">
                         {tKhusus.toLocaleString()}
                       </td>
+                      <td className="px-2 py-2 text-right font-black bg-blue-50/30 dark:bg-blue-500/5 text-blue-600">
+                        Rp {(row.total_bruto || 0).toLocaleString()}
+                      </td>
                       <td className="px-1 py-2 text-right font-bold text-red-500">
                         -{Math.floor(row.total_potongan).toLocaleString()}
                       </td>
@@ -820,10 +832,27 @@ const Gaji = () => {
 
                 <td className="w-[40px] bg-gray-100 dark:bg-[#322730]"></td>
                 <td
+                  // colSpan="5"
                   colSpan="6"
                   className="p-1 text-right opacity-30 uppercase tracking-[2px] text-[9px] bg-gray-100 dark:bg-[#322730] italic"
                 >
                   Summary Report —&gt;
+                </td>
+
+                {/* Sel Total Bruto Keseluruhan */}
+                {/* <td className="px-2 py-3 text-right text-blue-600 text-[11px] bg-gray-100 dark:bg-[#322730]">
+                  Rp{" "}
+                  {filteredPayroll
+                    .reduce((acc, r) => acc + (r.total_bruto || 0), 0)
+                    .toLocaleString("id-ID")}
+                </td> */}
+
+                {/* TOTAL POTONGAN ABSENSI (Yang Gunjo minta) */}
+                <td className="px-1 py-3 text-right text-red-600 text-[11px] bg-gray-100 dark:bg-[#322730]">
+                  -Rp{" "}
+                  {(displaySummary?.total_potongan || 0).toLocaleString(
+                    "id-ID",
+                  )}
                 </td>
 
                 {/* Total Potongan Hutang */}
