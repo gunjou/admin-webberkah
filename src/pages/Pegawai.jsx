@@ -13,6 +13,7 @@ import {
   MdEdit,
   MdRefresh,
   MdDownload,
+  MdPayments,
 } from "react-icons/md";
 import ReactDOM from "react-dom";
 import Swal from "sweetalert2";
@@ -24,12 +25,14 @@ import ModalEditRekening from "../components/modals/ModalEditRekening";
 import ModalEditPendidikan from "../components/modals/ModalEditPendidikan";
 import ModalEditAkun from "../components/modals/ModalEditAkun";
 import ModalEditLokasi from "../components/modals/ModalEditLokasi";
+import ModalEditGaji from "../components/modals/ModalEditGaji";
 
 const Pegawai = () => {
   const [dataPegawai, setDataPegawai] = useState({
     profile: [],
     rekening: [],
     pendidikan: [],
+    gaji: [],
     akun: [],
     lokasi: [],
   });
@@ -44,6 +47,7 @@ const Pegawai = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isRekeningModalOpen, setIsRekeningModalOpen] = useState(false);
   const [isPendidikanModalOpen, setIsPendidikanModalOpen] = useState(false);
+  const [isGajiModalOpen, setIsGajiModalOpen] = useState(false);
   const [isAkunModalOpen, setIsAkunModalOpen] = useState(false);
   const [isLokasiModalOpen, setIsLokasiModalOpen] = useState(false);
 
@@ -58,6 +62,7 @@ const Pegawai = () => {
       profile: "profile",
       rekening: "rekening",
       pendidikan: "pendidikan",
+      gaji: "gaji",
       akun: "akun",
       lokasi: "lokasi",
     };
@@ -147,6 +152,8 @@ const Pegawai = () => {
       setIsRekeningModalOpen(true);
     } else if (mainTab === "pendidikan") {
       setIsPendidikanModalOpen(true);
+    } else if (mainTab === "gaji") {
+      setIsGajiModalOpen(true);
     } else {
       setIsEditModalOpen(true);
     }
@@ -223,6 +230,7 @@ const Pegawai = () => {
       const endpointMap = {
         rekening: `/export/report/rekening/${extension}`,
         pendidikan: `/export/report/pendidikan/${extension}`,
+        gaji: `/export/report/gaji/${extension}`,
         akun: `/export/report/akun/${extension}`,
         lokasi: `/export/report/lokasi-absensi/${extension}`, // Endpoint Lokasi
       };
@@ -241,6 +249,7 @@ const Pegawai = () => {
       const prefixMap = {
         rekening: "Data Rekening",
         pendidikan: "Data Pendidikan",
+        gaji: "Data Komponen Gaji",
         akun: "Data Akun Sistem",
         lokasi: "Data Lokasi Absensi", // Prefix file Lokasi
       };
@@ -340,6 +349,7 @@ const Pegawai = () => {
               icon: <MdAccountBalance />,
             },
             { id: "pendidikan", label: "Pendidikan", icon: <MdSchool /> },
+            { id: "gaji", label: "Komponen Gaji", icon: <MdPayments /> },
             { id: "akun", label: "Akun Sistem", icon: <MdBadge /> },
             { id: "lokasi", label: "Lokasi Absensi", icon: <MdLocationOn /> },
           ].map((tab) => (
@@ -438,6 +448,30 @@ const Pegawai = () => {
                     </th>
                     <th className="p-3 text-center sticky top-0 bg-gray-50 dark:bg-[#3d2e39] z-30 border-b border-gray-100 dark:border-white/10 w-[100px]">
                       Tahun Lulus
+                    </th>
+                  </>
+                )}
+
+                {/* Di dalam <thead> <tr> */}
+                {mainTab === "gaji" && (
+                  <>
+                    <th className="p-3 text-right sticky top-0 bg-gray-50 dark:bg-[#3d2e39] z-30 border-b border-gray-100 dark:border-white/10 w-[120px]">
+                      Gaji Pokok
+                    </th>
+                    <th className="p-3 text-right sticky top-0 bg-gray-50 dark:bg-[#3d2e39] z-30 border-b border-gray-100 dark:border-white/10 w-[100px]">
+                      T. Jabatan
+                    </th>
+                    <th className="p-3 text-right sticky top-0 bg-gray-50 dark:bg-[#3d2e39] z-30 border-b border-gray-100 dark:border-white/10 w-[100px]">
+                      T. Khusus
+                    </th>
+                    <th className="p-3 text-right sticky top-0 bg-gray-50 dark:bg-[#3d2e39] z-30 border-b border-gray-100 dark:border-white/10 w-[100px]">
+                      T. Transport
+                    </th>
+                    <th className="p-3 text-right sticky top-0 bg-gray-50 dark:bg-[#3d2e39] z-30 border-b border-gray-100 dark:border-white/10 w-[100px]">
+                      T. Makan
+                    </th>
+                    <th className="p-3 text-right sticky top-0 bg-blue-50 dark:bg-[#2b3a4d] z-30 border-b border-blue-100 dark:border-white/10 w-[130px] font-black text-blue-600">
+                      Total Gaji
                     </th>
                   </>
                 )}
@@ -612,6 +646,49 @@ const Pegawai = () => {
                         </td>
                         <td className="p-3 text-center font-bold text-gray-400">
                           {p.tahun_lulus || "-"}
+                        </td>
+                      </>
+                    )}
+
+                    {/* Data Gaji Pegawai */}
+                    {mainTab === "gaji" && (
+                      <>
+                        <td className="p-3 text-right font-bold text-custom-gelap dark:text-white">
+                          Rp {(p.gaji_pokok || 0).toLocaleString("id-ID")}
+                        </td>
+
+                        {/* Komponen Tunjangan */}
+                        {[
+                          { kode: "T_JAB", color: "text-blue-500" },
+                          { kode: "T_KHS", color: "text-purple-500" },
+                          { kode: "T_TRP", color: "text-orange-500" },
+                          { kode: "T_MKN", color: "text-green-500" },
+                        ].map((comp) => {
+                          const val =
+                            p.komponen_gaji?.find((c) => c.kode === comp.kode)
+                              ?.nilai || 0;
+                          return (
+                            <td
+                              key={comp.kode}
+                              className={`p-3 text-right font-medium ${comp.color}`}
+                            >
+                              {val > 0
+                                ? `Rp ${val.toLocaleString("id-ID")}`
+                                : "-"}
+                            </td>
+                          );
+                        })}
+
+                        {/* Kalkulasi Total Gaji Dinamis */}
+                        <td className="p-3 text-right font-black bg-blue-50/30 dark:bg-blue-500/5 text-blue-600 italic">
+                          Rp{" "}
+                          {(
+                            (p.gaji_pokok || 0) +
+                            (p.komponen_gaji?.reduce(
+                              (acc, curr) => acc + (curr.nilai || 0),
+                              0,
+                            ) || 0)
+                          ).toLocaleString("id-ID")}
                         </td>
                       </>
                     )}
@@ -816,6 +893,14 @@ const Pegawai = () => {
       <ModalEditPendidikan
         isOpen={isPendidikanModalOpen}
         onClose={() => setIsPendidikanModalOpen(false)}
+        onRefresh={handleRefresh}
+        data={selectedPegawai}
+      />
+
+      {/* Modal Edit Gaji Pegawai */}
+      <ModalEditGaji
+        isOpen={isGajiModalOpen}
+        onClose={() => setIsGajiModalOpen(false)}
         onRefresh={handleRefresh}
         data={selectedPegawai}
       />
