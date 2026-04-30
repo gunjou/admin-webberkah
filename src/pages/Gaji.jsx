@@ -761,9 +761,19 @@ const Gaji = () => {
                             <p className="font-black text-custom-gelap dark:text-white uppercase leading-tight truncate text-[8.5px]">
                               {row.nama_lengkap}
                             </p>
-                            <p className="text-[7px] text-gray-400 font-bold uppercase tracking-tighter">
+                            <span
+                              className={`text-[7px] font-black px-1 rounded-sm uppercase ${
+                                row.nama_status === "Pegawai Tetap"
+                                  ? "bg-blue-100 text-blue-600"
+                                  : row.nama_status === "Pegawai Kontrak"
+                                    ? "bg-green-100 text-green-600"
+                                    : row.nama_status === "Pegawai Tidak Tetap"
+                                      ? "bg-yellow-100 text-yellow-600"
+                                      : "bg-purple-100 text-purple-600"
+                              }`}
+                            >
                               {row.nama_status}
-                            </p>
+                            </span>
                           </div>
                         </div>
                       </td>

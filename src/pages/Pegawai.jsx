@@ -313,6 +313,7 @@ const Pegawai = () => {
             >
               <option>Semua Status</option>
               <option value="Pegawai Tetap">Pegawai Tetap</option>
+              <option value="Pegawai Kontrak">Pegawai Kontrak</option>
               <option value="Pegawai Tidak Tetap">Pegawai Tidak Tetap</option>
               <option value="Magang">Pegawai Magang</option>
             </select>
@@ -559,9 +560,11 @@ const Pegawai = () => {
                               className={`text-[7px] font-black px-1 rounded-sm uppercase ${
                                 p.status_pegawai === "Pegawai Tetap"
                                   ? "bg-blue-100 text-blue-600"
-                                  : p.status_pegawai === "Pegawai Tidak Tetap"
+                                  : p.status_pegawai === "Pegawai Kontrak"
                                     ? "bg-green-100 text-green-600"
-                                    : "bg-purple-100 text-purple-600"
+                                    : p.status_pegawai === "Pegawai Tidak Tetap"
+                                      ? "bg-yellow-100 text-yellow-600"
+                                      : "bg-purple-100 text-purple-600"
                               }`}
                             >
                               {p.status_pegawai}

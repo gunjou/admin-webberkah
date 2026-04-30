@@ -341,13 +341,15 @@ const Presensi = () => {
                                   "Pegawai Tetap"
                                     ? "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20"
                                     : item.pegawai.status_pegawai ===
-                                          "Kontrak" ||
-                                        item.pegawai.status_pegawai ===
+                                        "Pegawai Kontrak"
+                                      ? "bg-green-50 text-green-600 border-green-100 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20"
+                                      : item.pegawai.status_pegawai ===
                                           "Pegawai Tidak Tetap"
-                                      ? "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
-                                      : item.pegawai.status_pegawai === "Magang"
-                                        ? "bg-purple-50 text-purple-600 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20"
-                                        : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20"
+                                        ? "bg-yellow-50 text-yellow-600 border-yellow-100 dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-500/20"
+                                        : item.pegawai.status_pegawai ===
+                                            "Magang"
+                                          ? "bg-purple-50 text-purple-600 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20"
+                                          : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20"
                                 }`}
                               >
                                 {item.pegawai.status_pegawai}
