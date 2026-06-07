@@ -42,9 +42,44 @@ const NotificationModal = ({ isOpen, onClose, refreshCount }) => {
 
   const handleAction = async (id, status, type) => {
     const label = type === "izin" ? "Izin" : "Lembur";
+    let currentStatus = status; // Gunakan variabel dinamis untuk menampung status akhir
     let alasan = "";
 
-    // Jika Rejected, gunakan SweetAlert2 Input Alasan
+    // ==================== KHUSUS APPROVE PERIZINAN ====================
+    // Memunculkan pilihan: Approve Biasa atau Approve Potong Cuti
+    if (type === "izin" && status === "approved") {
+      const result = await Swal.fire({
+        title: "PILIH JENIS PERSETUJUAN",
+        text: "Silakan tentukan apakah izin ini akan memotong kuota cuti atau tidak.",
+        icon: "question",
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: "SETUJUI",
+        denyButtonText: "POTONG CUTI",
+        cancelButtonText: "BATAL",
+        confirmButtonColor: "#16a34a", // Hijau
+        denyButtonColor: "#c79902", // Biru
+        customClass: {
+          popup: "rounded-[30px] dark:bg-custom-gelap dark:text-white",
+          title: "text-xs font-black uppercase tracking-widest",
+          htmlContainer:
+            "text-[11px] font-medium text-gray-500 dark:text-gray-400",
+          confirmButton:
+            "text-[10px] font-black uppercase px-4 py-2.5 rounded-xl",
+          denyButton: "text-[10px] font-black uppercase px-4 py-2.5 rounded-xl",
+          cancelButton:
+            "text-[10px] font-black uppercase px-4 py-2.5 rounded-xl",
+        },
+      });
+
+      if (result.isDismissed) return; // Jika klik batal, hentikan proses
+
+      if (result.isDenied) {
+        currentStatus = "approve-cuti"; // Jika klik potong cuti, ubah status endpointnya
+      }
+    }
+
+    // ==================== LOGIK REJECTED (TETAP SAMA) ====================
     if (status === "rejected") {
       const { value: text, isDismissed } = await Swal.fire({
         title: "ALASAN PENOLAKAN",
@@ -79,21 +114,30 @@ const NotificationModal = ({ isOpen, onClose, refreshCount }) => {
       alasan = text;
     }
 
+    // ==================== PROSES HIT API ====================
     setActionLoading(true);
     setActiveActionId(id);
 
     try {
       const endpoint = type === "izin" ? "/perizinan" : "/lembur";
-      const url = `${endpoint}/${id}/${status}`;
-      const payload = status === "rejected" ? { alasan_penolakan: alasan } : {};
+      // URL otomatis menyesuaikan menjadi /perizinan/{id}/approved atau /perizinan/{id}/approved-cuti
+      const url = `${endpoint}/${id}/${currentStatus}`;
+      const payload =
+        currentStatus === "rejected" ? { alasan_penolakan: alasan } : {};
 
       const response = await Api.put(url, payload);
 
       if (response.data.success) {
+        // Menentukan teks notifikasi sukses berdasarkan status akhir
+        let successMessage = "Berhasil Disetujui";
+        if (currentStatus === "rejected") successMessage = "Berhasil Ditolak";
+        if (currentStatus === "approve-cuti")
+          successMessage = "Disetujui & Potong Cuti";
+
         // NOTIFIKASI BERHASIL DENGAN SWEETALERT2
         Swal.fire({
           icon: "success",
-          title: `${label} Berhasil ${status === "approved" ? "Disetujui" : "Ditolak"}`,
+          title: `${label} ${successMessage}`,
           toast: true,
           position: "top-end",
           showConfirmButton: false,

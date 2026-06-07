@@ -25,7 +25,6 @@ import Jadwal from "./pages/master/Jadwal";
 import Rules from "./pages/master/Rules";
 import Kategori from "./pages/master/Kategori";
 import Perizinan from "./pages/absensi/Perizinan";
-import { MdLeaderboard } from "react-icons/md";
 import Leaderboard from "./pages/Leaderboard";
 
 const ProtectedRoute = () => {

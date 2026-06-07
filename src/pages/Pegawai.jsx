@@ -87,6 +87,7 @@ const Pegawai = () => {
           ...prev,
           [target]: response.data.data,
         }));
+        console.log(`Data ${target} berhasil diambil:`, response.data.data);
         setTimeout(() => {
           if (tableContainerRef.current) {
             tableContainerRef.current.scrollTop = scrollPosRef.current;
@@ -416,6 +417,9 @@ const Pegawai = () => {
                     <th className="p-3 text-center sticky top-0 bg-gray-50 dark:bg-[#3d2e39] z-30 border-b border-gray-100 dark:border-white/10 w-[120px]">
                       Tgl Masuk
                     </th>
+                    <th className="p-3 text-center sticky top-0 bg-gray-50 dark:bg-[#3d2e39] z-30 border-b border-gray-100 dark:border-white/10 w-[120px]">
+                      Jatah Cuti (Sisa/Jatah)
+                    </th>
                   </>
                 )}
 
@@ -612,6 +616,9 @@ const Pegawai = () => {
                               year: "numeric",
                             })
                             .replace(/\//g, "-")}
+                        </td>
+                        <td className="p-3 text-center text-gray-600 font-bold dark:text-gray-300">
+                          {p.sisa_cuti} / {p.jatah_cuti}
                         </td>
                       </>
                     )}

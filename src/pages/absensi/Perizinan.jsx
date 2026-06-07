@@ -128,8 +128,9 @@ const Perizinan = ({ refreshCount }) => {
     return () => clearTimeout(delayDebounceFn);
   }, [fetchData]);
 
-  // Handler Approval/Reject (Identik dengan logic Lembur)
+  // Handler Approval/Reject/Approve Potong Cuti
   const handleAction = async (id, status) => {
+    // ==================== LOGIK REJECT ====================
     if (status === "rejected") {
       const { value: text, isConfirmed } = await Swal.fire({
         title: "Alasan Penolakan",
@@ -167,23 +168,49 @@ const Perizinan = ({ refreshCount }) => {
       return;
     }
 
+    // ==================== LOGIK APPROVAL (BIASA & POTONG CUTI) ====================
     if (status === "approved") {
-      const confirmApprove = await Swal.fire({
-        title: "Setujui Izin?",
-        text: "Pegawai akan dianggap sah untuk tidak hadir pada tanggal tersebut.",
+      const result = await Swal.fire({
+        title: "Pilih Aksi Persetujuan",
+        text: "Silakan pilih apakah izin ini memotong kuota cuti tahunan atau tidak.",
         icon: "question",
         showCancelButton: true,
-        confirmButtonText: "Ya, Setujui",
-        confirmButtonColor: "#16a34a",
+        showDenyButton: true, // Mengaktifkan tombol ketiga
+        confirmButtonText: "Setujui",
+        denyButtonText: "Potong Cuti",
+        cancelButtonText: "Batal",
+        confirmButtonColor: "#16a34a", // Hijau untuk Approve Biasa
+        denyButtonColor: "#c79902", // kuning untuk Potong Cuti
       });
 
-      if (confirmApprove.isConfirmed) {
+      // 1. Opsi: Setujui Tanpa Potong Cuti (Confirm Button)
+      if (result.isConfirmed) {
         try {
           setLoading(true);
           await Api.put(`/perizinan/${id}/approved`);
           Swal.fire({
             icon: "success",
             title: "Berhasil Disetujui",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+          setShowModal(false);
+          fetchData();
+        } catch (err) {
+          Swal.fire("Gagal", "Server Error", "error");
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      // 2. Opsi: Setujui + Potong Cuti (Deny Button)
+      else if (result.isDenied) {
+        try {
+          setLoading(true);
+          await Api.put(`/perizinan/${id}/approve-cuti`);
+          Swal.fire({
+            icon: "success",
+            title: "Berhasil Disetujui & Potong Cuti",
             timer: 2000,
             showConfirmButton: false,
           });
