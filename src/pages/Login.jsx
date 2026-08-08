@@ -55,8 +55,9 @@ const Login = () => {
             id: user.id_admin,
             username: user.username,
             role: user.role,
+            display_name: user.display_name,
             account_type: "admin",
-          })
+          }),
         );
 
         setIsLoading(false);

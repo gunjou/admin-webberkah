@@ -114,7 +114,7 @@ const Navbar = ({ isDark, setIsDark, toggleSidebar }) => {
 
             <div className="text-left hidden md:block">
               <p className="text-sm font-bold text-custom-gelap dark:text-white leading-none capitalize">
-                {user?.account_type || "Admin"}
+                {user?.display_name || "Admin"}
               </p>
               <p className="text-[9px] text-gray-400 font-black uppercase mt-1 tracking-widest">
                 {user?.role || "Administrator"}

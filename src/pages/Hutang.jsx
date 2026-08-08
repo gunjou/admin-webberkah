@@ -499,8 +499,12 @@ const Hutang = () => {
                     {/* Total Hutang (Frekuensi) */}
                     <td className="p-4 text-center">
                       <span className="bg-gray-100 dark:bg-white/10 px-3 py-1 rounded-lg text-[10px] font-black dark:text-white">
-                        {item.total_hutang}{" "}
-                        <span className="text-[8px] text-gray-400">Trans</span>
+                        <div className="inline-block">
+                          {item.total_hutang}{" "}
+                          <span className="text-[8px] text-gray-400">
+                            Trans
+                          </span>
+                        </div>
                       </span>
                     </td>
 
@@ -793,17 +797,28 @@ const Hutang = () => {
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-gray-400 italic">
                       Rp
                     </span>
+
                     <input
                       required
-                      type="number"
-                      placeholder="contoh: 500000"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="contoh: 500.000"
                       value={formData.jumlah_awal}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        // Hanya izinkan angka
+                        const angka = e.target.value.replace(/\D/g, "");
+
+                        // Format ribuan dengan titik
+                        const formatted = angka.replace(
+                          /\B(?=(\d{3})+(?!\d))/g,
+                          ".",
+                        );
+
                         setFormData({
                           ...formData,
-                          jumlah_awal: e.target.value,
-                        })
-                      }
+                          jumlah_awal: formatted,
+                        });
+                      }}
                       className="w-full pl-10 pr-4 py-4 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-sm font-black text-custom-merah-terang outline-none focus:ring-2 focus:ring-custom-merah-terang/20"
                     />
                   </div>
@@ -1159,12 +1174,25 @@ const Hutang = () => {
                     </span>
                     <input
                       required
-                      type="number"
-                      value={payData.jumlah_bayar}
-                      placeholder={`Maksimal: ${payData.sisa_hutang_maksimal}`}
-                      onChange={(e) =>
-                        setPayData({ ...payData, jumlah_bayar: e.target.value })
+                      type="text"
+                      inputMode="numeric"
+                      value={
+                        payData.jumlah_bayar
+                          ? Number(payData.jumlah_bayar).toLocaleString("id-ID")
+                          : ""
                       }
+                      placeholder={`Maksimal: ${Number(
+                        payData.sisa_hutang_maksimal,
+                      ).toLocaleString("id-ID")}`}
+                      onChange={(e) => {
+                        // Ambil hanya angka dari input
+                        const angka = e.target.value.replace(/\D/g, "");
+
+                        setPayData({
+                          ...payData,
+                          jumlah_bayar: angka,
+                        });
+                      }}
                       className="w-full pl-10 pr-4 py-4 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl text-sm font-black text-green-600 outline-none focus:ring-2 focus:ring-green-500/20"
                     />
                   </div>
