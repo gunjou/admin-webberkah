@@ -6,7 +6,7 @@ import Navbar from "../components/Navbar";
 const AdminLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDark, setIsDark] = useState(
-    localStorage.getItem("theme") === "dark"
+    localStorage.getItem("theme") === "dark",
   );
 
   useEffect(() => {
@@ -20,19 +20,17 @@ const AdminLayout = () => {
   }, [isDark]);
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-[#1a1419] font-poppins transition-colors duration-300">
-      {/* Kirim isDark ke Sidebar */}
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-[#1a1419] font-poppins transition-colors duration-300">
       <Sidebar isOpen={isSidebarOpen} isDark={isDark} />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Kirim isDark dan fungsi toggle ke Navbar */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         <Navbar
           isDark={isDark}
           setIsDark={setIsDark}
           toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
 
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-[#231b21] p-4 md:p-6 transition-colors duration-300">
+        <main className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-[#231b21] p-4 md:p-6 transition-colors duration-300">
           <Outlet />
         </main>
       </div>

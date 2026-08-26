@@ -8,6 +8,7 @@ import {
 import { RiLockPasswordLine } from "react-icons/ri";
 import Api from "../utils/Api";
 import LoadingOverlay from "../components/LoadingOverlay";
+import { getDefaultRoute } from "../utils/rbac";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -62,7 +63,10 @@ const Login = () => {
 
         setIsLoading(false);
 
-        navigate("/dashboard");
+        // Tentukan dashboard berdasarkan role
+        const defaultRoute = getDefaultRoute(user.role);
+
+        navigate(defaultRoute, { replace: true });
       }
     } catch (error) {
       setIsLoading(false);
