@@ -179,7 +179,7 @@ const Sidebar = ({ isOpen, isDark }) => {
         },
 
         {
-          name: "Client",
+          name: "Client & PIC",
           path: "/master/client",
           allowedRoles: ROLE_GROUPS.CLIENT,
         },

@@ -1,7 +1,9 @@
 import axios from "axios";
+import SwalHelper from "./Swal";
 
 const baseURL = process.env.REACT_APP_API_URL;
 // const baseURL = "http://127.0.0.1:5000";
+
 const Api = axios.create({
   baseURL: baseURL,
   headers: { "Content-Type": "application/json" },
@@ -59,6 +61,7 @@ Api.interceptors.response.use(
 
         originalRequest._retry = true;
         isRefreshing = true;
+
         const refreshToken = localStorage.getItem("refresh_token");
 
         if (!refreshToken) {
@@ -100,13 +103,14 @@ Api.interceptors.response.use(
   },
 );
 
-const handleForceLogout = (message) => {
-  // Gunakan flag agar alert tidak muncul berkali-kali jika ada banyak request gagal bersamaan
+const handleForceLogout = async (message) => {
+  // Gunakan flag agar alert tidak muncul berkali-kali
+  // jika ada banyak request gagal bersamaan
   if (!window.isLoggingOut) {
     window.isLoggingOut = true;
-    alert(message);
-    localStorage.clear(); // Hapus semua (token, user data, dll)
-    window.location.href = "/login"; // Force redirect ke login
+    await SwalHelper.error(message);
+    localStorage.clear();
+    window.location.href = "/login";
   }
 };
 
