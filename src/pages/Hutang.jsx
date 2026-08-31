@@ -28,7 +28,8 @@ const Hutang = () => {
   const [masterPegawai, setMasterPegawai] = useState([]);
   const [formData, setFormData] = useState({
     id_pegawai: "",
-    tanggal_pengajuan: new Date().toISOString().split("T")[0], // Default hari ini
+    nama_pegawai: "",
+    tanggal_pengajuan: new Date().toISOString().split("T")[0],
     jumlah_awal: "",
     keterangan: "",
     metode: "kasbon",
@@ -116,72 +117,124 @@ const Hutang = () => {
   const handleSubmitHutang = async (e) => {
     e.preventDefault();
 
+    // Bersihkan format rupiah:
+    // "500.000" -> 500000
+    const jumlahAwal = Number(
+      String(formData.jumlah_awal || "")
+        .replace(/\./g, "")
+        .replace(/,/g, ""),
+    );
+
+    // Validasi pegawai
+    if (!formData.id_pegawai) {
+      Swal.fire({
+        icon: "warning",
+        title: "Pegawai Belum Dipilih",
+        text: "Silakan pilih pegawai terlebih dahulu.",
+        customClass: { popup: "rounded-[30px]" },
+      });
+      return;
+    }
+
+    // Validasi nominal
+    if (!jumlahAwal || jumlahAwal <= 0 || Number.isNaN(jumlahAwal)) {
+      Swal.fire({
+        icon: "warning",
+        title: "Nominal Tidak Valid",
+        text: "Silakan masukkan jumlah hutang yang benar.",
+        customClass: { popup: "rounded-[30px]" },
+      });
+      return;
+    }
+
+    // Payload KHUSUS untuk API
+    const payload = {
+      id_pegawai: Number(formData.id_pegawai),
+      tanggal_pengajuan: formData.tanggal_pengajuan,
+      jumlah_awal: jumlahAwal,
+      keterangan: formData.keterangan.trim(),
+      metode: formData.metode,
+    };
+
+    console.log("PAYLOAD /hutang:", payload);
+
     // Konfirmasi sebelum simpan
     const confirm = await Swal.fire({
       title: "Konfirmasi Pinjaman",
-      html: `Input hutang sebesar <b class="text-custom-merah-terang">Rp ${Number(formData.jumlah_awal).toLocaleString()}</b> untuk pegawai terpilih?`,
+      html: `
+      Input hutang sebesar 
+      <b class="text-custom-merah-terang">
+        Rp ${jumlahAwal.toLocaleString("id-ID")}
+      </b>
+      untuk pegawai terpilih?
+    `,
       icon: "question",
       showCancelButton: true,
       confirmButtonText: "Ya, Simpan",
+      cancelButtonText: "Batal",
       confirmButtonColor: "#ef4444",
+      customClass: { popup: "rounded-[30px]" },
     });
 
     if (!confirm.isConfirmed) return;
 
     setLoading(true);
+
     try {
-      const res = await Api.post("/hutang", formData);
+      const res = await Api.post("/hutang", payload);
+
+      console.log("RESPONSE /hutang:", res.data);
+
       if (res.data.success) {
-        Swal.fire({
+        await Swal.fire({
           icon: "success",
           title: "Berhasil",
           text: "Hutang baru telah dicatat.",
           timer: 2000,
           showConfirmButton: false,
+          customClass: { popup: "rounded-[30px]" },
         });
+
         setShowAddModal(false);
-        setFormData({
-          id_pegawai: "",
-          tanggal_pengajuan: new Date().toISOString().split("T")[0],
-          jumlah_awal: "",
-          keterangan: "",
-          metode: "kasbon",
+
+        resetAddFormData();
+
+        await fetchData();
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Gagal",
+          text: res.data.message || "Hutang gagal disimpan.",
+          customClass: { popup: "rounded-[30px]" },
         });
-        fetchData(); // Refresh table utama
       }
     } catch (err) {
-      Swal.fire(
-        "Gagal",
-        err.response?.data?.message || "Terjadi kesalahan server",
-        "error",
-      );
+      console.error("ERROR POST /hutang:", err);
+      console.error("ERROR RESPONSE:", err.response?.data);
+
+      Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        html: `
+        ${err.response?.data?.message || "Terjadi kesalahan server"}
+      `,
+        customClass: { popup: "rounded-[30px]" },
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const openAddModal = (pegawai = null) => {
-    if (pegawai) {
-      // Jika dari Detail Pegawai
-      setFormData({
-        id_pegawai: pegawai.id_pegawai,
-        nama_pegawai: pegawai.nama, // Simpan nama untuk label modal
-        tanggal_pengajuan: new Date().toISOString().split("T")[0],
-        jumlah_awal: "",
-        keterangan: "",
-        metode: "kasbon",
-      });
-    } else {
-      // Jika dari Tombol Header Utama
-      setFormData({
-        id_pegawai: "",
-        nama_pegawai: "",
-        tanggal_pengajuan: new Date().toISOString().split("T")[0],
-        jumlah_awal: "",
-        keterangan: "",
-        metode: "kasbon",
-      });
-    }
+    setFormData({
+      id_pegawai: pegawai?.id_pegawai || "",
+      nama_pegawai: pegawai?.nama || "",
+      tanggal_pengajuan: new Date().toISOString().split("T")[0],
+      jumlah_awal: "",
+      keterangan: "",
+      metode: "kasbon",
+    });
+
     setShowAddModal(true);
   };
 
@@ -225,7 +278,7 @@ const Hutang = () => {
   const resetAddFormData = () => {
     setFormData({
       id_pegawai: "",
-      nama_pegawai: "", // Reset nama agar dropdown muncul kembali
+      nama_pegawai: "",
       tanggal_pengajuan: new Date().toISOString().split("T")[0],
       jumlah_awal: "",
       keterangan: "",
