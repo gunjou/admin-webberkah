@@ -24,6 +24,7 @@ import Rekapan from "./pages/absensi/Rekapan";
 import Lembur from "./pages/absensi/Lembur";
 import Perizinan from "./pages/absensi/Perizinan";
 
+import Pengajuan from "./pages/Pengajuan";
 import Leaderboard from "./pages/Leaderboard";
 import Gaji from "./pages/Gaji";
 import Hutang from "./pages/Hutang";
@@ -139,6 +140,8 @@ function App() {
               <Route path="/absensi/perizinan" element={<Perizinan />} />
 
               <Route path="/absensi/lembur" element={<Lembur />} />
+
+              <Route path="/pengajuan" element={<Pengajuan />} />
 
               <Route path="/leaderboard" element={<Leaderboard />} />
 

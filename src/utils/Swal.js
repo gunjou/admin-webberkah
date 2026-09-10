@@ -56,13 +56,13 @@ const SwalHelper = {
     });
   },
 
-  confirm: ({
+  confirm: async ({
     title = "Konfirmasi",
     message = "Apakah Anda yakin?",
     confirmText = "Ya, Lanjutkan",
     cancelText = "Batal",
   } = {}) => {
-    return Swal.fire({
+    const result = await Swal.fire({
       ...swalConfig,
       icon: "warning",
       title,
@@ -75,6 +75,7 @@ const SwalHelper = {
       timer: undefined,
       timerProgressBar: false,
     });
+    return result.isConfirmed;
   },
 };
 

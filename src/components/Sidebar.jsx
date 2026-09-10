@@ -12,6 +12,7 @@ import {
   MdBusinessCenter,
   MdReceiptLong,
   MdDescription,
+  MdRequestPage,
 } from "react-icons/md";
 import { FaMedal } from "react-icons/fa";
 import { hasAccess, ROLE_GROUPS } from "../utils/rbac";
@@ -74,6 +75,13 @@ const Sidebar = ({ isOpen, isDark }) => {
           path: "/absensi/lembur",
         },
       ],
+    },
+
+    {
+      name: "Pengajuan",
+      path: "/pengajuan",
+      icon: <MdRequestPage />,
+      allowedRoles: ROLE_GROUPS.HRIS,
     },
 
     {
@@ -257,7 +265,7 @@ const Sidebar = ({ isOpen, isDark }) => {
           NAVIGATION
       ==================================================== */}
 
-      <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
+      <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto pb-12">
         {visibleMenuItems.map((item) => {
           const active = item.path && isActive(item.path);
 
