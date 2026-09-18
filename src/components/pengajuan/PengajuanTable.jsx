@@ -89,7 +89,14 @@ const PengajuanTable = ({
 
   return (
     <div className="bg-white dark:bg-custom-gelap rounded-2xl border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden">
-      <div className="max-h-[calc(100vh-340px)] overflow-auto">
+      {/* <div className="max-h-[calc(100vh-340px)] overflow-auto"> */}
+      <div
+        className={`w-full min-w-0 max-w-full overflow-x-auto overflow-y-auto ${
+          viewMode === "HISTORY"
+            ? "max-h-[calc(100vh-320px)]"
+            : "max-h-[calc(100vh-240px)]"
+        }`}
+      >
         <table className="w-full min-w-[1150px]">
           <thead className="sticky top-0 z-20">
             <tr className="border-b border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-custom-gelap">

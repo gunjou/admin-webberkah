@@ -321,7 +321,7 @@ const Pengajuan = () => {
   return (
     <>
       {detailLoading && <LoadingOverlay message="Memuat Detail Pengajuan..." />}
-      <div className="space-y-5 pb-3 font-poppins">
+      <div className="space-y-3 pb-3 font-poppins">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
           <div>
             <h1 className="text-xl font-black text-custom-gelap dark:text-white uppercase tracking-tighter">
