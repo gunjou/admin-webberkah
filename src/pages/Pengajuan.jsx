@@ -10,6 +10,7 @@ import ModalEditPengajuan from "../components/pengajuan/ModalEditPengajuan";
 import SwalHelper from "../utils/Swal";
 import ModalCreatePengajuan from "../components/pengajuan/ModalCreatePengajuan";
 import { exportPengajuanPDF } from "./export/exportPengajuan";
+import LoadingOverlay from "../components/LoadingOverlay";
 
 const Pengajuan = () => {
   const [viewMode, setViewMode] = useState("ACTIVE");
@@ -27,7 +28,11 @@ const Pengajuan = () => {
   const [showEdit, setShowEdit] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [attachment, setAttachment] = useState(null);
+  const HISTORY_PER_PAGE_OPTIONS = [10, 25, 50, 100];
+
   const [historyPage, setHistoryPage] = useState(1);
+  const [historyPerPage, setHistoryPerPage] = useState(10);
+
   const [historyPageInfo, setHistoryPageInfo] = useState({
     page: 1,
     per_page: 10,
@@ -90,6 +95,8 @@ const Pengajuan = () => {
     }
   }, [filter, viewMode]);
 
+  const isHistoryPaginated = viewMode === "HISTORY" && filter.status === "PAID";
+
   const fetchHistoryData = useCallback(async () => {
     if (viewMode !== "HISTORY") return;
 
@@ -98,9 +105,12 @@ const Pengajuan = () => {
     try {
       const params = {
         status: filter.status,
-        page: historyPage,
-        per_page: 10,
       };
+
+      if (isHistoryPaginated) {
+        params.page = historyPage;
+        params.per_page = historyPerPage;
+      }
 
       if (filter.id_departemen) params.id_departemen = filter.id_departemen;
       if (filter.tanggal_mulai) params.tanggal_mulai = filter.tanggal_mulai;
@@ -110,18 +120,21 @@ const Pengajuan = () => {
       const res = await Api.get("/purchase-requests/history", { params });
 
       if (res.data.success) {
-        setDataPengajuan(res.data.data?.data || []);
-        setHistoryPageInfo(
-          res.data.data?.page_info || {
-            page: 1,
-            per_page: 10,
-            total: 0,
-            total_pages: 1,
-          },
-        );
+        const responseData = res.data.data || {};
+        const pageInfo = responseData.page_info || {};
+
+        setDataPengajuan(responseData.data || []);
+
+        setHistoryPageInfo({
+          page: pageInfo.page || 1,
+          per_page: pageInfo.per_page || historyPerPage,
+          total: pageInfo.total || 0,
+          total_pages: pageInfo.total_pages || 1,
+        });
       }
     } catch (err) {
       console.error("Gagal mengambil history:", err);
+
       Swal.fire({
         icon: "error",
         title: "Gagal Memuat History",
@@ -132,7 +145,7 @@ const Pengajuan = () => {
     } finally {
       setLoading(false);
     }
-  }, [filter, historyPage, viewMode]);
+  }, [filter, historyPage, historyPerPage, viewMode, isHistoryPaginated]);
 
   useEffect(() => {
     fetchActiveData();
@@ -164,24 +177,35 @@ const Pengajuan = () => {
     }
   };
 
-  const displayedData = [...dataPengajuan].sort((a, b) => {
-    if (sortConfig.key === "priority") {
-      const priorityOrder = { NORMAL: 1, URGENT: 2, TOP_URGENT: 3 };
-      const result =
-        (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+  const displayedData =
+    viewMode === "ACTIVE"
+      ? [...dataPengajuan].sort((a, b) => {
+          if (sortConfig.key === "priority") {
+            const priorityOrder = {
+              NORMAL: 1,
+              URGENT: 2,
+              TOP_URGENT: 3,
+            };
 
-      return sortConfig.direction === "desc" ? result : -result;
-    }
+            const result =
+              (priorityOrder[b.priority] || 0) -
+              (priorityOrder[a.priority] || 0);
 
-    if (sortConfig.key === "date") {
-      const dateA = new Date(a.created_at || 0).getTime();
-      const dateB = new Date(b.created_at || 0).getTime();
+            return sortConfig.direction === "desc" ? result : -result;
+          }
 
-      return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
-    }
+          if (sortConfig.key === "date") {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
 
-    return 0;
-  });
+            return sortConfig.direction === "asc"
+              ? dateA - dateB
+              : dateB - dateA;
+          }
+
+          return 0;
+        })
+      : dataPengajuan;
 
   const handleDetail = async (id) => {
     const detail = await fetchDetail(id);
@@ -246,6 +270,11 @@ const Pengajuan = () => {
     }
   };
 
+  const handleHistoryPerPageChange = (value) => {
+    setHistoryPerPage(Number(value));
+    setHistoryPage(1);
+  };
+
   const handleResetFilter = () => {
     setHistoryPage(1);
     setFilter(
@@ -291,7 +320,8 @@ const Pengajuan = () => {
 
   return (
     <>
-      <div className="space-y-5 pb-10 font-poppins">
+      {detailLoading && <LoadingOverlay message="Memuat Detail Pengajuan..." />}
+      <div className="space-y-5 pb-3 font-poppins">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
           <div>
             <h1 className="text-xl font-black text-custom-gelap dark:text-white uppercase tracking-tighter">
@@ -376,32 +406,114 @@ const Pengajuan = () => {
           onEdit={handleEdit}
           onDelete={handleDelete}
           viewMode={viewMode}
+          startIndex={
+            viewMode === "HISTORY"
+              ? (historyPageInfo.page - 1) * historyPageInfo.per_page
+              : 0
+          }
         />
 
-        {viewMode === "HISTORY" && historyPageInfo.total_pages > 1 && (
-          <div className="flex items-center justify-between bg-white dark:bg-custom-gelap border border-gray-100 dark:border-white/5 rounded-2xl px-4 py-3">
-            <p className="text-[9px] font-bold text-gray-400 uppercase">
-              Halaman {historyPageInfo.page} dari {historyPageInfo.total_pages}
-            </p>
+        {isHistoryPaginated && historyPageInfo.total > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-custom-gelap border border-gray-100 dark:border-white/5 rounded-2xl px-4 py-3">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-bold text-gray-400 uppercase whitespace-nowrap">
+                  Tampilkan
+                </span>
 
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={historyPage <= 1}
-                onClick={() => setHistoryPage((prev) => prev - 1)}
-                className="px-4 py-2 rounded-xl text-[9px] font-black uppercase bg-gray-100 dark:bg-white/5 text-custom-gelap dark:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                Sebelumnya
-              </button>
-              <button
-                type="button"
-                disabled={historyPage >= historyPageInfo.total_pages}
-                onClick={() => setHistoryPage((prev) => prev + 1)}
-                className="px-4 py-2 rounded-xl text-[9px] font-black uppercase bg-custom-gelap dark:bg-custom-cerah text-white disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                Berikutnya
-              </button>
+                <select
+                  value={historyPerPage}
+                  onChange={(e) => handleHistoryPerPageChange(e.target.value)}
+                  className="h-8 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-2 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer"
+                >
+                  {HISTORY_PER_PAGE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option} / halaman
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="h-5 w-px bg-gray-100 dark:bg-white/10" />
+
+              <p className="text-[9px] font-bold text-gray-400 uppercase whitespace-nowrap">
+                {`Menampilkan ${
+                  historyPageInfo.total === 0
+                    ? 0
+                    : (historyPageInfo.page - 1) * historyPageInfo.per_page + 1
+                }–${Math.min(
+                  historyPageInfo.page * historyPageInfo.per_page,
+                  historyPageInfo.total,
+                )} dari ${historyPageInfo.total} item`}
+              </p>
             </div>
+
+            {historyPageInfo.total_pages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={historyPage <= 1 || loading}
+                  onClick={() => setHistoryPage((prev) => prev - 1)}
+                  className="flex items-center justify-center h-8 w-8 rounded-xl bg-gray-100 dark:bg-white/5 text-custom-gelap dark:text-white transition-all hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="Halaman sebelumnya"
+                >
+                  <span className="text-xs">‹</span>
+                </button>
+
+                {Array.from(
+                  { length: historyPageInfo.total_pages },
+                  (_, index) => index + 1,
+                )
+                  .filter(
+                    (page) =>
+                      page === 1 ||
+                      page === historyPageInfo.total_pages ||
+                      Math.abs(page - historyPage) <= 1,
+                  )
+                  .map((page, index, pages) => {
+                    const previousPage = pages[index - 1];
+
+                    return (
+                      <React.Fragment key={page}>
+                        {previousPage && page - previousPage > 1 && (
+                          <span className="flex items-center justify-center h-8 w-5 text-[10px] font-black text-gray-400">
+                            ...
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          disabled={loading}
+                          onClick={() => setHistoryPage(page)}
+                          className={`flex items-center justify-center h-8 min-w-8 px-2 rounded-xl text-[10px] font-black transition-all ${
+                            historyPage === page
+                              ? "bg-custom-merah-terang text-white shadow-md shadow-custom-merah-terang/20"
+                              : "bg-gray-100 dark:bg-white/5 text-custom-gelap dark:text-white hover:bg-gray-200 dark:hover:bg-white/10"
+                          } disabled:cursor-not-allowed`}
+                          aria-label={`Halaman ${page}`}
+                          aria-current={
+                            historyPage === page ? "page" : undefined
+                          }
+                        >
+                          {page}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+
+                <button
+                  type="button"
+                  disabled={
+                    historyPage >= historyPageInfo.total_pages || loading
+                  }
+                  onClick={() => setHistoryPage((prev) => prev + 1)}
+                  className="flex items-center justify-center h-8 w-8 rounded-xl bg-custom-gelap dark:bg-custom-cerah text-white transition-all hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="Halaman berikutnya"
+                >
+                  <span className="text-xs">›</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

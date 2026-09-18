@@ -56,6 +56,8 @@ const PengajuanTable = ({
   onDetail,
   onEdit,
   onDelete,
+  viewMode,
+  startIndex = 0,
 }) => {
   if (loading) {
     return (
@@ -87,7 +89,7 @@ const PengajuanTable = ({
 
   return (
     <div className="bg-white dark:bg-custom-gelap rounded-2xl border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden">
-      <div className="max-h-[calc(100vh-320px)] overflow-auto">
+      <div className="max-h-[calc(100vh-340px)] overflow-auto">
         <table className="w-full min-w-[1150px]">
           <thead className="sticky top-0 z-20">
             <tr className="border-b border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-custom-gelap">
@@ -102,6 +104,7 @@ const PengajuanTable = ({
                 >
                   Pengajuan
                   {sortConfig?.key === "date" &&
+                    viewMode === "ACTIVE" &&
                     (sortConfig.direction === "asc" ? (
                       <MdArrowUpward size={13} />
                     ) : (
@@ -123,6 +126,7 @@ const PengajuanTable = ({
                 >
                   Priority
                   {sortConfig?.key === "priority" &&
+                    viewMode === "ACTIVE" &&
                     (sortConfig.direction === "desc" ? (
                       <MdArrowDownward size={13} />
                     ) : (
@@ -161,7 +165,7 @@ const PengajuanTable = ({
                     className="cursor-pointer px-2 py-4 text-center"
                   >
                     <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-[9px] font-black text-gray-500 dark:bg-white/10 dark:text-gray-300">
-                      {String(index + 1).padStart(2, "0")}
+                      {String(startIndex + index + 1).padStart(2, "0")}
                     </span>
                   </td>
 
