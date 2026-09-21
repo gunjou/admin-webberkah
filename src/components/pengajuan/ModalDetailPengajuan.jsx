@@ -15,6 +15,7 @@ import {
 } from "react-icons/md";
 import Api from "../../utils/Api";
 import SwalHelper from "../../utils/Swal";
+import { BsFileImage } from "react-icons/bs";
 
 const STATUS_STYLE = {
   REQUESTED: { label: "Requested", light: "#CA8A04", dark: "#FACC15" },
@@ -535,11 +536,13 @@ const ModalDetailPengajuan = ({
                       "APPROVED",
                       "PAID",
                     ];
+
                     const rejectedStatuses = [
                       "REQUESTED",
                       "REVIEWED",
                       "REJECTED",
                     ];
+
                     const historyStatuses =
                       data.status === "REJECTED"
                         ? rejectedStatuses
@@ -585,7 +588,9 @@ const ModalDetailPengajuan = ({
                               const history = historyMap[status];
                               const statusStyle =
                                 STATUS_STYLE[status] || STATUS_STYLE.REQUESTED;
+
                               const isPassed = index <= lastStatusIndex;
+                              const isPaid = status === "PAID";
 
                               return (
                                 <div
@@ -594,7 +599,11 @@ const ModalDetailPengajuan = ({
                                 >
                                   {/* DOT */}
                                   <div
-                                    className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-sm ${isPassed ? "text-white" : "bg-gray-200 text-gray-400 dark:bg-white/10 dark:text-gray-500"}`}
+                                    className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-sm ${
+                                      isPassed
+                                        ? "text-white"
+                                        : "bg-gray-200 text-gray-400 dark:bg-white/10 dark:text-gray-500"
+                                    }`}
                                     style={
                                       isPassed
                                         ? { backgroundColor: statusStyle.light }
@@ -611,7 +620,11 @@ const ModalDetailPengajuan = ({
                                   {/* INFORMATION */}
                                   <div className="mt-3 w-full px-2 text-center">
                                     <span
-                                      className={`inline-flex rounded-full px-2.5 py-1 text-[8px] font-black uppercase tracking-wider ${isPassed ? "text-white" : "bg-gray-200 text-gray-400 dark:bg-white/10 dark:text-gray-500"}`}
+                                      className={`inline-flex rounded-full px-2.5 py-1 text-[8px] font-black uppercase tracking-wider ${
+                                        isPassed
+                                          ? "text-white"
+                                          : "bg-gray-200 text-gray-400 dark:bg-white/10 dark:text-gray-500"
+                                      }`}
                                       style={
                                         isPassed
                                           ? {
@@ -644,6 +657,31 @@ const ModalDetailPengajuan = ({
                                       <p className="mt-2 text-[10px] font-medium italic text-gray-400 dark:text-gray-500">
                                         Belum dilakukan
                                       </p>
+                                    )}
+
+                                    {/* BUKTI BAYAR */}
+                                    {isPaid && isPassed && (
+                                      <div className="mt-1 flex flex-col items-center">
+                                        {data.payment?.bukti_bayar ? (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              onAttachment?.({
+                                                name: "bukti_pembayaran.jpg",
+                                                path: data.payment.bukti_bayar,
+                                              })
+                                            }
+                                            className="flex items-center gap-1.5 rounded-lg bg-custom-merah-terang text-custom-merah-terang px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider text-white transition-all hover:bg-custom-merah-terang/80 hover:text-white"
+                                          >
+                                            <BsFileImage size={12} />
+                                            Lihat Bukti
+                                          </button>
+                                        ) : (
+                                          <span className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[9px] font-medium italic text-gray-400 dark:border-white/10 dark:bg-white/5 dark:text-gray-500">
+                                            Bukti Bayar Tidak Tersedia
+                                          </span>
+                                        )}
+                                      </div>
                                     )}
                                   </div>
                                 </div>
