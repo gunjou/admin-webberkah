@@ -219,12 +219,12 @@ const PengajuanTable = ({
                   >
                     <div className="min-w-[200px] max-w-[480px]">
                       <p className="text-[11px] font-black leading-5 text-custom-gelap dark:text-white">
-                        {item.nama_pekerjaan || "-"}
+                        {item.note || item.nama_pekerjaan || "-"}
                       </p>
 
-                      {item.note && (
+                      {item.note && item.nama_pekerjaan && (
                         <p className="mt-1 line-clamp-2 text-[9px] font-medium leading-4 text-gray-600 dark:text-gray-500">
-                          {item.note}
+                          {item.nama_pekerjaan}
                         </p>
                       )}
                     </div>
