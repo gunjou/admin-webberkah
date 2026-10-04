@@ -40,7 +40,9 @@ import Client from "./pages/master/Client";
 
 import DashboardContract from "./pages/DashboardContract";
 import WorkItem from "./pages/WorkItem";
+import Quotation from "./pages/Quotation";
 import Contract from "./pages/Contract";
+import Completion from "./pages/Completion";
 
 import DashboardInvoice from "./pages/DashboardInvoice";
 import Invoice from "./pages/Invoice";
@@ -118,20 +120,26 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* PUBLIC */}
+        {/* ===================================================
+            PUBLIC
+        ==================================================== */}
 
         <Route path="/login" element={<Login />} />
 
-        {/* AUTHENTICATED */}
+        {/* ===================================================
+            AUTHENTICATED
+        ==================================================== */}
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AdminLayout />}>
-            {/* =========================
+            {/* =================================================
                 HRIS
-            ========================== */}
+            ================================================== */}
 
             <Route element={<RoleRoute allowedRoles={ROLE_GROUPS.HRIS} />}>
               <Route path="/dashboard" element={<Dashboard />} />
+
+              <Route path="/dashboard-hr" element={<Dashboard />} />
 
               <Route path="/absensi/presensi" element={<Presensi />} />
 
@@ -141,15 +149,11 @@ function App() {
 
               <Route path="/absensi/lembur" element={<Lembur />} />
 
-              <Route path="/pengajuan" element={<Pengajuan />} />
-
               <Route path="/leaderboard" element={<Leaderboard />} />
 
-              <Route path="/gaji" element={<Gaji />} />
-
-              <Route path="/hutang" element={<Hutang />} />
-
-              <Route path="/pegawai" element={<Pegawai />} />
+              {/* ===============================
+                  MASTER HRIS
+              ================================ */}
 
               <Route path="/master/departemen" element={<Departemen />} />
 
@@ -164,50 +168,82 @@ function App() {
               <Route path="/master/kategori" element={<Kategori />} />
             </Route>
 
-            {/* =========================
-                CONTRACT
-            ========================== */}
+            {/* =================================================
+                HRIS + FINANCE
+            ================================================== */}
 
-            <Route element={<RoleRoute allowedRoles={ROLE_GROUPS.CONTRACT} />}>
+            <Route
+              element={<RoleRoute allowedRoles={ROLE_GROUPS.HRIS_FINANCE} />}
+            >
+              <Route path="/gaji" element={<Gaji />} />
+
+              <Route path="/hutang" element={<Hutang />} />
+
+              <Route path="/pegawai" element={<Pegawai />} />
+            </Route>
+
+            {/* =================================================
+                FINANCE
+            ================================================== */}
+
+            <Route element={<RoleRoute allowedRoles={ROLE_GROUPS.FINANCE} />}>
+              <Route path="/dashboard-finance" element={<Dashboard />} />
+
+              <Route path="/pengajuan" element={<Pengajuan />} />
+            </Route>
+
+            {/* =================================================
+                CONTRACT & INVOICE
+            ================================================== */}
+
+            <Route
+              element={
+                <RoleRoute allowedRoles={ROLE_GROUPS.CONTRACT_INVOICE} />
+              }
+            >
               <Route
                 path="/dashboard-contract"
                 element={<DashboardContract />}
               />
 
+              <Route path="/dashboard-invoice" element={<DashboardInvoice />} />
+
               <Route path="/work-item" element={<WorkItem />} />
 
+              <Route path="/quotation" element={<Quotation />} />
+
               <Route path="/contract" element={<Contract />} />
-            </Route>
 
-            {/* =========================
-                INVOICE
-            ========================== */}
-
-            <Route element={<RoleRoute allowedRoles={ROLE_GROUPS.INVOICE} />}>
-              <Route path="/dashboard-invoice" element={<DashboardInvoice />} />
+              <Route path="/completion" element={<Completion />} />
 
               <Route path="/invoice" element={<Invoice />} />
             </Route>
 
-            {/* =========================
-                SHARED MASTER
-            ========================== */}
+            {/* =================================================
+                MASTER CLIENT & PIC
+            ================================================== */}
 
             <Route element={<RoleRoute allowedRoles={ROLE_GROUPS.CLIENT} />}>
               <Route path="/master/client" element={<Client />} />
             </Route>
           </Route>
 
-          {/* 403 */}
+          {/* =================================================
+              403
+          ================================================== */}
 
           <Route path="/unauthorized" element={<Unauthorized />} />
         </Route>
 
-        {/* ROOT */}
+        {/* ===================================================
+            ROOT
+        ==================================================== */}
 
         <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* 404 */}
+        {/* ===================================================
+            404
+        ==================================================== */}
 
         <Route path="*" element={<NotFound />} />
       </Routes>

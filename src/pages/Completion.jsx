@@ -9,10 +9,17 @@ import {
   MdRefresh,
   MdSearch,
   MdVisibility,
+  MdDescription,
 } from "react-icons/md";
-import ModalCreateInvoice from "../components/modals/invoice/ModalCreateInvoice";
-import ModalDetailInvoice from "../components/modals/invoice/ModalDetailInvoice";
-import ModalEditInvoice from "../components/modals/invoice/ModalEditInvoice";
+import ModalCreateCompletion from "../components/modals/completion/ModalCreateCompletion";
+import ModalDetailCompletion from "../components/modals/completion/ModalDetailCompletion";
+import ModalEditCompletion from "../components/modals/completion/ModalEditCompletion";
+
+const WORK_TYPE_OPTIONS = [
+  { value: "", label: "Semua Jenis" },
+  { value: "TENDER", label: "Tender" },
+  { value: "MAINTENANCE", label: "Maintenance" },
+];
 
 const PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
@@ -37,34 +44,12 @@ const formatDate = (date) => {
   });
 };
 
-const formatCurrency = (value) => {
-  if (value === null || value === undefined || value === "") {
-    return "-";
-  }
-
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
-};
-
-const formatVatRate = (value) => {
-  if (value === null || value === undefined || value === "") {
-    return "-";
-  }
-
-  return `${Number(value).toLocaleString("id-ID", {
-    maximumFractionDigits: 2,
-  })}%`;
-};
-
-const Invoice = () => {
-  const [dataInvoice, setDataInvoice] = useState([]);
+const Completion = () => {
+  const [dataCompletion, setDataCompletion] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [selectedCompletionId, setSelectedCompletionId] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
@@ -88,7 +73,7 @@ const Invoice = () => {
     direction: "desc",
   });
 
-  const fetchInvoices = useCallback(async () => {
+  const fetchCompletions = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -105,7 +90,7 @@ const Invoice = () => {
         params.work_type = filter.work_type;
       }
 
-      const response = await Api.get("/work-item/invoice", {
+      const response = await Api.get("/work-item/completion", {
         params,
       });
 
@@ -113,7 +98,7 @@ const Invoice = () => {
         const responseData = response.data?.data || {};
         const pageInfo = responseData.pagination || {};
 
-        setDataInvoice(responseData.items || []);
+        setDataCompletion(responseData.items || []);
 
         setPagination({
           page: pageInfo.page || 1,
@@ -122,15 +107,13 @@ const Invoice = () => {
           total_pages: pageInfo.total_pages || 1,
         });
       } else {
-        SwalHelper.error(
-          response.data?.message || "Gagal mengambil data invoice.",
-        );
+        SwalHelper.error(response.data?.message || "Gagal mengambil data BA.");
       }
     } catch (error) {
-      console.error("Gagal mengambil data invoice:", error);
+      console.error("Gagal mengambil data BA:", error);
 
       SwalHelper.error(
-        error.response?.data?.message || "Gagal mengambil data invoice.",
+        error.response?.data?.message || "Gagal mengambil data BA.",
       );
     } finally {
       setLoading(false);
@@ -138,8 +121,8 @@ const Invoice = () => {
   }, [filter, page, perPage]);
 
   useEffect(() => {
-    fetchInvoices();
-  }, [fetchInvoices]);
+    fetchCompletions();
+  }, [fetchCompletions]);
 
   const handleFilterChange = (key, value) => {
     setPage(1);
@@ -160,7 +143,7 @@ const Invoice = () => {
   };
 
   const handleRefresh = () => {
-    fetchInvoices();
+    fetchCompletions();
   };
 
   const handlePerPageChange = (value) => {
@@ -177,7 +160,7 @@ const Invoice = () => {
   };
 
   const displayedData = useMemo(() => {
-    const data = [...dataInvoice];
+    const data = [...dataCompletion];
 
     data.sort((a, b) => {
       const { key, direction } = sortConfig;
@@ -186,15 +169,12 @@ const Invoice = () => {
       let valueB = b[key];
 
       if (
-        key === "invoice_date" ||
-        key === "due_date" ||
+        key === "ba_date" ||
+        key === "completion_date" ||
         key === "created_at"
       ) {
         valueA = new Date(valueA || 0).getTime();
         valueB = new Date(valueB || 0).getTime();
-      } else if (key === "invoice_value" || key === "vat_rate") {
-        valueA = Number(valueA || 0);
-        valueB = Number(valueB || 0);
       } else {
         valueA = String(valueA || "").toLowerCase();
         valueB = String(valueB || "").toLowerCase();
@@ -212,26 +192,26 @@ const Invoice = () => {
     });
 
     return data;
-  }, [dataInvoice, sortConfig]);
+  }, [dataCompletion, sortConfig]);
 
   const handleCreate = () => {
     setShowCreate(true);
   };
 
   const handleDetail = (item) => {
-    setSelectedInvoiceId(item.id_invoice);
+    setSelectedCompletionId(item.id_completion);
     setShowDetail(true);
   };
 
   const handleEdit = (item) => {
-    setSelectedInvoiceId(item.id_invoice);
+    setSelectedCompletionId(item.id_completion);
     setShowEdit(true);
   };
 
   const handleDelete = async (item) => {
     const confirmed = await SwalHelper.confirm({
-      title: "Nonaktifkan Invoice?",
-      message: `Invoice "${item.invoice_number}" akan dinonaktifkan.`,
+      title: "Nonaktifkan BA?",
+      message: `BA "${item.ba_number}" akan dinonaktifkan.`,
       confirmText: "Ya, Nonaktifkan",
       cancelText: "Batal",
     });
@@ -242,42 +222,49 @@ const Invoice = () => {
       setLoading(true);
 
       const response = await Api.delete(
-        `/work-item/invoice/${item.id_invoice}`,
+        `/work-item/completion/${item.id_completion}`,
       );
 
       if (response.data?.success) {
         await SwalHelper.success(
-          response.data?.message || "Invoice berhasil dinonaktifkan.",
+          response.data?.message || "BA berhasil dinonaktifkan.",
         );
-        await fetchInvoices();
+        await fetchCompletions();
       } else {
-        SwalHelper.error(
-          response.data?.message || "Gagal menonaktifkan invoice.",
-        );
+        SwalHelper.error(response.data?.message || "Gagal menonaktifkan BA.");
       }
     } catch (error) {
       SwalHelper.error(
-        error.response?.data?.message || "Gagal menonaktifkan invoice.",
+        error.response?.data?.message || "Gagal menonaktifkan BA.",
       );
     } finally {
       setLoading(false);
     }
   };
 
+  const handleDocument = (item) => {
+    if (!item.document_url) {
+      SwalHelper.info("Dokumen BA tidak tersedia.");
+      return;
+    }
+
+    window.open(item.document_url, "_blank");
+  };
+
   return (
     <>
-      {loading && <LoadingOverlay message="Memuat Invoice..." />}
+      {loading && <LoadingOverlay message="Memuat Berita Acara..." />}
 
       <div className="space-y-3 pb-3 font-poppins">
         {/* Header */}
         <div className="flex flex-col items-start justify-between gap-4 px-1 md:flex-row md:items-center">
           <div>
             <h1 className="text-xl font-black uppercase tracking-tighter text-custom-gelap dark:text-white">
-              Invoice
+              Berita Acara
             </h1>
 
             <p className="text-[10px] font-bold uppercase tracking-[2px] text-gray-400">
-              Invoice Management
+              Completion / BA Management
             </p>
           </div>
 
@@ -298,7 +285,7 @@ const Invoice = () => {
               className="flex items-center gap-2 rounded-2xl bg-custom-merah-terang px-5 py-2.5 text-[9px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-105 active:scale-95"
             >
               <MdAdd size={16} />
-              Invoice Baru
+              BA Baru
             </button>
           </div>
         </div>
@@ -317,7 +304,7 @@ const Invoice = () => {
                 type="text"
                 value={filter.search}
                 onChange={(e) => handleFilterChange("search", e.target.value)}
-                placeholder="Cari nomor invoice..."
+                placeholder="Cari nomor BA, pekerjaan, atau client..."
                 className="h-10 w-full rounded-xl border border-gray-100 bg-gray-50 pl-9 pr-3 text-[10px] font-bold text-custom-gelap outline-none placeholder:text-gray-400 focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
               />
             </div>
@@ -328,9 +315,11 @@ const Invoice = () => {
               onChange={(e) => handleFilterChange("work_type", e.target.value)}
               className="h-10 w-44 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
             >
-              <option value="">Semua Jenis</option>
-              <option value="TENDER">Tender</option>
-              <option value="MAINTENANCE">Maintenance</option>
+              {WORK_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
 
             {/* Reset */}
@@ -347,7 +336,7 @@ const Invoice = () => {
         {/* Table */}
         <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-white/5 dark:bg-custom-gelap">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1350px]">
+            <table className="w-full min-w-[1150px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 dark:border-white/5 dark:bg-white/5">
                   <th className="w-12 px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
@@ -356,14 +345,14 @@ const Invoice = () => {
 
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
-                    onClick={() => handleSort("invoice_number")}
+                    onClick={() => handleSort("ba_number")}
                   >
-                    Nomor Invoice
+                    Nomor BA
                   </th>
 
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
-                    onClick={() => handleSort("work_number")}
+                    onClick={() => handleSort("work_name")}
                   >
                     Pekerjaan
                   </th>
@@ -377,34 +366,23 @@ const Invoice = () => {
 
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
-                    onClick={() => handleSort("invoice_date")}
+                    onClick={() => handleSort("ba_date")}
                   >
-                    Tanggal
+                    Tanggal BA
                   </th>
 
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
-                    onClick={() => handleSort("invoice_value")}
+                    onClick={() => handleSort("completion_date")}
                   >
-                    Nilai Invoice
+                    Tanggal Selesai
                   </th>
 
                   <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    PPN
+                    Dokumen
                   </th>
 
-                  <th
-                    className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
-                    onClick={() => handleSort("due_date")}
-                  >
-                    Jatuh Tempo
-                  </th>
-
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    BA
-                  </th>
-
-                  <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
+                  <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     Action
                   </th>
                 </tr>
@@ -413,16 +391,20 @@ const Invoice = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                 {displayedData.length === 0 ? (
                   <tr>
-                    <td colSpan="10" className="px-4 py-12 text-center">
+                    <td colSpan="8" className="px-4 py-12 text-center">
                       <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">
-                        Tidak ada data invoice
+                        Tidak ada data BA
+                      </p>
+
+                      <p className="mt-1 text-[9px] font-bold text-gray-400">
+                        Data berita acara belum tersedia.
                       </p>
                     </td>
                   </tr>
                 ) : (
                   displayedData.map((item, index) => (
                     <tr
-                      key={item.id_invoice}
+                      key={item.id_completion}
                       className="transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                     >
                       {/* # */}
@@ -432,25 +414,19 @@ const Invoice = () => {
                           1}
                       </td>
 
-                      {/* Invoice Number */}
+                      {/* BA Number */}
                       <td className="px-4 py-3 align-top">
                         <button
                           type="button"
                           onClick={() => handleDetail(item)}
                           className="whitespace-nowrap text-[11px] font-black text-custom-merah-terang hover:underline"
                         >
-                          {item.invoice_number || "-"}
+                          {item.ba_number || "-"}
                         </button>
 
                         <p className="mt-0.5 text-[9px] font-bold text-gray-400">
                           {formatDate(item.created_at)}
                         </p>
-
-                        {item.document_url && (
-                          <span className="mt-2 inline-flex items-center rounded-lg bg-green-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-green-600 dark:bg-green-500/10 dark:text-green-400">
-                            Ada Dokumen
-                          </span>
-                        )}
                       </td>
 
                       {/* Work */}
@@ -481,12 +457,6 @@ const Invoice = () => {
                       {/* Client */}
                       <td className="px-4 py-3 align-top">
                         <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
-                          {item.client_pic_name
-                            ? `Pak ${item.client_pic_name}`
-                            : "-"}
-                        </p>
-
-                        <p className="mt-0.5 text-[9px] font-bold text-gray-400">
                           {item.client_name || "-"}
                         </p>
 
@@ -497,44 +467,35 @@ const Invoice = () => {
                         )}
                       </td>
 
-                      {/* Invoice Date */}
+                      {/* BA Date */}
                       <td className="whitespace-nowrap px-4 py-3 align-top">
                         <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.invoice_date)}
+                          {formatDate(item.ba_date)}
                         </p>
                       </td>
 
-                      {/* Invoice Value */}
+                      {/* Completion Date */}
                       <td className="whitespace-nowrap px-4 py-3 align-top">
-                        <p className="text-[11px] font-black text-custom-merah-terang">
-                          {formatCurrency(item.invoice_value)}
+                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
+                          {formatDate(item.completion_date)}
                         </p>
                       </td>
 
-                      {/* VAT */}
+                      {/* Document */}
                       <td className="px-4 py-3 text-center align-top">
-                        <span className="inline-flex items-center rounded-lg bg-orange-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
-                          {formatVatRate(item.vat_rate)}
-                        </span>
-                      </td>
-
-                      {/* Due Date */}
-                      <td className="whitespace-nowrap px-4 py-3 align-top">
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.due_date)}
-                        </p>
-                      </td>
-
-                      {/* BA */}
-                      <td className="px-4 py-3 align-top">
-                        <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
-                          {item.ba_number || "-"}
-                        </p>
-
-                        {item.id_completion && (
-                          <p className="mt-0.5 text-[9px] font-bold text-gray-400">
-                            BA tersedia
-                          </p>
+                        {item.document_url ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDocument(item)}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider text-custom-gelap transition-all hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                          >
+                            <MdDescription size={14} />
+                            Lihat
+                          </button>
+                        ) : (
+                          <span className="text-[9px] font-bold text-gray-400">
+                            Tidak tersedia
+                          </span>
                         )}
                       </td>
 
@@ -684,39 +645,39 @@ const Invoice = () => {
 
       {/* Modal Create */}
       {showCreate && (
-        <ModalCreateInvoice
+        <ModalCreateCompletion
           show={showCreate}
           onClose={() => setShowCreate(false)}
-          onSuccess={fetchInvoices}
+          onSuccess={fetchCompletions}
         />
       )}
 
       {/* Modal Detail */}
-      {showDetail && selectedInvoiceId && (
-        <ModalDetailInvoice
+      {showDetail && selectedCompletionId && (
+        <ModalDetailCompletion
           show={showDetail}
-          invoiceId={selectedInvoiceId}
+          completionId={selectedCompletionId}
           onClose={() => {
             setShowDetail(false);
-            setSelectedInvoiceId(null);
+            setSelectedCompletionId(null);
           }}
         />
       )}
 
       {/* Modal Edit */}
-      {showEdit && selectedInvoiceId && (
-        <ModalEditInvoice
+      {showEdit && selectedCompletionId && (
+        <ModalEditCompletion
           show={showEdit}
-          invoiceId={selectedInvoiceId}
+          completionId={selectedCompletionId}
           onClose={() => {
             setShowEdit(false);
-            setSelectedInvoiceId(null);
+            setSelectedCompletionId(null);
           }}
-          onSuccess={fetchInvoices}
+          onSuccess={fetchCompletions}
         />
       )}
     </>
   );
 };
 
-export default Invoice;
+export default Completion;

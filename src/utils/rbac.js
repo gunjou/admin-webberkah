@@ -16,6 +16,10 @@ export const ROLES = {
 // =========================================================
 
 export const ROLE_GROUPS = {
+  // =======================================================
+  // ALL
+  // =======================================================
+
   ALL: [
     ROLES.SUPER_ADMIN,
     ROLES.FINANCE,
@@ -25,19 +29,47 @@ export const ROLE_GROUPS = {
     ROLES.INVOICE,
   ],
 
-  HRIS: [ROLES.SUPER_ADMIN, ROLES.FINANCE, ROLES.HR],
+  // =======================================================
+  // HRIS
+  // =======================================================
+
+  HRIS: [ROLES.SUPER_ADMIN, ROLES.HR],
+
+  // =======================================================
+  // FINANCE
+  // =======================================================
+
+  FINANCE: [ROLES.SUPER_ADMIN, ROLES.FINANCE],
+
+  // =======================================================
+  // HRIS + FINANCE
+  // =======================================================
+
+  HRIS_FINANCE: [ROLES.SUPER_ADMIN, ROLES.HR, ROLES.FINANCE],
+
+  // =======================================================
+  // CONTRACT
+  // =======================================================
 
   CONTRACT: [ROLES.SUPER_ADMIN, ROLES.CONTRACT],
 
+  // =======================================================
+  // INVOICE
+  // =======================================================
+
   INVOICE: [ROLES.SUPER_ADMIN, ROLES.INVOICE],
 
-  CLIENT: [
-    ROLES.SUPER_ADMIN,
-    ROLES.FINANCE,
-    ROLES.CONTRACT,
-    ROLES.HR,
-    ROLES.INVOICE,
-  ],
+  // =======================================================
+  // CONTRACT + INVOICE
+  // =======================================================
+
+  CONTRACT_INVOICE: [ROLES.SUPER_ADMIN, ROLES.CONTRACT, ROLES.INVOICE],
+
+  // =======================================================
+  // MASTER CLIENT
+  // =======================================================
+
+  CLIENT: [ROLES.SUPER_ADMIN, ROLES.CONTRACT, ROLES.INVOICE],
 };
 
 // =========================================================
@@ -123,10 +155,10 @@ export const getDefaultRoute = (role) => {
       return "/dashboard";
 
     case ROLES.FINANCE:
-      return "/dashboard";
+      return "/dashboard-finance";
 
     case ROLES.HR:
-      return "/dashboard";
+      return "/dashboard-hr";
 
     case ROLES.CONTRACT:
       return "/dashboard-contract";

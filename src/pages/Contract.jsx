@@ -1,831 +1,726 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Api from "../utils/Api";
+import SwalHelper from "../utils/Swal";
+import LoadingOverlay from "../components/LoadingOverlay";
 import {
   MdAdd,
-  MdSearch,
-  MdFilterList,
+  MdDelete,
+  MdEdit,
   MdRefresh,
-  MdChevronRight,
-  MdDescription,
-  MdBusiness,
-  MdCheckCircle,
-  MdWarning,
-  MdAccessTime,
-  MdCalendarToday,
-  MdClose,
-  MdArrowDropDown,
-  MdTrendingUp,
-  MdCloudDone,
-  MdErrorOutline,
+  MdSearch,
+  MdVisibility,
 } from "react-icons/md";
+import ModalCreateContract from "../components/modals/contract/ModalCreateContract";
+import ModalDetailContract from "../components/modals/contract/ModalDetailContract";
+import ModalEditContract from "../components/modals/contract/ModalEditContract";
+
+const STATUS_OPTIONS = [
+  { value: "", label: "Semua Status" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
+const PER_PAGE_OPTIONS = [10, 25, 50, 100];
+
+const STATUS_BADGES = {
+  ACTIVE: "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400",
+  COMPLETED: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
+  CANCELLED: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+};
+
+const STATUS_LABELS = {
+  ACTIVE: "Active",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+const formatDate = (date) => {
+  if (!date) return "-";
+
+  return new Date(date).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const formatCurrency = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(value);
+};
 
 const Contract = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [periodFilter, setPeriodFilter] = useState("ALL");
+  const [dataContract, setDataContract] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const [showFilter, setShowFilter] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [selectedContractId, setSelectedContractId] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
-  // =========================================================
-  // DUMMY DATA
-  // =========================================================
+  const [filter, setFilter] = useState({
+    search: "",
+    status: "",
+    id_work_item: "",
+  });
 
-  const [contracts] = useState([
-    {
-      id: 1,
-      nomor: "CTR-2026-014",
-      pekerjaan: "Instalasi Panel Distribusi Gedung A",
-      kodePekerjaan: "WK-2026-001",
-      client: "PT. Energi Nusantara",
-      pic: "Budi Santoso",
-      nilai: 185000000,
-      tanggalMulai: "01 Aug 2026",
-      tanggalSelesai: "15 Sep 2026",
-      status: "ACTIVE",
-      period: "NORMAL",
-      document: true,
-    },
-    {
-      id: 2,
-      nomor: "CTR-2026-011",
-      pekerjaan: "Maintenance Genset Area Produksi",
-      kodePekerjaan: "WK-2026-005",
-      client: "PT. Berkah Power System",
-      pic: "Dimas Hadi",
-      nilai: 65000000,
-      tanggalMulai: "05 Aug 2026",
-      tanggalSelesai: "05 Sep 2026",
-      status: "ACTIVE",
-      period: "NORMAL",
-      document: true,
-    },
-    {
-      id: 3,
-      nomor: "CTR-2026-008",
-      pekerjaan: "Rewiring Gedung Operasional",
-      kodePekerjaan: "WK-2026-007",
-      client: "PT. Lombok Engineering",
-      pic: "Sinta Dewi",
-      nilai: 145000000,
-      tanggalMulai: "01 Jul 2026",
-      tanggalSelesai: "30 Aug 2026",
-      status: "ACTIVE",
-      period: "EXPIRING",
-      document: true,
-    },
-    {
-      id: 4,
-      nomor: "CTR-2026-005",
-      pekerjaan: "Perawatan Sistem Control",
-      kodePekerjaan: "WK-2026-008",
-      client: "PT. Berkah Power System",
-      pic: "Dimas Hadi",
-      nilai: 85000000,
-      tanggalMulai: "01 Jun 2026",
-      tanggalSelesai: "15 Aug 2026",
-      status: "EXPIRED",
-      period: "EXPIRED",
-      document: true,
-    },
-    {
-      id: 5,
-      nomor: "CTR-2026-018",
-      pekerjaan: "Maintenance Trafo Utama",
-      kodePekerjaan: "WK-2026-010",
-      client: "PT. Mitra Infrastruktur",
-      pic: "Andi Pratama",
-      nilai: 135000000,
-      tanggalMulai: "12 Aug 2026",
-      tanggalSelesai: "18 Sep 2026",
-      status: "ACTIVE",
-      period: "NORMAL",
-      document: true,
-    },
-    {
-      id: 6,
-      nomor: "CTR-2026-019",
-      pekerjaan: "Penggantian Kabel Distribusi",
-      kodePekerjaan: "WK-2026-011",
-      client: "CV. Sinar Teknik",
-      pic: "Rina Amelia",
-      nilai: 90000000,
-      tanggalMulai: "23 Aug 2026",
-      tanggalSelesai: "12 Sep 2026",
-      status: "DRAFT",
-      period: "NORMAL",
-      document: false,
-    },
-    {
-      id: 7,
-      nomor: "CTR-2026-004",
-      pekerjaan: "Inspection Panel MCC",
-      kodePekerjaan: "WK-2026-012",
-      client: "PT. Berkah Power System",
-      pic: "Dimas Hadi",
-      nilai: 70000000,
-      tanggalMulai: "05 Jun 2026",
-      tanggalSelesai: "10 Aug 2026",
-      status: "COMPLETED",
-      period: "EXPIRED",
-      document: true,
-    },
-    {
-      id: 8,
-      nomor: "CTR-2026-021",
-      pekerjaan: "Instalasi Sistem Proteksi",
-      kodePekerjaan: "WK-2026-009",
-      client: "PT. Energi Nusantara",
-      pic: "Budi Santoso",
-      nilai: 165000000,
-      tanggalMulai: "26 Aug 2026",
-      tanggalSelesai: "30 Sep 2026",
-      status: "DRAFT",
-      period: "NORMAL",
-      document: false,
-    },
-    {
-      id: 9,
-      nomor: "CTR-2026-022",
-      pekerjaan: "Upgrade Sistem Distribusi",
-      kodePekerjaan: "WK-2026-013",
-      client: "PT. Lombok Engineering",
-      pic: "Sinta Dewi",
-      nilai: 210000000,
-      tanggalMulai: "20 Aug 2026",
-      tanggalSelesai: "20 Oct 2026",
-      status: "ACTIVE",
-      period: "NORMAL",
-      document: true,
-    },
-  ]);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
 
-  // =========================================================
-  // FORMAT CURRENCY
-  // =========================================================
+  const [pagination, setPagination] = useState({
+    page: 1,
+    per_page: 10,
+    total: 0,
+    total_pages: 1,
+  });
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(value);
+  const [sortConfig, setSortConfig] = useState({
+    key: "created_at",
+    direction: "desc",
+  });
+
+  const fetchContracts = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const params = {
+        page,
+        per_page: perPage,
+      };
+
+      if (filter.search.trim()) {
+        params.search = filter.search.trim();
+      }
+
+      if (filter.status) {
+        params.status = filter.status;
+      }
+
+      if (filter.id_work_item) {
+        params.id_work_item = filter.id_work_item;
+      }
+
+      const response = await Api.get("/work-item/contract", {
+        params,
+      });
+
+      if (response.data?.success) {
+        const responseData = response.data?.data || {};
+        const pageInfo = responseData.pagination || {};
+
+        setDataContract(responseData.items || []);
+
+        setPagination({
+          page: pageInfo.page || 1,
+          per_page: pageInfo.per_page || perPage,
+          total: pageInfo.total || 0,
+          total_pages: pageInfo.total_pages || 1,
+        });
+      } else {
+        SwalHelper.error(
+          response.data?.message || "Gagal mengambil data kontrak.",
+        );
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data kontrak:", error);
+
+      SwalHelper.error(
+        error.response?.data?.message || "Gagal mengambil data kontrak.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [filter, page, perPage]);
+
+  useEffect(() => {
+    fetchContracts();
+  }, [fetchContracts]);
+
+  const handleFilterChange = (key, value) => {
+    setPage(1);
+
+    setFilter((current) => ({
+      ...current,
+      [key]: value,
+    }));
   };
 
-  // =========================================================
-  // FILTER
-  // =========================================================
+  const handleResetFilter = () => {
+    setPage(1);
 
-  const filteredData = useMemo(() => {
-    const keyword = searchTerm.toLowerCase();
-
-    return contracts.filter((contract) => {
-      const matchSearch =
-        contract.nomor.toLowerCase().includes(keyword) ||
-        contract.pekerjaan.toLowerCase().includes(keyword) ||
-        contract.client.toLowerCase().includes(keyword) ||
-        contract.pic.toLowerCase().includes(keyword);
-
-      const matchStatus =
-        statusFilter === "ALL" || contract.status === statusFilter;
-
-      const matchPeriod =
-        periodFilter === "ALL" || contract.period === periodFilter;
-
-      return matchSearch && matchStatus && matchPeriod;
+    setFilter({
+      search: "",
+      status: "",
+      id_work_item: "",
     });
-  }, [contracts, searchTerm, statusFilter, periodFilter]);
-
-  // =========================================================
-  // SUMMARY
-  // =========================================================
-
-  const totalContract = contracts.length;
-
-  const activeContract = contracts.filter(
-    (item) => item.status === "ACTIVE",
-  ).length;
-
-  const expiringContract = contracts.filter(
-    (item) => item.period === "EXPIRING",
-  ).length;
-
-  const expiredContract = contracts.filter(
-    (item) => item.status === "EXPIRED",
-  ).length;
-
-  // =========================================================
-  // TOTAL CONTRACT VALUE
-  // =========================================================
-
-  const totalValue = contracts.reduce((total, item) => total + item.nilai, 0);
-
-  // =========================================================
-  // REFRESH
-  // =========================================================
+  };
 
   const handleRefresh = () => {
-    setIsLoading(true);
-
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 700);
+    fetchContracts();
   };
 
-  // =========================================================
-  // RESET FILTER
-  // =========================================================
-
-  const resetFilter = () => {
-    setStatusFilter("ALL");
-    setPeriodFilter("ALL");
+  const handlePerPageChange = (value) => {
+    setPerPage(Number(value));
+    setPage(1);
   };
 
-  // =========================================================
-  // STATUS STYLE
-  // =========================================================
-
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case "ACTIVE":
-        return {
-          className:
-            "bg-green-50 dark:bg-green-500/10 text-green-600 border-green-100 dark:border-green-500/20",
-          icon: <MdCheckCircle size={12} />,
-        };
-
-      case "DRAFT":
-        return {
-          className:
-            "bg-blue-50 dark:bg-blue-500/10 text-blue-600 border-blue-100 dark:border-blue-500/20",
-          icon: <MdDescription size={12} />,
-        };
-
-      case "COMPLETED":
-        return {
-          className:
-            "bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300 border-gray-200 dark:border-white/10",
-          icon: <MdCloudDone size={12} />,
-        };
-
-      case "EXPIRED":
-        return {
-          className:
-            "bg-red-50 dark:bg-red-500/10 text-red-600 border-red-100 dark:border-red-500/20",
-          icon: <MdErrorOutline size={12} />,
-        };
-
-      default:
-        return {
-          className:
-            "bg-gray-50 dark:bg-white/5 text-gray-500 border-gray-100 dark:border-white/10",
-          icon: null,
-        };
-    }
+  const handleSort = (key) => {
+    setSortConfig((current) => ({
+      key,
+      direction:
+        current.key === key && current.direction === "desc" ? "asc" : "desc",
+    }));
   };
 
-  // =========================================================
-  // PERIOD STYLE
-  // =========================================================
+  const displayedData = useMemo(() => {
+    const data = [...dataContract];
 
-  const getPeriodStyle = (period) => {
-    switch (period) {
-      case "EXPIRING":
-        return {
-          className: "text-yellow-600",
-          label: "Segera Berakhir",
-        };
+    data.sort((a, b) => {
+      const { key, direction } = sortConfig;
 
-      case "EXPIRED":
-        return {
-          className: "text-red-600",
-          label: "Berakhir",
-        };
+      let valueA = a[key];
+      let valueB = b[key];
 
-      default:
-        return {
-          className: "text-gray-400",
-          label: "Normal",
-        };
+      if (
+        key === "contract_date" ||
+        key === "start_date" ||
+        key === "end_date" ||
+        key === "created_at"
+      ) {
+        valueA = new Date(valueA || 0).getTime();
+        valueB = new Date(valueB || 0).getTime();
+      } else if (key === "contract_value" || key === "vat_rate") {
+        valueA = Number(valueA || 0);
+        valueB = Number(valueB || 0);
+      } else {
+        valueA = String(valueA || "").toLowerCase();
+        valueB = String(valueB || "").toLowerCase();
+      }
+
+      if (valueA < valueB) {
+        return direction === "asc" ? -1 : 1;
+      }
+
+      if (valueA > valueB) {
+        return direction === "asc" ? 1 : -1;
+      }
+
+      return 0;
+    });
+
+    return data;
+  }, [dataContract, sortConfig]);
+
+  const handleCreate = () => {
+    setShowCreate(true);
+  };
+
+  const handleDetail = (item) => {
+    setSelectedContractId(item.id_contract);
+    setShowDetail(true);
+  };
+
+  const handleEdit = (item) => {
+    setSelectedContractId(item.id_contract);
+    setShowEdit(true);
+  };
+
+  const handleDelete = async (item) => {
+    const confirmed = await SwalHelper.confirm({
+      title: "Nonaktifkan Kontrak?",
+      message: `Kontrak "${item.contract_number}" akan dinonaktifkan.`,
+      confirmText: "Ya, Nonaktifkan",
+      cancelText: "Batal",
+    });
+
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+
+      const response = await Api.delete(
+        `/work-item/contract/${item.id_contract}`,
+      );
+
+      if (response.data?.success) {
+        await SwalHelper.success(
+          response.data?.message || "Kontrak berhasil dinonaktifkan.",
+        );
+        await fetchContracts();
+      } else {
+        SwalHelper.error(
+          response.data?.message || "Gagal menonaktifkan kontrak.",
+        );
+      }
+    } catch (error) {
+      SwalHelper.error(
+        error.response?.data?.message || "Gagal menonaktifkan kontrak.",
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="h-full flex flex-col animate-in fade-in duration-500">
-      {/* =====================================================
-          HEADER
-      ====================================================== */}
+    <>
+      {loading && <LoadingOverlay message="Memuat Kontrak..." />}
 
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 flex-shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-custom-gelap dark:text-white tracking-tight">
-            Contract
-          </h1>
+      <div className="space-y-3 pb-3 font-poppins">
+        {/* Header */}
+        <div className="flex flex-col items-start justify-between gap-4 px-1 md:flex-row md:items-center">
+          <div>
+            <h1 className="text-xl font-black uppercase tracking-tighter text-custom-gelap dark:text-white">
+              Kontrak
+            </h1>
 
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[3px] mt-1">
-            Contract Management
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* SEARCH */}
-
-          <div className="relative w-[280px] lg:w-[340px]">
-            <MdSearch
-              size={19}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Cari contract, pekerjaan, client..."
-              className="w-full h-11 pl-10 pr-4 bg-white dark:bg-custom-gelap border border-gray-100 dark:border-white/10 rounded-xl text-[10px] text-gray-700 dark:text-white outline-none focus:border-custom-merah-terang/50 shadow-sm transition-all"
-            />
+            <p className="text-[10px] font-bold uppercase tracking-[2px] text-gray-400">
+              Contract Management
+            </p>
           </div>
 
-          {/* REFRESH */}
-
-          <button
-            onClick={handleRefresh}
-            className="h-11 w-11 flex items-center justify-center bg-white dark:bg-custom-gelap text-gray-400 rounded-xl border border-gray-100 dark:border-white/10 hover:text-custom-merah-terang transition-all shadow-sm"
-            title="Refresh"
-          >
-            <MdRefresh size={20} className={isLoading ? "animate-spin" : ""} />
-          </button>
-
-          {/* ADD */}
-
-          <button className="h-11 flex items-center gap-2 px-5 bg-custom-merah-terang text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-custom-merah-terang/20 hover:scale-[1.02] transition-all whitespace-nowrap">
-            <MdAdd size={18} />
-            Tambah Contract
-          </button>
-        </div>
-      </div>
-
-      {/* =====================================================
-          SUMMARY CARDS
-      ====================================================== */}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5 flex-shrink-0">
-        {/* TOTAL CONTRACT */}
-
-        <div className="relative overflow-hidden bg-white dark:bg-custom-gelap rounded-[28px] border border-gray-100 dark:border-white/5 shadow-sm p-5 group">
-          <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-custom-merah-terang/5 group-hover:scale-125 transition-transform duration-500" />
-
-          <div className="relative flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-custom-merah-terang" />
-
-                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                  Total Contract
-                </p>
-              </div>
-
-              <p className="text-3xl font-black text-custom-gelap dark:text-white mt-3">
-                {totalContract}
-              </p>
-
-              <p className="text-[8px] font-bold text-gray-400 mt-2">
-                Seluruh kontrak terdaftar
-              </p>
-            </div>
-
-            <div className="w-12 h-12 rounded-2xl bg-custom-merah-terang/10 text-custom-merah-terang flex items-center justify-center">
-              <MdDescription size={24} />
-            </div>
-          </div>
-        </div>
-
-        {/* ACTIVE */}
-
-        <div className="relative overflow-hidden bg-white dark:bg-custom-gelap rounded-[28px] border border-gray-100 dark:border-white/5 shadow-sm p-5 group">
-          <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-green-500/5 group-hover:scale-125 transition-transform duration-500" />
-
-          <div className="relative flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
-
-                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                  Active
-                </p>
-              </div>
-
-              <p className="text-3xl font-black text-green-600 mt-3">
-                {activeContract}
-              </p>
-
-              <p className="text-[8px] font-bold text-gray-400 mt-2">
-                Kontrak sedang berjalan
-              </p>
-            </div>
-
-            <div className="w-12 h-12 rounded-2xl bg-green-50 dark:bg-green-500/10 text-green-600 flex items-center justify-center">
-              <MdCheckCircle size={24} />
-            </div>
-          </div>
-        </div>
-
-        {/* EXPIRING */}
-
-        <div className="relative overflow-hidden bg-white dark:bg-custom-gelap rounded-[28px] border border-gray-100 dark:border-white/5 shadow-sm p-5 group">
-          <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-yellow-500/5 group-hover:scale-125 transition-transform duration-500" />
-
-          <div className="relative flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-yellow-500" />
-
-                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                  Expiring Soon
-                </p>
-              </div>
-
-              <p className="text-3xl font-black text-yellow-600 mt-3">
-                {expiringContract}
-              </p>
-
-              <p className="text-[8px] font-bold text-gray-400 mt-2">
-                Perlu diperhatikan
-              </p>
-            </div>
-
-            <div className="w-12 h-12 rounded-2xl bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 flex items-center justify-center">
-              <MdAccessTime size={24} />
-            </div>
-          </div>
-        </div>
-
-        {/* TOTAL VALUE */}
-
-        <div className="relative overflow-hidden bg-custom-gelap dark:bg-[#3d2e39] rounded-[28px] border border-custom-gelap dark:border-white/5 shadow-sm p-5 group">
-          <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-white/5 group-hover:scale-125 transition-transform duration-500" />
-
-          <div className="relative flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-custom-cerah" />
-
-                <p className="text-[9px] font-black text-white/50 uppercase tracking-widest">
-                  Contract Value
-                </p>
-              </div>
-
-              <p className="text-xl font-black text-white mt-4 leading-tight">
-                {formatCurrency(totalValue)}
-              </p>
-
-              <p className="text-[8px] font-bold text-white/40 mt-2">
-                Total nilai kontrak
-              </p>
-            </div>
-
-            <div className="w-12 h-12 rounded-2xl bg-white/10 text-custom-cerah flex items-center justify-center">
-              <MdTrendingUp size={24} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* =====================================================
-          TABLE CONTAINER
-      ====================================================== */}
-
-      <div className="flex-1 min-h-0 bg-white dark:bg-custom-gelap rounded-[32px] border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col">
-        {/* TABLE HEADER */}
-
-        <div className="flex-shrink-0 px-5 py-4 border-b border-gray-100 dark:border-white/5">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xs font-black text-custom-gelap dark:text-white uppercase tracking-widest">
-                Daftar Contract
-              </h2>
-
-              <p className="text-[8px] text-gray-400 mt-1">
-                Menampilkan {filteredData.length} dari {contracts.length}{" "}
-                contract
-              </p>
-            </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={loading}
+              className="flex items-center gap-2 rounded-2xl border border-gray-100 bg-white px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-custom-gelap shadow-sm transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/5 dark:bg-custom-gelap dark:text-white"
+            >
+              <MdRefresh size={16} className={loading ? "animate-spin" : ""} />
+              Refresh
+            </button>
 
             <button
-              onClick={() => setShowFilter(!showFilter)}
-              className={`flex items-center justify-center gap-2 h-9 px-4 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${
-                showFilter
-                  ? "bg-custom-merah-terang text-white"
-                  : "bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-gray-300"
-              }`}
+              type="button"
+              onClick={handleCreate}
+              className="flex items-center gap-2 rounded-2xl bg-custom-merah-terang px-5 py-2.5 text-[9px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-105 active:scale-95"
             >
-              <MdFilterList size={16} />
-              Filter
+              <MdAdd size={16} />
+              Kontrak Baru
             </button>
           </div>
-
-          {/* FILTER */}
-
-          {showFilter && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
-              {/* STATUS */}
-
-              <div>
-                <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1.5 block">
-                  Status Contract
-                </label>
-
-                <div className="relative">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="appearance-none w-full h-9 px-3 pr-8 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-xl text-[9px] font-bold text-gray-600 dark:text-gray-300 outline-none"
-                  >
-                    <option value="ALL">Semua Status</option>
-
-                    <option value="DRAFT">Draft</option>
-
-                    <option value="ACTIVE">Active</option>
-
-                    <option value="COMPLETED">Completed</option>
-
-                    <option value="EXPIRED">Expired</option>
-                  </select>
-
-                  <MdArrowDropDown
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                    size={18}
-                  />
-                </div>
-              </div>
-
-              {/* PERIOD */}
-
-              <div>
-                <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1.5 block">
-                  Masa Berlaku
-                </label>
-
-                <div className="relative">
-                  <select
-                    value={periodFilter}
-                    onChange={(e) => setPeriodFilter(e.target.value)}
-                    className="appearance-none w-full h-9 px-3 pr-8 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-xl text-[9px] font-bold text-gray-600 dark:text-gray-300 outline-none"
-                  >
-                    <option value="ALL">Semua Periode</option>
-
-                    <option value="NORMAL">Normal</option>
-
-                    <option value="EXPIRING">Segera Berakhir</option>
-
-                    <option value="EXPIRED">Berakhir</option>
-                  </select>
-
-                  <MdArrowDropDown
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                    size={18}
-                  />
-                </div>
-              </div>
-
-              {/* RESET */}
-
-              <div className="sm:col-span-2 flex justify-end">
-                <button
-                  onClick={resetFilter}
-                  className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-gray-400 hover:text-custom-merah-terang transition-colors"
-                >
-                  <MdClose size={14} />
-                  Reset Filter
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* ===================================================
-            SCROLLABLE TABLE
-        ==================================================== */}
+        {/* Filter */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-white/5 dark:bg-custom-gelap">
+          <div className="flex items-center gap-3">
+            {/* Search */}
+            <div className="relative flex-1">
+              <MdSearch
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
 
-        <div className="flex-1 min-h-0 overflow-auto">
-          <table className="w-full min-w-[1150px] text-left border-collapse">
-            {/* STICKY HEADER */}
+              <input
+                type="text"
+                value={filter.search}
+                onChange={(e) => handleFilterChange("search", e.target.value)}
+                placeholder="Cari nomor kontrak..."
+                className="h-10 w-full rounded-xl border border-gray-100 bg-gray-50 pl-9 pr-3 text-[10px] font-bold text-custom-gelap outline-none placeholder:text-gray-400 focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
+              />
+            </div>
 
-            <thead className="sticky top-0 z-20">
-              <tr className="bg-gray-50 dark:bg-[#3d2e39] text-[8px] font-black uppercase tracking-widest text-gray-400 shadow-sm">
-                <th className="px-5 py-4 bg-gray-50 dark:bg-[#3d2e39]">
-                  Contract
-                </th>
+            {/* Status */}
+            <select
+              value={filter.status}
+              onChange={(e) => handleFilterChange("status", e.target.value)}
+              className="h-10 w-44 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
 
-                <th className="px-5 py-4 bg-gray-50 dark:bg-[#3d2e39]">
-                  Pekerjaan
-                </th>
+            {/* Reset */}
+            <button
+              type="button"
+              onClick={handleResetFilter}
+              className="h-10 whitespace-nowrap rounded-xl bg-gray-100 px-4 text-[9px] font-black uppercase tracking-widest text-custom-gelap transition-all hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            >
+              Reset Filter
+            </button>
+          </div>
+        </div>
 
-                <th className="px-5 py-4 bg-gray-50 dark:bg-[#3d2e39]">
-                  Client
-                </th>
+        {/* Table */}
+        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-white/5 dark:bg-custom-gelap">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1250px]">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50 dark:border-white/5 dark:bg-white/5">
+                  <th className="w-12 px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    #
+                  </th>
 
-                <th className="px-5 py-4 bg-gray-50 dark:bg-[#3d2e39]">
-                  Nilai
-                </th>
+                  <th
+                    className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
+                    onClick={() => handleSort("contract_number")}
+                  >
+                    Nomor Kontrak
+                  </th>
 
-                <th className="px-5 py-4 bg-gray-50 dark:bg-[#3d2e39]">
-                  Periode
-                </th>
+                  <th
+                    className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
+                    onClick={() => handleSort("work_number")}
+                  >
+                    Pekerjaan
+                  </th>
 
-                <th className="px-5 py-4 bg-gray-50 dark:bg-[#3d2e39]">
-                  Status
-                </th>
+                  <th
+                    className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
+                    onClick={() => handleSort("client_name")}
+                  >
+                    Client
+                  </th>
 
-                <th className="px-5 py-4 bg-gray-50 dark:bg-[#3d2e39]">
-                  Dokumen
-                </th>
+                  <th
+                    className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
+                    onClick={() => handleSort("contract_date")}
+                  >
+                    Tanggal
+                  </th>
 
-                <th className="px-5 py-4 text-center bg-gray-50 dark:bg-[#3d2e39]">
-                  Opsi
-                </th>
-              </tr>
-            </thead>
+                  <th
+                    className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
+                    onClick={() => handleSort("contract_value")}
+                  >
+                    Nilai Kontrak
+                  </th>
 
-            {/* BODY */}
+                  <th
+                    className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
+                    onClick={() => handleSort("start_date")}
+                  >
+                    Periode
+                  </th>
 
-            <tbody className="divide-y divide-gray-50 dark:divide-white/5">
-              {isLoading ? (
-                <tr>
-                  <td colSpan="8" className="py-20 text-center">
-                    <div className="flex flex-col items-center">
-                      <div className="w-8 h-8 border-2 border-custom-merah-terang border-t-transparent rounded-full animate-spin" />
+                  <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    PPN
+                  </th>
 
-                      <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest mt-3">
-                        Memuat Data
-                      </p>
-                    </div>
-                  </td>
+                  <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    Status
+                  </th>
+
+                  <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    Action
+                  </th>
                 </tr>
-              ) : filteredData.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="py-20 text-center">
-                    <div className="flex flex-col items-center">
-                      <div className="w-14 h-14 rounded-2xl bg-gray-50 dark:bg-white/5 text-gray-300 dark:text-gray-600 flex items-center justify-center">
-                        <MdDescription size={28} />
-                      </div>
+              </thead>
 
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-3">
-                        Contract Tidak Ditemukan
+              <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                {displayedData.length === 0 ? (
+                  <tr>
+                    <td colSpan="10" className="px-4 py-12 text-center">
+                      <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">
+                        Tidak ada data kontrak
                       </p>
-
-                      <p className="text-[8px] text-gray-400 mt-1">
-                        Tidak ada contract yang sesuai.
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredData.map((contract) => {
-                  const status = getStatusStyle(contract.status);
-
-                  const period = getPeriodStyle(contract.period);
-
-                  return (
+                    </td>
+                  </tr>
+                ) : (
+                  displayedData.map((item, index) => (
                     <tr
-                      key={contract.id}
-                      className="group hover:bg-gray-50/70 dark:hover:bg-white/5 transition-colors"
+                      key={item.id_contract}
+                      className="transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                     >
-                      {/* CONTRACT */}
-
-                      <td className="px-5 py-5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-custom-merah-terang/10 text-custom-merah-terang flex items-center justify-center flex-shrink-0">
-                            <MdDescription size={19} />
-                          </div>
-
-                          <div>
-                            <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                              {contract.nomor}
-                            </p>
-
-                            <p className="text-[7px] text-gray-400 mt-1">
-                              PIC: {contract.pic}
-                            </p>
-                          </div>
-                        </div>
+                      {/* # */}
+                      <td className="px-4 py-3 text-center align-top text-[11px] font-bold text-gray-400">
+                        {(pagination.page - 1) * pagination.per_page +
+                          index +
+                          1}
                       </td>
 
-                      {/* PEKERJAAN */}
-
-                      <td className="px-5 py-5 min-w-[250px]">
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {contract.pekerjaan}
-                        </p>
-
-                        <p className="text-[7px] text-custom-merah-terang font-black uppercase tracking-wider mt-1">
-                          {contract.kodePekerjaan}
-                        </p>
-                      </td>
-
-                      {/* CLIENT */}
-
-                      <td className="px-5 py-5 min-w-[190px]">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-gray-50 dark:bg-white/5 text-gray-400 flex items-center justify-center">
-                            <MdBusiness size={14} />
-                          </div>
-
-                          <span className="text-[9px] font-bold text-gray-600 dark:text-gray-300">
-                            {contract.client}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* VALUE */}
-
-                      <td className="px-5 py-5">
-                        <p className="text-[9px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
-                          {formatCurrency(contract.nilai)}
-                        </p>
-                      </td>
-
-                      {/* PERIOD */}
-
-                      <td className="px-5 py-5">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <MdCalendarToday
-                              size={12}
-                              className={period.className}
-                            />
-
-                            <span
-                              className={`text-[8px] font-black ${period.className}`}
-                            >
-                              {period.label}
-                            </span>
-                          </div>
-
-                          <p className="text-[7px] text-gray-400 mt-1 ml-4">
-                            {contract.tanggalMulai}
-                            {" - "}
-                            {contract.tanggalSelesai}
-                          </p>
-                        </div>
-                      </td>
-
-                      {/* STATUS */}
-
-                      <td className="px-5 py-5">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[7px] font-black uppercase tracking-wider ${status.className}`}
+                      {/* Contract Number */}
+                      <td className="px-4 py-3 align-top">
+                        <button
+                          type="button"
+                          onClick={() => handleDetail(item)}
+                          className="whitespace-nowrap text-[11px] font-black text-custom-merah-terang hover:underline"
                         >
-                          {status.icon}
-                          {contract.status}
-                        </span>
+                          {item.contract_number || "-"}
+                        </button>
+
+                        <p className="mt-0.5 text-[9px] font-bold text-gray-400">
+                          {formatDate(item.created_at)}
+                        </p>
                       </td>
 
-                      {/* DOCUMENT */}
+                      {/* Work */}
+                      <td className="max-w-[350px] px-4 py-3 align-top">
+                        <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
+                          {item.work_number || "-"}
+                        </p>
 
-                      <td className="px-5 py-5">
-                        {contract.document ? (
-                          <span className="inline-flex items-center gap-1.5 text-green-600 text-[8px] font-black uppercase tracking-wider">
-                            <MdCheckCircle size={13} />
-                            Tersedia
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-yellow-600 text-[8px] font-black uppercase tracking-wider">
-                            <MdWarning size={13} />
-                            Belum Ada
+                        <p
+                          className="mt-0.5 truncate text-[9px] font-bold text-gray-400"
+                          title={item.work_name}
+                        >
+                          {item.work_name || "-"}
+                        </p>
+
+                        {item.work_type && (
+                          <span className="mt-2 inline-flex items-center rounded-lg bg-gray-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                            {item.work_type}
                           </span>
                         )}
                       </td>
 
-                      {/* ACTION */}
+                      {/* Client */}
+                      <td className="px-4 py-3 align-top">
+                        <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
+                          {item.client_pic_name
+                            ? `Pak ${item.client_pic_name}`
+                            : "-"}
+                        </p>
 
-                      <td className="px-5 py-5 text-center">
-                        <button
-                          className="p-2 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-400 hover:bg-custom-merah-terang hover:text-white transition-all"
-                          title="Lihat Detail Contract"
+                        <p className="mt-0.5 text-[9px] font-bold text-gray-400">
+                          {item.client_name || "-"}
+                        </p>
+
+                        {item.client_code && (
+                          <p className="mt-0.5 text-[9px] font-bold text-gray-400">
+                            {item.client_code}
+                          </p>
+                        )}
+                      </td>
+
+                      {/* Contract Date */}
+                      <td className="whitespace-nowrap px-4 py-3 align-top">
+                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
+                          {formatDate(item.contract_date)}
+                        </p>
+                      </td>
+
+                      {/* Contract Value */}
+                      <td className="whitespace-nowrap px-4 py-3 align-top">
+                        <p className="text-[11px] font-black text-custom-merah-terang">
+                          {formatCurrency(item.contract_value)}
+                        </p>
+                      </td>
+
+                      {/* Period */}
+                      <td className="whitespace-nowrap px-4 py-3 align-top">
+                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
+                          {formatDate(item.start_date)}
+                        </p>
+
+                        <p className="my-0.5 text-[9px] font-bold text-gray-400">
+                          s/d
+                        </p>
+
+                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
+                          {formatDate(item.end_date)}
+                        </p>
+                      </td>
+
+                      {/* VAT */}
+                      <td className="px-4 py-3 text-center align-top">
+                        <span className="inline-flex items-center rounded-lg bg-orange-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
+                          {item.vat_rate !== null && item.vat_rate !== undefined
+                            ? `${item.vat_rate}%`
+                            : "-"}
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3 text-center align-top">
+                        <span
+                          className={`inline-flex items-center whitespace-nowrap rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
+                            STATUS_BADGES[item.status] ||
+                            "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
+                          }`}
                         >
-                          <MdChevronRight size={17} />
-                        </button>
+                          {STATUS_LABELS[item.status] || item.status || "-"}
+                        </span>
+                      </td>
+
+                      {/* Action */}
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleDetail(item)}
+                            title="Detail"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-100 text-custom-gelap transition-all hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                          >
+                            <MdVisibility size={15} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(item)}
+                            title="Edit"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-custom-merah-terang/10 text-custom-merah-terang transition-all hover:bg-custom-merah-terang hover:text-white"
+                          >
+                            <MdEdit size={15} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(item)}
+                            title="Delete"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-50 text-red-500 transition-all hover:bg-red-500 hover:text-white dark:bg-red-500/10"
+                          >
+                            <MdDelete size={15} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* TABLE FOOTER */}
+        {/* Pagination */}
+        {pagination.total > 0 && (
+          <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 dark:border-white/5 dark:bg-custom-gelap sm:flex-row">
+            <div className="flex w-full items-center gap-3 sm:w-auto">
+              <div className="flex items-center gap-2">
+                <span className="whitespace-nowrap text-[9px] font-bold uppercase text-gray-400">
+                  Tampilkan
+                </span>
 
-        <div className="flex-shrink-0 px-5 py-3 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
-          <p className="text-[8px] font-bold text-gray-400">
-            {filteredData.length} contract ditampilkan
-          </p>
+                <select
+                  value={perPage}
+                  onChange={(e) => handlePerPageChange(e.target.value)}
+                  className="h-8 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-2 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
+                >
+                  {PER_PAGE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option} / halaman
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <p className="text-[8px] font-bold text-gray-400">
-            Scroll untuk melihat data lainnya
-          </p>
-        </div>
+              <div className="h-5 w-px bg-gray-100 dark:bg-white/10" />
+
+              <p className="whitespace-nowrap text-[9px] font-bold uppercase text-gray-400">
+                Menampilkan {(pagination.page - 1) * pagination.per_page + 1}–
+                {Math.min(
+                  pagination.page * pagination.per_page,
+                  pagination.total,
+                )}{" "}
+                dari {pagination.total} item
+              </p>
+            </div>
+
+            {pagination.total_pages > 1 && (
+              <div className="flex items-center gap-1">
+                {/* Previous */}
+                <button
+                  type="button"
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((current) => current - 1)}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-100 text-custom-gelap transition-all hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                  aria-label="Halaman sebelumnya"
+                >
+                  <span className="text-xs">‹</span>
+                </button>
+
+                {/* Pages */}
+                {Array.from(
+                  { length: pagination.total_pages },
+                  (_, index) => index + 1,
+                )
+                  .filter(
+                    (pageNumber) =>
+                      pageNumber === 1 ||
+                      pageNumber === pagination.total_pages ||
+                      Math.abs(pageNumber - page) <= 1,
+                  )
+                  .map((pageNumber, index, pages) => {
+                    const previousPage = pages[index - 1];
+
+                    return (
+                      <React.Fragment key={pageNumber}>
+                        {previousPage && pageNumber - previousPage > 1 && (
+                          <span className="flex h-8 w-5 items-center justify-center text-[10px] font-black text-gray-400">
+                            ...
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          disabled={loading}
+                          onClick={() => setPage(pageNumber)}
+                          className={`flex h-8 min-w-8 items-center justify-center rounded-xl px-2 text-[10px] font-black transition-all ${
+                            page === pageNumber
+                              ? "bg-custom-merah-terang text-white shadow-md shadow-custom-merah-terang/20"
+                              : "bg-gray-100 text-custom-gelap hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                          } disabled:cursor-not-allowed`}
+                          aria-label={`Halaman ${pageNumber}`}
+                          aria-current={
+                            page === pageNumber ? "page" : undefined
+                          }
+                        >
+                          {pageNumber}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+
+                {/* Next */}
+                <button
+                  type="button"
+                  disabled={page >= pagination.total_pages || loading}
+                  onClick={() => setPage((current) => current + 1)}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl bg-custom-gelap text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-custom-cerah"
+                  aria-label="Halaman berikutnya"
+                >
+                  <span className="text-xs">›</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-    </div>
+
+      {/* Modal Create */}
+      {showCreate && (
+        <ModalCreateContract
+          show={showCreate}
+          onClose={() => setShowCreate(false)}
+          onSuccess={fetchContracts}
+        />
+      )}
+
+      {/* Modal Detail */}
+      {showDetail && selectedContractId && (
+        <ModalDetailContract
+          show={showDetail}
+          onClose={() => {
+            setShowDetail(false);
+            setSelectedContractId(null);
+          }}
+          contractId={selectedContractId}
+        />
+      )}
+
+      {/* Modal Edit */}
+      {showEdit && selectedContractId && (
+        <ModalEditContract
+          show={showEdit}
+          onClose={() => {
+            setShowEdit(false);
+            setSelectedContractId(null);
+          }}
+          contractId={selectedContractId}
+          onSuccess={fetchContracts}
+        />
+      )}
+    </>
   );
 };
 

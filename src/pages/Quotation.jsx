@@ -10,46 +10,35 @@ import {
   MdEdit,
   MdDelete,
 } from "react-icons/md";
-import ModalCreateWorkItem from "../components/modals/work-item/ModalCreateWorkItem";
-import ModalDetailWorkItem from "../components/modals/work-item/ModalDetailWorkItem";
-import ModalEditWorkItem from "../components/modals/work-item/ModalEditWorkItem";
+import ModalDetailQuotation from "../components/modals/quotation/ModalDetailQuotation";
+import ModalCreateQuotation from "../components/modals/quotation/ModalCreateQuotation";
+import ModalEditQuotation from "../components/modals/quotation/ModalEditQuotation";
 
-const WORK_TYPE_OPTIONS = [
-  { value: "", label: "Semua Work Type" },
-  { value: "TENDER", label: "Tender" },
-  { value: "MAINTENANCE", label: "Maintenance" },
-];
-
-const STAGE_OPTIONS = [
-  { value: "", label: "Semua Stage" },
-  { value: "IDENTIFIED", label: "Identified" },
-  { value: "QUOTATION", label: "Quotation" },
-  { value: "CONTRACT", label: "Contract" },
-  { value: "IN_PROGRESS", label: "In Progress" },
-  { value: "COMPLETED", label: "Completed" },
-  { value: "BA", label: "BA" },
-  { value: "INVOICE", label: "Invoice" },
-  { value: "PAYMENT", label: "Payment" },
-  { value: "CLOSED", label: "Closed" },
+const STATUS_OPTIONS = [
+  { value: "", label: "Semua Status" },
+  { value: "DRAFT", label: "Draft" },
+  { value: "SUBMITTED", label: "Submitted" },
+  { value: "WON", label: "Won" },
+  { value: "LOST", label: "Lost" },
+  { value: "EXPIRED", label: "Expired" },
+  { value: "CANCELLED", label: "Cancelled" },
 ];
 
 const PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
-const WorkItem = () => {
-  const [dataWorkItem, setDataWorkItem] = useState([]);
-  const [clients, setClients] = useState([]);
+const Quotation = () => {
+  const [dataQuotation, setDataQuotation] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
-  const [selectedWorkItemId, setSelectedWorkItemId] = useState(null);
+  const [selectedQuotationId, setSelectedQuotationId] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
   const [filter, setFilter] = useState({
     search: "",
-    work_type: "",
-    current_stage: "",
-    id_client: "",
+    status: "",
+    id_work_item: "",
   });
 
   const [page, setPage] = useState(1);
@@ -67,23 +56,7 @@ const WorkItem = () => {
     direction: "desc",
   });
 
-  const fetchClients = useCallback(async () => {
-    try {
-      const response = await Api.get("/work-item/master/clients/options");
-
-      if (response.data.success) {
-        setClients(response.data.data || []);
-      }
-    } catch (error) {
-      console.error("Gagal mengambil data client:", error);
-
-      SwalHelper.error(
-        error.response?.data?.message || "Gagal mengambil data client.",
-      );
-    }
-  }, []);
-
-  const fetchWorkItems = useCallback(async () => {
+  const fetchQuotations = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -96,24 +69,20 @@ const WorkItem = () => {
         params.search = filter.search.trim();
       }
 
-      if (filter.work_type) {
-        params.work_type = filter.work_type;
+      if (filter.status) {
+        params.status = filter.status;
       }
 
-      if (filter.current_stage) {
-        params.current_stage = filter.current_stage;
+      if (filter.id_work_item) {
+        params.id_work_item = filter.id_work_item;
       }
 
-      if (filter.id_client) {
-        params.id_client = filter.id_client;
-      }
+      const response = await Api.get("/work-item/quotation", { params });
 
-      const response = await Api.get("/work-item/work", { params });
-
-      if (response.data.success) {
+      if (response.data?.success) {
         const responseData = response.data.data || {};
 
-        setDataWorkItem(responseData.items || []);
+        setDataQuotation(responseData.items || []);
 
         const pageInfo = responseData.pagination || {};
 
@@ -125,10 +94,10 @@ const WorkItem = () => {
         });
       }
     } catch (error) {
-      console.error("Gagal mengambil data work item:", error);
+      console.error("Gagal mengambil data quotation:", error);
 
       SwalHelper.error(
-        error.response?.data?.message || "Gagal mengambil data work item.",
+        error.response?.data?.message || "Gagal mengambil data penawaran.",
       );
     } finally {
       setLoading(false);
@@ -136,15 +105,12 @@ const WorkItem = () => {
   }, [filter, page, perPage]);
 
   useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
-
-  useEffect(() => {
-    fetchWorkItems();
-  }, [fetchWorkItems]);
+    fetchQuotations();
+  }, [fetchQuotations]);
 
   const handleFilterChange = (key, value) => {
     setPage(1);
+
     setFilter((current) => ({
       ...current,
       [key]: value,
@@ -153,16 +119,16 @@ const WorkItem = () => {
 
   const handleResetFilter = () => {
     setPage(1);
+
     setFilter({
       search: "",
-      work_type: "",
-      current_stage: "",
-      id_client: "",
+      status: "",
+      id_work_item: "",
     });
   };
 
   const handleRefresh = () => {
-    fetchWorkItems();
+    fetchQuotations();
   };
 
   const handlePerPageChange = (value) => {
@@ -178,7 +144,7 @@ const WorkItem = () => {
     }));
   };
 
-  const displayedData = [...dataWorkItem].sort((a, b) => {
+  const displayedData = [...dataQuotation].sort((a, b) => {
     const { key, direction } = sortConfig;
 
     let valueA = a[key];
@@ -186,11 +152,16 @@ const WorkItem = () => {
 
     if (
       key === "created_at" ||
-      key === "start_date" ||
-      key === "target_end_date"
+      key === "proposal_date" ||
+      key === "valid_until"
     ) {
       valueA = new Date(valueA || 0).getTime();
       valueB = new Date(valueB || 0).getTime();
+    }
+
+    if (key === "proposal_value") {
+      valueA = Number(valueA || 0);
+      valueB = Number(valueB || 0);
     }
 
     if (typeof valueA === "string") {
@@ -209,19 +180,19 @@ const WorkItem = () => {
   };
 
   const handleDetail = (item) => {
-    setSelectedWorkItemId(item.id_work_item);
+    setSelectedQuotationId(item.id_proposal);
     setShowDetail(true);
   };
 
   const handleEdit = (item) => {
-    setSelectedWorkItemId(item.id_work_item);
+    setSelectedQuotationId(item.id_proposal);
     setShowEdit(true);
   };
 
   const handleDelete = async (item) => {
     const confirmed = await SwalHelper.confirm({
-      title: "Nonaktifkan Pekerjaan?",
-      message: `Pekerjaan "${item.work_number} - ${item.work_name}" akan dinonaktifkan.`,
+      title: "Nonaktifkan Penawaran?",
+      message: `Penawaran "${item.proposal_number}" akan dinonaktifkan.`,
       confirmText: "Ya, Nonaktifkan",
       cancelText: "Batal",
     });
@@ -231,21 +202,23 @@ const WorkItem = () => {
     try {
       setLoading(true);
 
-      const response = await Api.delete(`/work-item/work/${item.id_work_item}`);
+      const response = await Api.delete(
+        `/work-item/quotation/${item.id_proposal}`,
+      );
 
       if (response.data?.success) {
         await SwalHelper.success(
-          response.data?.message || "Pekerjaan berhasil dinonaktifkan.",
+          response.data?.message || "Penawaran berhasil dinonaktifkan.",
         );
-        await fetchWorkItems();
+        await fetchQuotations();
       } else {
         SwalHelper.error(
-          response.data?.message || "Gagal menonaktifkan pekerjaan.",
+          response.data?.message || "Gagal menonaktifkan penawaran.",
         );
       }
     } catch (error) {
       SwalHelper.error(
-        error.response?.data?.message || "Gagal menonaktifkan pekerjaan.",
+        error.response?.data?.message || "Gagal menonaktifkan penawaran.",
       );
     } finally {
       setLoading(false);
@@ -262,58 +235,70 @@ const WorkItem = () => {
     });
   };
 
-  const formatStage = (stage) => {
-    if (!stage) return "-";
+  const formatCurrency = (value) => {
+    if (value === null || value === undefined) return "-";
 
-    return stage.replaceAll("_", " ");
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(value);
   };
 
-  const getStageClass = (stage) => {
+  const getStatusClass = (status) => {
     const classes = {
-      IDENTIFIED:
+      DRAFT: "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300",
+
+      SUBMITTED:
         "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
-      QUOTATION:
-        "bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400",
-      CONTRACT:
-        "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400",
-      IN_PROGRESS:
-        "bg-yellow-50 text-yellow-600 dark:bg-yellow-500/10 dark:text-yellow-400",
-      COMPLETED:
-        "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400",
-      BA: "bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400",
-      INVOICE:
+
+      WON: "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400",
+
+      LOST: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+
+      EXPIRED:
         "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400",
-      PAYMENT:
-        "bg-pink-50 text-pink-600 dark:bg-pink-500/10 dark:text-pink-400",
-      CLOSED: "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300",
+
+      CANCELLED:
+        "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-gray-300",
     };
 
     return (
-      classes[stage] ||
+      classes[status] ||
       "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
     );
   };
 
-  const getWorkTypeClass = (workType) => {
-    if (workType === "TENDER") {
-      return "bg-custom-merah-terang/10 text-custom-merah-terang dark:text-custom-cerah";
-    }
+  const formatStatus = (status) => {
+    const labels = {
+      DRAFT: "Draft",
+      SUBMITTED: "Submitted",
+      WON: "Won",
+      LOST: "Lost",
+      EXPIRED: "Expired",
+      CANCELLED: "Cancelled",
+    };
 
-    return "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400";
+    return labels[status] || status || "-";
   };
 
   return (
     <>
-      {loading && <LoadingOverlay message="Memuat Work Item..." />}
+      {loading && <LoadingOverlay message="Memuat Penawaran..." />}
 
       <div className="space-y-3 pb-3 font-poppins">
+        {/* =====================================================
+            HEADER
+        ====================================================== */}
+
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
           <div>
             <h1 className="text-xl font-black text-custom-gelap dark:text-white uppercase tracking-tighter">
-              Work Item
+              Penawaran
             </h1>
+
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[2px]">
-              Work Item Management
+              Quotation Management
             </p>
           </div>
 
@@ -334,10 +319,14 @@ const WorkItem = () => {
               className="flex items-center gap-2 px-5 py-2.5 bg-custom-merah-terang text-white rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all hover:scale-105 active:scale-95"
             >
               <MdAdd size={16} />
-              Work Item Baru
+              Penawaran Baru
             </button>
           </div>
         </div>
+
+        {/* =====================================================
+            FILTER
+        ====================================================== */}
 
         <div className="bg-white dark:bg-custom-gelap border border-gray-100 dark:border-white/5 rounded-2xl p-4">
           <div className="flex items-center gap-3">
@@ -346,52 +335,24 @@ const WorkItem = () => {
                 size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
               />
+
               <input
                 type="text"
                 value={filter.search}
                 onChange={(e) => handleFilterChange("search", e.target.value)}
-                placeholder="Cari nomor / nama work item..."
+                placeholder="Cari nomor / pekerjaan / client..."
                 className="w-full h-10 pl-9 pr-3 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang placeholder:text-gray-400"
               />
             </div>
 
             <select
-              value={filter.work_type}
-              onChange={(e) => handleFilterChange("work_type", e.target.value)}
+              value={filter.status}
+              onChange={(e) => handleFilterChange("status", e.target.value)}
               className="w-44 h-10 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer"
             >
-              {WORK_TYPE_OPTIONS.map((option) => (
+              {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={filter.current_stage}
-              onChange={(e) =>
-                handleFilterChange("current_stage", e.target.value)
-              }
-              className="w-44 h-10 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer"
-            >
-              {STAGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={filter.id_client}
-              onChange={(e) => handleFilterChange("id_client", e.target.value)}
-              className="w-52 h-10 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer"
-            >
-              <option value="">Semua Client</option>
-              {clients.map((client) => (
-                <option key={client.id_client} value={client.id_client}>
-                  {client.client_code
-                    ? `${client.client_code} - ${client.name}`
-                    : client.name}
                 </option>
               ))}
             </select>
@@ -406,41 +367,68 @@ const WorkItem = () => {
           </div>
         </div>
 
+        {/* =====================================================
+            TABLE
+        ====================================================== */}
+
         <div className="bg-white dark:bg-custom-gelap border border-gray-100 dark:border-white/5 rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1250px]">
+            <table className="w-full min-w-[1200px]">
               <thead>
                 <tr className="bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
                   <th className="w-12 px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">
                     #
                   </th>
+
+                  <th
+                    className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("proposal_number")}
+                  >
+                    Nomor Penawaran
+                  </th>
+
                   <th
                     className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider cursor-pointer whitespace-nowrap"
                     onClick={() => handleSort("work_number")}
                   >
-                    Work Number
-                  </th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider cursor-pointer">
                     Work Item
                   </th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    Client-PIC
+
+                  <th
+                    className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider cursor-pointer whitespace-nowrap"
+                    onClick={() => handleSort("client_name")}
+                  >
+                    Client
                   </th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    PIC
+
+                  <th
+                    className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap cursor-pointer"
+                    onClick={() => handleSort("proposal_date")}
+                  >
+                    Tanggal
                   </th>
-                  <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    Type
+
+                  <th
+                    className="px-4 py-3 text-right text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap cursor-pointer"
+                    onClick={() => handleSort("proposal_value")}
+                  >
+                    Nilai
                   </th>
-                  <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    Stage
+
+                  <th
+                    className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap cursor-pointer"
+                    onClick={() => handleSort("valid_until")}
+                  >
+                    Berlaku Sampai
                   </th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    Progress
+
+                  <th
+                    className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap cursor-pointer"
+                    onClick={() => handleSort("status")}
+                  >
+                    Status
                   </th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    Target
-                  </th>
+
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">
                     Action
                   </th>
@@ -450,16 +438,16 @@ const WorkItem = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                 {displayedData.length === 0 ? (
                   <tr>
-                    <td colSpan="10" className="px-4 py-12 text-center">
+                    <td colSpan="9" className="px-4 py-12 text-center">
                       <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
-                        Tidak ada data work item
+                        Tidak ada data penawaran
                       </p>
                     </td>
                   </tr>
                 ) : (
                   displayedData.map((item, index) => (
                     <tr
-                      key={item.id_work_item}
+                      key={item.id_proposal}
                       className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                     >
                       <td className="px-4 py-3 text-center text-[11px] font-bold text-gray-400">
@@ -471,81 +459,64 @@ const WorkItem = () => {
                       <td className="px-4 py-3 align-top">
                         <button
                           type="button"
-                          onClick={() => handleDetail(item.id_work_item)}
+                          onClick={() => handleDetail(item)}
                           className="text-[11px] font-black text-custom-merah-terang hover:underline whitespace-nowrap"
                         >
-                          {item.work_number}
+                          {item.proposal_number}
                         </button>
+
                         <p className="text-[9px] text-gray-400 font-bold mt-0.5">
                           {formatDate(item.created_at)}
                         </p>
                       </td>
 
                       <td className="px-4 py-3 align-top max-w-[350px]">
-                        <p className="text-[11px] font-black text-custom-gelap dark:text-white leading-relaxed">
+                        <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
+                          {item.work_number || "-"}
+                        </p>
+
+                        <p
+                          className="text-[9px] text-gray-400 font-bold mt-0.5 truncate"
+                          title={item.work_name}
+                        >
                           {item.work_name || "-"}
                         </p>
                       </td>
 
                       <td className="px-4 py-3 align-top">
                         <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
-                          Pak {item.client_pic_name || "-"}
-                        </p>
-                        <p className="text-[9px] text-gray-400 font-bold mt-0.5">
                           {item.client_name || "-"}
                         </p>
-                      </td>
 
-                      <td className="px-4 py-3 align-top">
-                        <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
-                          {item.internal_pic_name || "-"}
+                        <p className="text-[9px] text-gray-400 font-bold mt-0.5">
+                          Pak {item.client_pic_name || "-"}
                         </p>
-                        {/* <p className="text-[9px] text-gray-400 font-bold mt-0.5">
-                          Client: {item.client_pic_name || "-"}
-                        </p> */}
-                      </td>
-
-                      <td className="px-4 py-3 text-center align-top">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${getWorkTypeClass(item.work_type)}`}
-                        >
-                          {item.work_type || "-"}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-3 text-center align-top">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${getStageClass(item.current_stage)}`}
-                        >
-                          {formatStage(item.current_stage)}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-3 align-top min-w-[120px]">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-[10px] font-black text-custom-gelap dark:text-white">
-                            {item.progress_percent || 0}%
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-custom-merah-terang transition-all"
-                            style={{
-                              width: `${Math.min(Math.max(item.progress_percent || 0, 0), 100)}%`,
-                            }}
-                          />
-                        </div>
                       </td>
 
                       <td className="px-4 py-3 align-top whitespace-nowrap">
                         <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.target_end_date)}
+                          {formatDate(item.proposal_date)}
                         </p>
-                        {item.completion_date && (
-                          <p className="text-[9px] text-green-500 font-bold mt-0.5">
-                            Selesai: {formatDate(item.completion_date)}
-                          </p>
-                        )}
+                      </td>
+
+                      <td className="px-4 py-3 align-top text-right whitespace-nowrap">
+                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
+                          {formatCurrency(item.proposal_value)}
+                        </p>
+                      </td>
+
+                      <td className="px-4 py-3 align-top whitespace-nowrap">
+                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
+                          {formatDate(item.valid_until)}
+                        </p>
+                      </td>
+
+                      <td className="px-4 py-3 text-center align-top">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${getStatusClass(item.status)}`}
+                        >
+                          {formatStatus(item.status)}
+                        </span>
                       </td>
 
                       <td className="px-4 py-3 align-top">
@@ -585,6 +556,10 @@ const WorkItem = () => {
             </table>
           </div>
         </div>
+
+        {/* =====================================================
+            PAGINATION
+        ====================================================== */}
 
         {pagination.total > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-custom-gelap border border-gray-100 dark:border-white/5 rounded-2xl px-4 py-3">
@@ -656,7 +631,11 @@ const WorkItem = () => {
                           type="button"
                           disabled={loading}
                           onClick={() => setPage(pageNumber)}
-                          className={`flex items-center justify-center h-8 min-w-8 px-2 rounded-xl text-[10px] font-black transition-all ${page === pageNumber ? "bg-custom-merah-terang text-white shadow-md shadow-custom-merah-terang/20" : "bg-gray-100 dark:bg-white/5 text-custom-gelap dark:text-white hover:bg-gray-200 dark:hover:bg-white/10"} disabled:cursor-not-allowed`}
+                          className={`flex items-center justify-center h-8 min-w-8 px-2 rounded-xl text-[10px] font-black transition-all ${
+                            page === pageNumber
+                              ? "bg-custom-merah-terang text-white shadow-md shadow-custom-merah-terang/20"
+                              : "bg-gray-100 dark:bg-white/5 text-custom-gelap dark:text-white hover:bg-gray-200 dark:hover:bg-white/10"
+                          } disabled:cursor-not-allowed`}
                           aria-label={`Halaman ${pageNumber}`}
                           aria-current={
                             page === pageNumber ? "page" : undefined
@@ -685,36 +664,39 @@ const WorkItem = () => {
 
       {/* Modal Create */}
       {showCreate && (
-        <ModalCreateWorkItem
+        <ModalCreateQuotation
+          show={showCreate}
           onClose={() => setShowCreate(false)}
-          onSuccess={fetchWorkItems}
+          onSuccess={fetchQuotations}
         />
       )}
 
       {/* Modal Detail */}
-      {showDetail && selectedWorkItemId && (
-        <ModalDetailWorkItem
-          idWorkItem={selectedWorkItemId}
+      {showDetail && selectedQuotationId && (
+        <ModalDetailQuotation
+          show={showDetail}
           onClose={() => {
             setShowDetail(false);
-            setSelectedWorkItemId(null);
+            setSelectedQuotationId(null);
           }}
+          quotationId={selectedQuotationId}
         />
       )}
 
       {/* Modal Edit */}
-      {showEdit && selectedWorkItemId && (
-        <ModalEditWorkItem
-          idWorkItem={selectedWorkItemId}
+      {showEdit && selectedQuotationId && (
+        <ModalEditQuotation
+          show={showEdit}
           onClose={() => {
             setShowEdit(false);
-            setSelectedWorkItemId(null);
+            setSelectedQuotationId(null);
           }}
-          onSuccess={fetchWorkItems}
+          quotationId={selectedQuotationId}
+          onSuccess={fetchQuotations}
         />
       )}
     </>
   );
 };
 
-export default WorkItem;
+export default Quotation;
