@@ -15,13 +15,18 @@ import ModalCreateCompletion from "../components/modals/completion/ModalCreateCo
 import ModalDetailCompletion from "../components/modals/completion/ModalDetailCompletion";
 import ModalEditCompletion from "../components/modals/completion/ModalEditCompletion";
 
-const WORK_TYPE_OPTIONS = [
-  { value: "", label: "Semua Jenis" },
-  { value: "TENDER", label: "Tender" },
-  { value: "MAINTENANCE", label: "Maintenance" },
+// const WORK_TYPE_OPTIONS = [
+//   { value: "", label: "Semua Jenis" },
+//   { value: "TENDER", label: "Tender" },
+//   { value: "MAINTENANCE", label: "Maintenance" },
+// ];
+
+const STAGE_FILTER_OPTIONS = [
+  { value: "ACTIVE", label: "Active" },
+  { value: "CLOSED", label: "Closed" },
 ];
 
-const PER_PAGE_OPTIONS = [10, 25, 50, 100];
+const PER_PAGE_OPTIONS = [25, 50, 100];
 
 const WORK_TYPE_BADGES = {
   TENDER: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
@@ -46,6 +51,7 @@ const formatDate = (date) => {
 
 const Completion = () => {
   const [dataCompletion, setDataCompletion] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
@@ -54,16 +60,18 @@ const Completion = () => {
   const [showEdit, setShowEdit] = useState(false);
 
   const [filter, setFilter] = useState({
+    stage: "ACTIVE",
     search: "",
-    work_type: "",
+    id_client: "",
+    id_work_item: "",
   });
 
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(25);
 
   const [pagination, setPagination] = useState({
     page: 1,
-    per_page: 10,
+    per_page: 25,
     total: 0,
     total_pages: 1,
   });
@@ -73,21 +81,49 @@ const Completion = () => {
     direction: "desc",
   });
 
+  const fetchClients = useCallback(async () => {
+    try {
+      const response = await Api.get("/work-item/master/clients/options");
+
+      if (response.data?.success) {
+        setClients(response.data?.data || []);
+      } else {
+        SwalHelper.error(
+          response.data?.message || "Gagal mengambil data client.",
+        );
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data client:", error);
+
+      SwalHelper.error(
+        error.response?.data?.message || "Gagal mengambil data client.",
+      );
+    }
+  }, []);
+
   const fetchCompletions = useCallback(async () => {
     setLoading(true);
 
     try {
       const params = {
-        page,
-        per_page: perPage,
+        stage: filter.stage,
       };
 
       if (filter.search.trim()) {
         params.search = filter.search.trim();
       }
 
-      if (filter.work_type) {
-        params.work_type = filter.work_type;
+      if (filter.id_work_item) {
+        params.id_work_item = Number(filter.id_work_item);
+      }
+
+      if (filter.id_client) {
+        params.id_client = Number(filter.id_client);
+      }
+
+      if (filter.stage === "CLOSED") {
+        params.page = page;
+        params.per_page = perPage;
       }
 
       const response = await Api.get("/work-item/completion", {
@@ -96,16 +132,27 @@ const Completion = () => {
 
       if (response.data?.success) {
         const responseData = response.data?.data || {};
-        const pageInfo = responseData.pagination || {};
+        const items = responseData.items || [];
 
-        setDataCompletion(responseData.items || []);
+        setDataCompletion(items);
 
-        setPagination({
-          page: pageInfo.page || 1,
-          per_page: pageInfo.per_page || perPage,
-          total: pageInfo.total || 0,
-          total_pages: pageInfo.total_pages || 1,
-        });
+        if (filter.stage === "CLOSED") {
+          const pageInfo = responseData.pagination || {};
+
+          setPagination({
+            page: pageInfo.page || page,
+            per_page: pageInfo.per_page || perPage,
+            total: pageInfo.total || 0,
+            total_pages: pageInfo.total_pages || 1,
+          });
+        } else {
+          setPagination({
+            page: 1,
+            per_page: items.length,
+            total: items.length,
+            total_pages: 1,
+          });
+        }
       } else {
         SwalHelper.error(response.data?.message || "Gagal mengambil data BA.");
       }
@@ -121,8 +168,9 @@ const Completion = () => {
   }, [filter, page, perPage]);
 
   useEffect(() => {
+    fetchClients();
     fetchCompletions();
-  }, [fetchCompletions]);
+  }, [fetchClients, fetchCompletions]);
 
   const handleFilterChange = (key, value) => {
     setPage(1);
@@ -136,10 +184,12 @@ const Completion = () => {
   const handleResetFilter = () => {
     setPage(1);
 
-    setFilter({
+    setFilter((current) => ({
+      stage: current.stage,
       search: "",
-      work_type: "",
-    });
+      id_client: "",
+      id_work_item: "",
+    }));
   };
 
   const handleRefresh = () => {
@@ -292,9 +342,27 @@ const Completion = () => {
 
         {/* Filter */}
         <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-white/5 dark:bg-custom-gelap">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 overflow-x-auto">
+            {/* Stage */}
+            <div className="flex shrink-0 items-center rounded-xl bg-gray-100 p-1 dark:bg-white/5">
+              {STAGE_FILTER_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleFilterChange("stage", option.value)}
+                  className={`rounded-lg px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${
+                    filter.stage === option.value
+                      ? "bg-custom-merah-terang text-white shadow-sm"
+                      : "text-gray-400 hover:text-custom-gelap dark:hover:text-white"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
             {/* Search */}
-            <div className="relative flex-1">
+            <div className="relative min-w-[280px] flex-1">
               <MdSearch
                 size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -304,31 +372,45 @@ const Completion = () => {
                 type="text"
                 value={filter.search}
                 onChange={(e) => handleFilterChange("search", e.target.value)}
-                placeholder="Cari nomor BA, pekerjaan, atau client..."
+                placeholder="Cari nomor BA / pekerjaan / client..."
                 className="h-10 w-full rounded-xl border border-gray-100 bg-gray-50 pl-9 pr-3 text-[10px] font-bold text-custom-gelap outline-none placeholder:text-gray-400 focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
               />
             </div>
 
-            {/* Work Type */}
+            {/* Client */}
             <select
-              value={filter.work_type}
-              onChange={(e) => handleFilterChange("work_type", e.target.value)}
-              className="h-10 w-44 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
+              value={filter.id_client}
+              onChange={(e) => handleFilterChange("id_client", e.target.value)}
+              className="h-10 w-44 shrink-0 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
             >
-              {WORK_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+              <option value="">Semua Client</option>
+
+              {clients.map((client) => (
+                <option key={client.id_client} value={client.id_client}>
+                  {client.name}
                 </option>
               ))}
             </select>
+
+            {/* Work Item */}
+            <input
+              type="number"
+              value={filter.id_work_item}
+              onChange={(e) =>
+                handleFilterChange("id_work_item", e.target.value)
+              }
+              placeholder="ID Work Item"
+              className="h-10 w-36 shrink-0 rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none placeholder:text-gray-400 focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
+            />
 
             {/* Reset */}
             <button
               type="button"
               onClick={handleResetFilter}
-              className="h-10 whitespace-nowrap rounded-xl bg-gray-100 px-4 text-[9px] font-black uppercase tracking-widest text-custom-gelap transition-all hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+              className="flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-gray-100 px-4 text-[9px] font-black uppercase tracking-widest text-custom-gelap transition-all hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
             >
-              Reset Filter
+              <MdRefresh size={15} />
+              Reset
             </button>
           </div>
         </div>
@@ -409,9 +491,11 @@ const Completion = () => {
                     >
                       {/* # */}
                       <td className="px-4 py-3 text-center align-top text-[11px] font-bold text-gray-400">
-                        {(pagination.page - 1) * pagination.per_page +
-                          index +
-                          1}
+                        {filter.stage === "CLOSED"
+                          ? (pagination.page - 1) * pagination.per_page +
+                            index +
+                            1
+                          : index + 1}
                       </td>
 
                       {/* BA Number */}
@@ -539,7 +623,7 @@ const Completion = () => {
         </div>
 
         {/* Pagination */}
-        {pagination.total > 0 && (
+        {filter.stage === "CLOSED" && pagination.total > 0 && (
           <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 dark:border-white/5 dark:bg-custom-gelap sm:flex-row">
             <div className="flex w-full items-center gap-3 sm:w-auto">
               <div className="flex items-center gap-2">

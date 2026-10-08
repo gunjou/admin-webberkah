@@ -24,10 +24,16 @@ const STATUS_OPTIONS = [
   { value: "CANCELLED", label: "Cancelled" },
 ];
 
-const PER_PAGE_OPTIONS = [10, 25, 50, 100];
+const STAGE_FILTER_OPTIONS = [
+  { value: "ACTIVE", label: "Active" },
+  { value: "CLOSED", label: "Closed" },
+];
+
+const PER_PAGE_OPTIONS = [25, 50, 100];
 
 const Quotation = () => {
   const [dataQuotation, setDataQuotation] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
@@ -36,17 +42,19 @@ const Quotation = () => {
   const [showEdit, setShowEdit] = useState(false);
 
   const [filter, setFilter] = useState({
+    stage: "ACTIVE",
     search: "",
     status: "",
+    id_client: "",
     id_work_item: "",
   });
 
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(25);
 
   const [pagination, setPagination] = useState({
     page: 1,
-    per_page: 10,
+    per_page: 25,
     total: 0,
     total_pages: 1,
   });
@@ -61,8 +69,7 @@ const Quotation = () => {
 
     try {
       const params = {
-        page,
-        per_page: perPage,
+        stage: filter.stage,
       };
 
       if (filter.search.trim()) {
@@ -73,25 +80,44 @@ const Quotation = () => {
         params.status = filter.status;
       }
 
+      if (filter.id_client) {
+        params.id_client = Number(filter.id_client);
+      }
+
       if (filter.id_work_item) {
-        params.id_work_item = filter.id_work_item;
+        params.id_work_item = Number(filter.id_work_item);
+      }
+
+      if (filter.stage === "CLOSED") {
+        params.page = page;
+        params.per_page = perPage;
       }
 
       const response = await Api.get("/work-item/quotation", { params });
 
       if (response.data?.success) {
         const responseData = response.data.data || {};
+        const items = responseData.items || [];
 
-        setDataQuotation(responseData.items || []);
+        setDataQuotation(items);
 
-        const pageInfo = responseData.pagination || {};
+        if (filter.stage === "CLOSED") {
+          const pageInfo = responseData.pagination || {};
 
-        setPagination({
-          page: pageInfo.page || 1,
-          per_page: pageInfo.per_page || perPage,
-          total: pageInfo.total || 0,
-          total_pages: pageInfo.total_pages || 1,
-        });
+          setPagination({
+            page: pageInfo.page || page,
+            per_page: pageInfo.per_page || perPage,
+            total: pageInfo.total || 0,
+            total_pages: pageInfo.total_pages || 1,
+          });
+        } else {
+          setPagination({
+            page: 1,
+            per_page: items.length,
+            total: items.length,
+            total_pages: 1,
+          });
+        }
       }
     } catch (error) {
       console.error("Gagal mengambil data quotation:", error);
@@ -103,6 +129,26 @@ const Quotation = () => {
       setLoading(false);
     }
   }, [filter, page, perPage]);
+
+  const fetchClients = useCallback(async () => {
+    try {
+      const response = await Api.get("/work-item/master/clients/options");
+
+      if (response.data?.success) {
+        setClients(response.data.data || []);
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data client:", error);
+
+      SwalHelper.error(
+        error.response?.data?.message || "Gagal mengambil data client.",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
 
   useEffect(() => {
     fetchQuotations();
@@ -120,11 +166,13 @@ const Quotation = () => {
   const handleResetFilter = () => {
     setPage(1);
 
-    setFilter({
+    setFilter((current) => ({
+      stage: current.stage,
       search: "",
       status: "",
+      id_client: "",
       id_work_item: "",
-    });
+    }));
   };
 
   const handleRefresh = () => {
@@ -329,8 +377,31 @@ const Quotation = () => {
         ====================================================== */}
 
         <div className="bg-white dark:bg-custom-gelap border border-gray-100 dark:border-white/5 rounded-2xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1">
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {/* Stage */}
+            <div className="flex shrink-0 items-center gap-1 rounded-xl bg-gray-100 p-1 dark:bg-white/5">
+              {STAGE_FILTER_OPTIONS.map((option) => {
+                const active = filter.stage === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleFilterChange("stage", option.value)}
+                    className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${
+                      active
+                        ? "bg-custom-merah-terang text-white shadow-sm"
+                        : "text-gray-400 hover:bg-white hover:text-custom-gelap dark:hover:bg-white/10 dark:hover:text-white"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Search */}
+            <div className="relative min-w-[260px] flex-1">
               <MdSearch
                 size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -340,15 +411,30 @@ const Quotation = () => {
                 type="text"
                 value={filter.search}
                 onChange={(e) => handleFilterChange("search", e.target.value)}
-                placeholder="Cari nomor / pekerjaan / client..."
-                className="w-full h-10 pl-9 pr-3 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang placeholder:text-gray-400"
+                placeholder="Cari nomor penawaran..."
+                className="h-10 w-full rounded-xl border border-gray-100 bg-gray-50 pl-9 pr-3 text-[10px] font-bold text-custom-gelap outline-none placeholder:text-gray-400 focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
               />
             </div>
 
             <select
+              value={filter.id_client}
+              onChange={(e) => handleFilterChange("id_client", e.target.value)}
+              className="h-10 w-44 shrink-0 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
+            >
+              <option value="">Semua Client</option>
+
+              {clients.map((client) => (
+                <option key={client.id_client} value={client.id_client}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Status */}
+            <select
               value={filter.status}
               onChange={(e) => handleFilterChange("status", e.target.value)}
-              className="w-44 h-10 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer"
+              className="h-10 w-44 shrink-0 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -357,12 +443,14 @@ const Quotation = () => {
               ))}
             </select>
 
+            {/* Reset */}
             <button
               type="button"
               onClick={handleResetFilter}
-              className="h-10 px-4 rounded-xl bg-gray-100 dark:bg-white/5 text-custom-gelap dark:text-white text-[9px] font-black uppercase tracking-widest transition-all hover:bg-gray-200 dark:hover:bg-white/10 whitespace-nowrap"
+              className="flex h-10 shrink-0 items-center gap-2 rounded-xl bg-gray-100 px-4 text-[9px] font-black uppercase tracking-widest text-custom-gelap transition-all hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
             >
-              Reset Filter
+              <MdRefresh size={14} />
+              Reset
             </button>
           </div>
         </div>
@@ -561,7 +649,7 @@ const Quotation = () => {
             PAGINATION
         ====================================================== */}
 
-        {pagination.total > 0 && (
+        {filter.stage === "CLOSED" && pagination.total > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-custom-gelap border border-gray-100 dark:border-white/5 rounded-2xl px-4 py-3">
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <div className="flex items-center gap-2">

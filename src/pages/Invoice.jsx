@@ -13,8 +13,59 @@ import {
 import ModalCreateInvoice from "../components/modals/invoice/ModalCreateInvoice";
 import ModalDetailInvoice from "../components/modals/invoice/ModalDetailInvoice";
 import ModalEditInvoice from "../components/modals/invoice/ModalEditInvoice";
+import ModalCreatePayment from "../components/modals/invoice/ModalCreatePayment";
+import ModalDetailPayment from "../components/modals/invoice/ModalDetailPayment";
 
-const PER_PAGE_OPTIONS = [10, 25, 50, 100];
+const STAGE_OPTIONS = [
+  {
+    value: "ACTIVE",
+    label: "Active",
+  },
+  {
+    value: "CLOSED",
+    label: "Closed",
+  },
+];
+
+const HEALTH_STATUS_OPTIONS = [
+  {
+    value: "",
+    label: "Semua Health",
+  },
+  {
+    value: "PAID",
+    label: "Paid",
+  },
+  {
+    value: "OVERDUE",
+    label: "Overdue",
+  },
+  {
+    value: "DUE_SOON",
+    label: "Due Soon",
+  },
+  {
+    value: "ON_TRACK",
+    label: "On Track",
+  },
+];
+
+const PAYMENT_STATUS_OPTIONS = [
+  {
+    value: "",
+    label: "Semua Pembayaran",
+  },
+  {
+    value: "PAID",
+    label: "Paid",
+  },
+  {
+    value: "UNPAID",
+    label: "Unpaid",
+  },
+];
+
+const PER_PAGE_OPTIONS = [25, 50, 100];
 
 const WORK_TYPE_BADGES = {
   TENDER: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
@@ -22,19 +73,59 @@ const WORK_TYPE_BADGES = {
     "bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400",
 };
 
+const PAYMENT_STATUS_BADGES = {
+  BELUM_DIBAYAR: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+
+  SEBAGIAN_DIBAYAR:
+    "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400",
+
+  SUDAH_DIBAYAR:
+    "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400",
+};
+
+const PAYMENT_STATUS_LABELS = {
+  BELUM_DIBAYAR: "Belum Dibayar",
+  SEBAGIAN_DIBAYAR: "Sebagian Dibayar",
+  SUDAH_DIBAYAR: "Sudah Dibayar",
+};
+
+const HEALTH_STATUS_BADGES = {
+  PAID: "border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400",
+  ON_TRACK:
+    "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400",
+  DUE_SOON:
+    "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-400",
+  OVERDUE:
+    "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400",
+};
+
+const HEALTH_STATUS_LABELS = {
+  PAID: "Paid",
+  ON_TRACK: "On Track",
+  DUE_SOON: "Due Soon",
+  OVERDUE: "Overdue",
+};
+
 const WORK_TYPE_LABELS = {
   TENDER: "Tender",
   MAINTENANCE: "Maintenance",
 };
 
-const formatDate = (date) => {
-  if (!date) return "-";
+const formatFullDate = (date) => {
+  if (!date) return null;
 
-  return new Date(date).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const parsedDate = new Date(date);
+
+  return {
+    dayName: parsedDate.toLocaleDateString("id-ID", {
+      weekday: "long",
+    }),
+    date: parsedDate.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }),
+  };
 };
 
 const formatCurrency = (value) => {
@@ -61,6 +152,7 @@ const formatVatRate = (value) => {
 
 const Invoice = () => {
   const [dataInvoice, setDataInvoice] = useState([]);
+  const [clientOptions, setClientOptions] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
@@ -68,17 +160,25 @@ const Invoice = () => {
   const [showDetail, setShowDetail] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
+  const [selectedPaymentId, setSelectedPaymentId] = useState(null);
+  const [selectedPaymentInvoice, setSelectedPaymentInvoice] = useState(null);
+  const [showCreatePayment, setShowCreatePayment] = useState(false);
+  const [showDetailPayment, setShowDetailPayment] = useState(false);
+
   const [filter, setFilter] = useState({
+    stage: "ACTIVE",
     search: "",
-    work_type: "",
+    health_status: "",
+    id_client: "",
+    payment_status: "",
   });
 
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(25);
 
   const [pagination, setPagination] = useState({
     page: 1,
-    per_page: 10,
+    per_page: 25,
     total: 0,
     total_pages: 1,
   });
@@ -93,16 +193,29 @@ const Invoice = () => {
 
     try {
       const params = {
-        page,
-        per_page: perPage,
+        stage: filter.stage,
       };
 
       if (filter.search.trim()) {
         params.search = filter.search.trim();
       }
 
-      if (filter.work_type) {
-        params.work_type = filter.work_type;
+      if (filter.health_status) {
+        params.health_status = filter.health_status;
+      }
+
+      if (filter.id_client) {
+        params.id_client = Number(filter.id_client);
+      }
+
+      if (filter.payment_status) {
+        params.payment_status = filter.payment_status;
+      }
+
+      // Pagination hanya untuk CLOSED
+      if (filter.stage === "CLOSED") {
+        params.page = page;
+        params.per_page = perPage;
       }
 
       const response = await Api.get("/work-item/invoice", {
@@ -111,16 +224,27 @@ const Invoice = () => {
 
       if (response.data?.success) {
         const responseData = response.data?.data || {};
+        const items = responseData.items || [];
         const pageInfo = responseData.pagination || {};
 
-        setDataInvoice(responseData.items || []);
+        setDataInvoice(items);
 
-        setPagination({
-          page: pageInfo.page || 1,
-          per_page: pageInfo.per_page || perPage,
-          total: pageInfo.total || 0,
-          total_pages: pageInfo.total_pages || 1,
-        });
+        if (filter.stage === "CLOSED") {
+          setPagination({
+            page: pageInfo.page || page,
+            per_page: pageInfo.per_page || perPage,
+            total: pageInfo.total || 0,
+            total_pages: pageInfo.total_pages || 1,
+          });
+        } else {
+          // ACTIVE tidak menggunakan pagination
+          setPagination({
+            page: 1,
+            per_page: items.length,
+            total: items.length,
+            total_pages: 1,
+          });
+        }
       } else {
         SwalHelper.error(
           response.data?.message || "Gagal mengambil data invoice.",
@@ -141,6 +265,30 @@ const Invoice = () => {
     fetchInvoices();
   }, [fetchInvoices]);
 
+  const fetchClientOptions = useCallback(async () => {
+    try {
+      const response = await Api.get("/work-item/master/clients/options");
+
+      if (response.data?.success) {
+        setClientOptions(response.data?.data || []);
+      } else {
+        SwalHelper.error(
+          response.data?.message || "Gagal mengambil data client.",
+        );
+      }
+    } catch (error) {
+      console.error("Gagal mengambil client options:", error);
+
+      SwalHelper.error(
+        error.response?.data?.message || "Gagal mengambil data client.",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchClientOptions();
+  }, [fetchClientOptions]);
+
   const handleFilterChange = (key, value) => {
     setPage(1);
 
@@ -154,8 +302,11 @@ const Invoice = () => {
     setPage(1);
 
     setFilter({
+      stage: filter.stage,
       search: "",
-      work_type: "",
+      health_status: "",
+      id_client: "",
+      payment_status: "",
     });
   };
 
@@ -228,6 +379,21 @@ const Invoice = () => {
     setShowEdit(true);
   };
 
+  const handleCreatePayment = (item) => {
+    setSelectedPaymentInvoice(item);
+    setShowCreatePayment(true);
+  };
+
+  const handleDetailPayment = (item) => {
+    if (!item.id_payment) {
+      SwalHelper.warning("Data payment tidak ditemukan.");
+      return;
+    }
+
+    setSelectedPaymentId(item.id_payment);
+    setShowDetailPayment(true);
+  };
+
   const handleDelete = async (item) => {
     const confirmed = await SwalHelper.confirm({
       title: "Nonaktifkan Invoice?",
@@ -262,6 +428,20 @@ const Invoice = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleInvoiceClick = (item) => {
+    SwalHelper.info(
+      "Detail Invoice",
+      `Invoice ${item.invoice_number || "-"} akan membuka detail invoice.`,
+    );
+  };
+
+  const handleContractClick = (item) => {
+    SwalHelper.info(
+      "Detail Contract",
+      `Contract ${item.contract_number || "-"} akan membuka detail contract.`,
+    );
   };
 
   return (
@@ -304,10 +484,33 @@ const Invoice = () => {
         </div>
 
         {/* Filter */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-white/5 dark:bg-custom-gelap">
-          <div className="flex items-center gap-3">
+        <div className="rounded-2xl border border-gray-100 bg-white p-3 dark:border-white/5 dark:bg-custom-gelap">
+          {/* Filters */}
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {/* Stage Tabs */}
+            <div className="flex shrink-0 items-center gap-1 rounded-xl bg-gray-100 p-1 dark:bg-white/5">
+              {STAGE_OPTIONS.map((option) => {
+                const active = filter.stage === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleFilterChange("stage", option.value)}
+                    className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${
+                      active
+                        ? "bg-custom-merah-terang text-white shadow-sm"
+                        : "text-gray-400 hover:bg-white hover:text-custom-gelap dark:hover:bg-white/10 dark:hover:text-white"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Search */}
-            <div className="relative flex-1">
+            <div className="relative min-w-[260px] flex-1">
               <MdSearch
                 size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -317,29 +520,65 @@ const Invoice = () => {
                 type="text"
                 value={filter.search}
                 onChange={(e) => handleFilterChange("search", e.target.value)}
-                placeholder="Cari nomor invoice..."
+                placeholder="Cari invoice, pekerjaan, work item, atau client..."
                 className="h-10 w-full rounded-xl border border-gray-100 bg-gray-50 pl-9 pr-3 text-[10px] font-bold text-custom-gelap outline-none placeholder:text-gray-400 focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
               />
             </div>
 
-            {/* Work Type */}
+            {/* Client */}
             <select
-              value={filter.work_type}
-              onChange={(e) => handleFilterChange("work_type", e.target.value)}
-              className="h-10 w-44 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
+              value={filter.id_client}
+              onChange={(e) => handleFilterChange("id_client", e.target.value)}
+              className="h-10 w-44 shrink-0 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
             >
-              <option value="">Semua Jenis</option>
-              <option value="TENDER">Tender</option>
-              <option value="MAINTENANCE">Maintenance</option>
+              <option value="">Semua Client</option>
+
+              {clientOptions.map((client) => (
+                <option key={client.id_client} value={client.id_client}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Payment Status */}
+            <select
+              value={filter.payment_status}
+              onChange={(e) =>
+                handleFilterChange("payment_status", e.target.value)
+              }
+              className="h-10 w-40 shrink-0 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
+            >
+              {PAYMENT_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            {/* Health */}
+            <select
+              value={filter.health_status}
+              onChange={(e) =>
+                handleFilterChange("health_status", e.target.value)
+              }
+              className="h-10 w-36 shrink-0 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
+            >
+              {HEALTH_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
 
             {/* Reset */}
             <button
               type="button"
               onClick={handleResetFilter}
-              className="h-10 whitespace-nowrap rounded-xl bg-gray-100 px-4 text-[9px] font-black uppercase tracking-widest text-custom-gelap transition-all hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+              title="Reset Filter"
+              aria-label="Reset Filter"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-custom-gelap dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
             >
-              Reset Filter
+              <MdRefresh size={17} />
             </button>
           </div>
         </div>
@@ -358,7 +597,7 @@ const Invoice = () => {
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("invoice_number")}
                   >
-                    Nomor Invoice
+                    Nomor
                   </th>
 
                   <th
@@ -375,6 +614,10 @@ const Invoice = () => {
                     Client
                   </th>
 
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    Health
+                  </th>
+
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("invoice_date")}
@@ -384,24 +627,24 @@ const Invoice = () => {
 
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
-                    onClick={() => handleSort("invoice_value")}
-                  >
-                    Nilai Invoice
-                  </th>
-
-                  <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    PPN
-                  </th>
-
-                  <th
-                    className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("due_date")}
                   >
                     Jatuh Tempo
                   </th>
 
+                  <th
+                    className="cursor-pointer whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400"
+                    onClick={() => handleSort("invoice_value")}
+                  >
+                    Nilai Invoice
+                  </th>
+
                   <th className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    BA
+                    Pembayaran
+                  </th>
+
+                  <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    Payment
                   </th>
 
                   <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
@@ -426,120 +669,279 @@ const Invoice = () => {
                       className="transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                     >
                       {/* # */}
-                      <td className="px-4 py-3 text-center align-top text-[11px] font-bold text-gray-400">
+                      <td className="px-4 py-3 text-center align-center text-[11px] font-bold text-gray-400">
                         {(pagination.page - 1) * pagination.per_page +
                           index +
                           1}
                       </td>
 
-                      {/* Invoice Number */}
+                      {/* Invoice & Contract */}
                       <td className="px-4 py-3 align-top">
-                        <button
-                          type="button"
-                          onClick={() => handleDetail(item)}
-                          className="whitespace-nowrap text-[11px] font-black text-custom-merah-terang hover:underline"
-                        >
-                          {item.invoice_number || "-"}
-                        </button>
+                        <div className="space-y-2">
+                          {/* Invoice Number */}
+                          <div>
+                            <span className="block text-[7px] font-black uppercase tracking-[1.4px] text-gray-400">
+                              No. Invoice
+                            </span>
 
-                        <p className="mt-0.5 text-[9px] font-bold text-gray-400">
-                          {formatDate(item.created_at)}
-                        </p>
+                            <button
+                              type="button"
+                              onClick={() => handleInvoiceClick(item)}
+                              className="mt-0.5 block whitespace-nowrap text-[11px] font-black leading-4 text-custom-merah-terang transition hover:underline"
+                            >
+                              {item.invoice_number || "-"}
+                            </button>
+                          </div>
 
-                        {item.document_url && (
-                          <span className="mt-2 inline-flex items-center rounded-lg bg-green-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-green-600 dark:bg-green-500/10 dark:text-green-400">
-                            Ada Dokumen
-                          </span>
-                        )}
+                          {/* Contract Number */}
+                          <div>
+                            <span className="block text-[7px] font-black uppercase tracking-[1.4px] text-gray-400">
+                              No. Contract
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() => handleContractClick(item)}
+                              className="mt-0.5 block whitespace-nowrap text-[10px] font-bold leading-4 text-custom-gelap transition hover:text-custom-merah-terang hover:underline dark:text-white"
+                            >
+                              {item.contract_number || "-"}
+                            </button>
+                          </div>
+                        </div>
                       </td>
 
                       {/* Work */}
-                      <td className="max-w-[350px] px-4 py-3 align-top">
-                        <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
-                          {item.work_number || "-"}
-                        </p>
+                      <td className="min-w-[320px] max-w-[420px] px-4 py-3 align-center">
+                        {/* Work Number + Work Type */}
+                        <div className="flex items-center gap-2">
+                          <span className="whitespace-nowrap text-[9px] font-bold text-gray-400">
+                            {item.work_number || "-"}
+                          </span>
 
+                          {item.work_type && (
+                            <span
+                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-[8px] font-black uppercase tracking-wide ${
+                                WORK_TYPE_BADGES[item.work_type] ||
+                                "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
+                              }`}
+                            >
+                              {WORK_TYPE_LABELS[item.work_type] ||
+                                item.work_type}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Work Name */}
                         <p
-                          className="mt-0.5 truncate text-[9px] font-bold text-gray-400"
+                          className="mt-1 line-clamp-2 text-[10px] font-black leading-4 text-custom-gelap dark:text-white"
                           title={item.work_name}
                         >
                           {item.work_name || "-"}
                         </p>
-
-                        {item.work_type && (
-                          <span
-                            className={`mt-2 inline-flex items-center rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
-                              WORK_TYPE_BADGES[item.work_type] ||
-                              "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
-                            }`}
-                          >
-                            {WORK_TYPE_LABELS[item.work_type] || item.work_type}
-                          </span>
-                        )}
                       </td>
 
                       {/* Client */}
-                      <td className="px-4 py-3 align-top">
-                        <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
+                      <td className="px-4 py-3 align-center">
+                        <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
                           {item.client_pic_name
                             ? `Pak ${item.client_pic_name}`
                             : "-"}
                         </p>
 
-                        <p className="mt-0.5 text-[9px] font-bold text-gray-400">
+                        <p className="mt-0.5 text-[9px] font-bold text-gray-400 whitespace-nowrap">
                           {item.client_name || "-"}
                         </p>
 
-                        {item.client_code && (
-                          <p className="mt-0.5 text-[9px] font-bold text-gray-400">
+                        {/* {item.client_code && (
+                          <p className="mt-0.5 text-[9px] font-bold text-gray-400 whitespace-nowrap">
                             {item.client_code}
                           </p>
-                        )}
+                        )} */}
+                      </td>
+
+                      {/* Health */}
+                      <td className="min-w-[140px] px-3 py-2 align-top">
+                        <div
+                          className={`inline-flex min-w-[120px] flex-col rounded-xl border px-3 py-2.5 ${
+                            HEALTH_STATUS_BADGES[item.health_status] ||
+                            "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-white/5 dark:text-gray-300"
+                          }`}
+                        >
+                          {/* Status */}
+                          <span className="text-[8px] font-black uppercase tracking-[1.5px] opacity-75">
+                            {HEALTH_STATUS_LABELS[item.health_status] ||
+                              item.health_status ||
+                              "-"}
+                          </span>
+
+                          {/* Main Information */}
+                          <p className="mt-0.5 text-[15px] font-black leading-5 tracking-tight">
+                            {item.health_status === "PAID"
+                              ? "Lunas"
+                              : `${Math.abs(Number(item.days_to_due || 0))} Hari`}
+                          </p>
+
+                          {/* Description */}
+                          <p className="mt-0.5 text-[9px] font-bold leading-3.5 opacity-70">
+                            {item.health_status === "PAID"
+                              ? "Sudah dibayar"
+                              : item.health_status === "OVERDUE"
+                                ? "Melewati jatuh tempo"
+                                : "Menuju jatuh tempo"}
+                          </p>
+                        </div>
                       </td>
 
                       {/* Invoice Date */}
-                      <td className="whitespace-nowrap px-4 py-3 align-top">
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.invoice_date)}
-                        </p>
-                      </td>
+                      <td className="min-w-[135px] px-4 py-3 align-center">
+                        {(() => {
+                          const date = formatFullDate(item.invoice_date);
 
-                      {/* Invoice Value */}
-                      <td className="whitespace-nowrap px-4 py-3 align-top">
-                        <p className="text-[11px] font-black text-custom-merah-terang">
-                          {formatCurrency(item.invoice_value)}
-                        </p>
-                      </td>
+                          if (!date) {
+                            return (
+                              <span className="text-[10px] font-bold text-gray-400">
+                                -
+                              </span>
+                            );
+                          }
 
-                      {/* VAT */}
-                      <td className="px-4 py-3 text-center align-top">
-                        <span className="inline-flex items-center rounded-lg bg-orange-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
-                          {formatVatRate(item.vat_rate)}
-                        </span>
+                          return (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black uppercase tracking-[1.5px] dark:text-white">
+                                {date.dayName}
+                              </span>
+
+                              <span className="mt-0.5 text-[12px] font-black leading-4 whitespace-nowrap text-custom-gelap dark:text-white">
+                                {date.date}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Due Date */}
-                      <td className="whitespace-nowrap px-4 py-3 align-top">
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.due_date)}
-                        </p>
+                      <td className="min-w-[135px] px-4 py-3 align-center">
+                        {(() => {
+                          const date = formatFullDate(item.due_date);
+
+                          if (!date) {
+                            return (
+                              <span className="text-[10px] font-bold text-gray-400">
+                                -
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black uppercase tracking-[1.5px]  dark:text-white">
+                                {date.dayName}
+                              </span>
+
+                              <span className="mt-0.5 text-[12px] font-black leading-4 whitespace-nowrap text-custom-merah-terang">
+                                {date.date}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
 
-                      {/* BA */}
-                      <td className="px-4 py-3 align-top">
-                        <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
-                          {item.ba_number || "-"}
-                        </p>
+                      {/* Invoice Value */}
+                      <td className="min-w-[190px] px-4 py-3 align-top">
+                        <div className="space-y-1.5">
+                          {/* Nilai sebelum pajak */}
+                          <div className="flex items-center justify-between gap-4">
+                            <span className="text-[9px] font-bold text-gray-400">
+                              Nilai
+                            </span>
 
-                        {item.id_completion && (
-                          <p className="mt-0.5 text-[9px] font-bold text-gray-400">
-                            BA tersedia
+                            <span className="text-[10px] font-black text-custom-gelap dark:text-white">
+                              {formatCurrency(item.invoice_value)}
+                            </span>
+                          </div>
+
+                          {/* PPN */}
+                          <div className="flex items-center justify-between gap-4">
+                            <span className="inline-flex items-center rounded-lg bg-orange-50 px-0.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
+                              PPN ({formatVatRate(item.vat_rate)})
+                            </span>
+
+                            <span className="text-[10px] font-bold text-orange-600 dark:bg-orange-500/10">
+                              {formatCurrency(item.vat_amount)}
+                            </span>
+                          </div>
+
+                          {/* Total */}
+                          <div className="mt-1 border-t border-dashed border-gray-200 pt-1.5 dark:border-gray-700">
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-[9px] font-black uppercase text-gray-500 dark:text-gray-400">
+                                Total
+                              </span>
+
+                              <span className="text-[11px] font-black text-custom-merah-terang">
+                                {formatCurrency(item.total_invoice)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Payment Status */}
+                      <td className="px-4 py-3 align-top">
+                        <span
+                          className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${
+                            PAYMENT_STATUS_BADGES[item.payment_status] ||
+                            "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
+                          }`}
+                        >
+                          {PAYMENT_STATUS_LABELS[item.payment_status] ||
+                            item.payment_status ||
+                            "-"}
+                        </span>
+
+                        <div className="mt-1.5 space-y-0.5">
+                          <p className="text-[9px] font-bold text-gray-400">
+                            Dibayar:{" "}
+                            <span className="font-black text-gray-500 dark:text-gray-300">
+                              {formatCurrency(item.paid_amount)}
+                            </span>
                           </p>
+
+                          {Number(item.outstanding_amount || 0) > 0 && (
+                            <p className="text-[9px] font-bold text-gray-400">
+                              Sisa:{" "}
+                              <span className="font-black text-red-500">
+                                {formatCurrency(item.outstanding_amount)}
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Payment Management */}
+                      <td className="px-4 py-3 align-top">
+                        {item.payment_status === "PAID" ||
+                        item.payment_status === "SUDAH_DIBAYAR" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDetailPayment(item)}
+                            className="inline-flex items-center rounded-xl bg-green-50 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-green-600 transition-all hover:bg-green-500 hover:text-white dark:bg-green-500/10 dark:text-green-400"
+                          >
+                            Detail Payment
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleCreatePayment(item)}
+                            className="inline-flex items-center rounded-xl bg-custom-merah-terang/10 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-custom-merah-terang transition-all hover:bg-custom-merah-terang hover:text-white"
+                          >
+                            Buat Payment
+                          </button>
                         )}
                       </td>
 
                       {/* Action */}
-                      <td className="px-4 py-3 align-top">
+                      <td className="px-4 py-3 align-center">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
@@ -578,7 +980,7 @@ const Invoice = () => {
         </div>
 
         {/* Pagination */}
-        {pagination.total > 0 && (
+        {filter.stage === "CLOSED" && pagination.total > 0 && (
           <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 dark:border-white/5 dark:bg-custom-gelap sm:flex-row">
             <div className="flex w-full items-center gap-3 sm:w-auto">
               <div className="flex items-center gap-2">
@@ -711,6 +1113,32 @@ const Invoice = () => {
           onClose={() => {
             setShowEdit(false);
             setSelectedInvoiceId(null);
+          }}
+          onSuccess={fetchInvoices}
+        />
+      )}
+
+      {/* Modal Create Payment */}
+      {showCreatePayment && selectedPaymentInvoice && (
+        <ModalCreatePayment
+          show={showCreatePayment}
+          invoice={selectedPaymentInvoice}
+          onClose={() => {
+            setShowCreatePayment(false);
+            setSelectedPaymentInvoice(null);
+          }}
+          onSuccess={fetchInvoices}
+        />
+      )}
+
+      {/* Modal Detail Payment */}
+      {showDetailPayment && selectedPaymentId && (
+        <ModalDetailPayment
+          show={showDetailPayment}
+          paymentId={selectedPaymentId}
+          onClose={() => {
+            setShowDetailPayment(false);
+            setSelectedPaymentId(null);
           }}
           onSuccess={fetchInvoices}
         />

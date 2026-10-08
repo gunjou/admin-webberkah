@@ -9,10 +9,18 @@ import {
   MdVisibility,
   MdEdit,
   MdDelete,
+  MdLockOpen,
+  MdLock,
 } from "react-icons/md";
 import ModalCreateWorkItem from "../components/modals/work-item/ModalCreateWorkItem";
 import ModalDetailWorkItem from "../components/modals/work-item/ModalDetailWorkItem";
 import ModalEditWorkItem from "../components/modals/work-item/ModalEditWorkItem";
+import ModalUpdateProgress from "../components/modals/work-item/ModalUpdateProgress";
+
+const STAGE_FILTER_OPTIONS = [
+  { value: "ACTIVE", label: "Active" },
+  { value: "CLOSED", label: "Closed" },
+];
 
 const WORK_TYPE_OPTIONS = [
   { value: "", label: "Semua Work Type" },
@@ -25,15 +33,13 @@ const STAGE_OPTIONS = [
   { value: "IDENTIFIED", label: "Identified" },
   { value: "QUOTATION", label: "Quotation" },
   { value: "CONTRACT", label: "Contract" },
-  { value: "IN_PROGRESS", label: "In Progress" },
-  { value: "COMPLETED", label: "Completed" },
   { value: "BA", label: "BA" },
   { value: "INVOICE", label: "Invoice" },
   { value: "PAYMENT", label: "Payment" },
-  { value: "CLOSED", label: "Closed" },
+  // { value: "CLOSED", label: "Closed" },
 ];
 
-const PER_PAGE_OPTIONS = [10, 25, 50, 100];
+const PER_PAGE_OPTIONS = [25, 50, 100];
 
 const WorkItem = () => {
   const [dataWorkItem, setDataWorkItem] = useState([]);
@@ -45,7 +51,12 @@ const WorkItem = () => {
   const [showDetail, setShowDetail] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
+  const [selectedWorkItemName, setSelectedWorkItemName] = useState("");
+  const [selectedWorkItemProgress, setSelectedWorkItemProgress] = useState(0);
+  const [showUpdateProgress, setShowUpdateProgress] = useState(false);
+
   const [filter, setFilter] = useState({
+    stage: "ACTIVE",
     search: "",
     work_type: "",
     current_stage: "",
@@ -53,11 +64,11 @@ const WorkItem = () => {
   });
 
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(25);
 
   const [pagination, setPagination] = useState({
     page: 1,
-    per_page: 10,
+    per_page: 25,
     total: 0,
     total_pages: 1,
   });
@@ -88,8 +99,7 @@ const WorkItem = () => {
 
     try {
       const params = {
-        page,
-        per_page: perPage,
+        stage: filter.stage,
       };
 
       if (filter.search.trim()) {
@@ -105,24 +115,41 @@ const WorkItem = () => {
       }
 
       if (filter.id_client) {
-        params.id_client = filter.id_client;
+        params.id_client = Number(filter.id_client);
+      }
+
+      // Pagination hanya digunakan untuk CLOSED
+      if (filter.stage === "CLOSED") {
+        params.page = page;
+        params.per_page = perPage;
       }
 
       const response = await Api.get("/work-item/work", { params });
 
-      if (response.data.success) {
-        const responseData = response.data.data || {};
+      if (response.data?.success) {
+        const responseData = response.data?.data || {};
+        const items = responseData.items || [];
 
-        setDataWorkItem(responseData.items || []);
+        setDataWorkItem(items);
 
-        const pageInfo = responseData.pagination || {};
+        if (filter.stage === "CLOSED") {
+          const pageInfo = responseData.pagination || {};
 
-        setPagination({
-          page: pageInfo.page || 1,
-          per_page: pageInfo.per_page || perPage,
-          total: pageInfo.total || 0,
-          total_pages: pageInfo.total_pages || 1,
-        });
+          setPagination({
+            page: pageInfo.page || page,
+            per_page: pageInfo.per_page || perPage,
+            total: pageInfo.total || 0,
+            total_pages: pageInfo.total_pages || 1,
+          });
+        } else {
+          // ACTIVE tidak memiliki pagination
+          setPagination({
+            page: 1,
+            per_page: items.length,
+            total: items.length,
+            total_pages: 1,
+          });
+        }
       }
     } catch (error) {
       console.error("Gagal mengambil data work item:", error);
@@ -153,12 +180,14 @@ const WorkItem = () => {
 
   const handleResetFilter = () => {
     setPage(1);
-    setFilter({
+
+    setFilter((current) => ({
+      stage: current.stage,
       search: "",
       work_type: "",
       current_stage: "",
       id_client: "",
-    });
+    }));
   };
 
   const handleRefresh = () => {
@@ -218,6 +247,13 @@ const WorkItem = () => {
     setShowEdit(true);
   };
 
+  const handleUpdateProgress = (item) => {
+    setSelectedWorkItemId(item.id_work_item);
+    setSelectedWorkItemName(`${item.work_number} - ${item.work_name}` ?? "");
+    setSelectedWorkItemProgress(item.progress_percent ?? 0);
+    setShowUpdateProgress(true);
+  };
+
   const handleDelete = async (item) => {
     const confirmed = await SwalHelper.confirm({
       title: "Nonaktifkan Pekerjaan?",
@@ -246,6 +282,48 @@ const WorkItem = () => {
     } catch (error) {
       SwalHelper.error(
         error.response?.data?.message || "Gagal menonaktifkan pekerjaan.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClose = async (item) => {
+    if (item.current_stage !== "PAYMENT") {
+      SwalHelper.warning(
+        "Work Item hanya dapat ditutup ketika berada pada stage Payment.",
+      );
+      return;
+    }
+
+    const confirmed = await SwalHelper.confirm({
+      title: "Tutup Pekerjaan?",
+      message: `Pekerjaan "${item.work_number} - ${item.work_name}" akan ditutup dan stage akan berubah menjadi Closed.`,
+      confirmText: "Ya, Tutup Pekerjaan",
+      cancelText: "Batal",
+    });
+
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+
+      const response = await Api.post(
+        `/work-item/work/${item.id_work_item}/close`,
+      );
+
+      if (response.data?.success) {
+        await SwalHelper.success(
+          response.data?.message || "Pekerjaan berhasil ditutup.",
+        );
+
+        await fetchWorkItems();
+      } else {
+        SwalHelper.error(response.data?.message || "Gagal menutup pekerjaan.");
+      }
+    } catch (error) {
+      SwalHelper.error(
+        error.response?.data?.message || "Gagal menutup pekerjaan.",
       );
     } finally {
       setLoading(false);
@@ -340,25 +418,50 @@ const WorkItem = () => {
         </div>
 
         <div className="bg-white dark:bg-custom-gelap border border-gray-100 dark:border-white/5 rounded-2xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1">
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {/* Active / Closed */}
+            <div className="flex shrink-0 items-center gap-1 rounded-xl bg-gray-100 p-1 dark:bg-white/5">
+              {STAGE_FILTER_OPTIONS.map((option) => {
+                const active = filter.stage === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleFilterChange("stage", option.value)}
+                    className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${
+                      active
+                        ? "bg-custom-merah-terang text-white shadow-sm"
+                        : "text-gray-400 hover:bg-white hover:text-custom-gelap dark:hover:bg-white/10 dark:hover:text-white"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Search */}
+            <div className="relative min-w-[260px] flex-1">
               <MdSearch
                 size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
               />
+
               <input
                 type="text"
                 value={filter.search}
                 onChange={(e) => handleFilterChange("search", e.target.value)}
                 placeholder="Cari nomor / nama work item..."
-                className="w-full h-10 pl-9 pr-3 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang placeholder:text-gray-400"
+                className="h-10 w-full rounded-xl border border-gray-100 bg-gray-50 pl-9 pr-3 text-[10px] font-bold text-custom-gelap outline-none placeholder:text-gray-400 focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
               />
             </div>
 
+            {/* Work Type */}
             <select
               value={filter.work_type}
               onChange={(e) => handleFilterChange("work_type", e.target.value)}
-              className="w-44 h-10 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer"
+              className="h-10 w-44 shrink-0 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
             >
               {WORK_TYPE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -367,12 +470,18 @@ const WorkItem = () => {
               ))}
             </select>
 
+            {/* Current Stage */}
             <select
               value={filter.current_stage}
               onChange={(e) =>
                 handleFilterChange("current_stage", e.target.value)
               }
-              className="w-44 h-10 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer"
+              disabled={filter.stage === "CLOSED"}
+              className={`h-10 w-44 shrink-0 rounded-xl border px-3 text-[10px] font-black outline-none ${
+                filter.stage === "CLOSED"
+                  ? "cursor-not-allowed border-gray-100 bg-gray-100 text-gray-400 dark:border-white/5 dark:bg-white/5 dark:text-gray-600"
+                  : "cursor-pointer border-gray-100 bg-gray-50 text-custom-gelap focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
+              }`}
             >
               {STAGE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -381,12 +490,14 @@ const WorkItem = () => {
               ))}
             </select>
 
+            {/* Client */}
             <select
               value={filter.id_client}
               onChange={(e) => handleFilterChange("id_client", e.target.value)}
-              className="w-52 h-10 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer"
+              className="h-10 w-52 shrink-0 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
             >
               <option value="">Semua Client</option>
+
               {clients.map((client) => (
                 <option key={client.id_client} value={client.id_client}>
                   {client.client_code
@@ -396,12 +507,15 @@ const WorkItem = () => {
               ))}
             </select>
 
+            {/* Reset */}
             <button
               type="button"
               onClick={handleResetFilter}
-              className="h-10 px-4 rounded-xl bg-gray-100 dark:bg-white/5 text-custom-gelap dark:text-white text-[9px] font-black uppercase tracking-widest transition-all hover:bg-gray-200 dark:hover:bg-white/10 whitespace-nowrap"
+              title="Reset Filter"
+              aria-label="Reset Filter"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-custom-gelap dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
             >
-              Reset Filter
+              <MdRefresh size={17} />
             </button>
           </div>
         </div>
@@ -441,6 +555,9 @@ const WorkItem = () => {
                   <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     Target
                   </th>
+                  <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Close
+                  </th>
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">
                     Action
                   </th>
@@ -450,7 +567,7 @@ const WorkItem = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                 {displayedData.length === 0 ? (
                   <tr>
-                    <td colSpan="10" className="px-4 py-12 text-center">
+                    <td colSpan="11" className="px-4 py-12 text-center">
                       <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
                         Tidak ada data work item
                       </p>
@@ -463,9 +580,11 @@ const WorkItem = () => {
                       className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                     >
                       <td className="px-4 py-3 text-center text-[11px] font-bold text-gray-400">
-                        {(pagination.page - 1) * pagination.per_page +
-                          index +
-                          1}
+                        {filter.stage === "CLOSED"
+                          ? (pagination.page - 1) * pagination.per_page +
+                            index +
+                            1
+                          : index + 1}
                       </td>
 
                       <td className="px-4 py-3 align-top">
@@ -481,8 +600,8 @@ const WorkItem = () => {
                         </p>
                       </td>
 
-                      <td className="px-4 py-3 align-top max-w-[350px]">
-                        <p className="text-[11px] font-black text-custom-gelap dark:text-white leading-relaxed">
+                      <td className="px-4 py-3 align-top min-w-[320px] max-w-[420px]">
+                        <p className="text-[11px] line-clamp-2 font-black text-custom-gelap dark:text-white leading-relaxed">
                           {item.work_name || "-"}
                         </p>
                       </td>
@@ -491,7 +610,7 @@ const WorkItem = () => {
                         <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
                           Pak {item.client_pic_name || "-"}
                         </p>
-                        <p className="text-[9px] text-gray-400 font-bold mt-0.5">
+                        <p className="text-[9px] text-gray-400 font-bold mt-0.5 whitespace-nowrap">
                           {item.client_name || "-"}
                         </p>
                       </td>
@@ -521,19 +640,39 @@ const WorkItem = () => {
                         </span>
                       </td>
 
-                      <td className="px-4 py-3 align-top min-w-[120px]">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-[10px] font-black text-custom-gelap dark:text-white">
-                            {item.progress_percent || 0}%
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-custom-merah-terang transition-all"
-                            style={{
-                              width: `${Math.min(Math.max(item.progress_percent || 0, 0), 100)}%`,
-                            }}
-                          />
+                      <td className="min-w-[150px] px-4 py-3 align-top">
+                        <div className="space-y-2">
+                          {/* Progress + Edit */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black text-custom-gelap dark:text-white">
+                                {item.progress_percent ?? 0}%
+                              </span>
+
+                              <span className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+                                Progress
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateProgress(item)}
+                              className="inline-flex h-7 items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 text-[9px] font-bold text-gray-500 transition hover:border-custom-merah-terang hover:bg-red-50 hover:text-custom-merah-terang dark:border-gray-700 dark:bg-white/5 dark:text-gray-300 dark:hover:border-custom-merah-terang dark:hover:bg-custom-merah-terang/10"
+                              title="Update Progress"
+                            >
+                              <MdEdit size={13} />
+                            </button>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
+                            <div
+                              className="h-full rounded-full bg-custom-merah-terang transition-all duration-300"
+                              style={{
+                                width: `${Math.min(Math.max(item.progress_percent ?? 0, 0), 100)}%`,
+                              }}
+                            />
+                          </div>
                         </div>
                       </td>
 
@@ -545,6 +684,37 @@ const WorkItem = () => {
                           <p className="text-[9px] text-green-500 font-bold mt-0.5">
                             Selesai: {formatDate(item.completion_date)}
                           </p>
+                        )}
+                      </td>
+
+                      {/* Close Management */}
+                      <td className="px-4 py-3 align-top text-center">
+                        {item.current_stage === "CLOSED" ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-100 px-3.5 py-2 text-[9px] font-black uppercase tracking-widest text-gray-500 dark:border-gray-700 dark:bg-white/10 dark:text-gray-400">
+                            <MdLock size={14} />
+                            Closed
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleClose(item)}
+                            disabled={
+                              item.current_stage !== "PAYMENT" || loading
+                            }
+                            title={
+                              item.current_stage === "PAYMENT"
+                                ? "Close Work Item"
+                                : "Close hanya tersedia pada stage Payment"
+                            }
+                            className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3.5 text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                              item.current_stage === "PAYMENT"
+                                ? "border-green-500 bg-green-500 text-white shadow-sm shadow-green-200 hover:-translate-y-0.5 hover:bg-green-600 hover:shadow-md hover:shadow-green-200 dark:border-green-500 dark:bg-green-500 dark:shadow-none dark:hover:bg-green-400"
+                                : "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 opacity-60 dark:border-gray-700 dark:bg-white/5 dark:text-gray-500"
+                            }`}
+                          >
+                            <MdLockOpen size={14} />
+                            Close Work
+                          </button>
                         )}
                       </td>
 
@@ -586,7 +756,7 @@ const WorkItem = () => {
           </div>
         </div>
 
-        {pagination.total > 0 && (
+        {filter.stage === "CLOSED" && pagination.total > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-custom-gelap border border-gray-100 dark:border-white/5 rounded-2xl px-4 py-3">
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <div className="flex items-center gap-2">
@@ -709,6 +879,21 @@ const WorkItem = () => {
           onClose={() => {
             setShowEdit(false);
             setSelectedWorkItemId(null);
+          }}
+          onSuccess={fetchWorkItems}
+        />
+      )}
+
+      {showUpdateProgress && selectedWorkItemId && (
+        <ModalUpdateProgress
+          show={showUpdateProgress}
+          workItemId={selectedWorkItemId}
+          workItemName={selectedWorkItemName}
+          currentProgress={selectedWorkItemProgress}
+          onClose={() => {
+            setShowUpdateProgress(false);
+            setSelectedWorkItemId(null);
+            setSelectedWorkItemProgress(0);
           }}
           onSuccess={fetchWorkItems}
         />
