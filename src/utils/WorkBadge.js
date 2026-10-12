@@ -37,3 +37,28 @@ export const WORK_TYPE_LABELS = {
   TENDER: "Tender",
   MAINTENANCE: "Maintenance",
 };
+
+export const HEALTH_STATUS_BADGES = {
+  COMPLETED:
+    "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400",
+
+  ON_TRACK:
+    "border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400",
+
+  DUE_SOON:
+    "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-400",
+
+  EXPIRED:
+    "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400",
+
+  NO_DATE:
+    "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-500/30 dark:bg-gray-500/10 dark:text-gray-400",
+};
+
+export const HEALTH_STATUS_LABELS = {
+  COMPLETED: "Completed",
+  ON_TRACK: "On Track",
+  DUE_SOON: "Due Soon",
+  EXPIRED: "Expired",
+  NO_DATE: "No Date",
+};

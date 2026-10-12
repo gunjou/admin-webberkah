@@ -12,6 +12,10 @@ import {
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
 import DocumentPreviewModal from "../DocumentPreviewModal";
+import {
+  HEALTH_STATUS_BADGES,
+  HEALTH_STATUS_LABELS,
+} from "../../../utils/WorkBadge";
 
 const STAGE_LABELS = {
   IDENTIFIED: "Identified",
@@ -72,6 +76,32 @@ const formatCurrency = (value) => {
     currency: "IDR",
     maximumFractionDigits: 0,
   }).format(value);
+};
+
+const getHealthDaysLabel = (healthStatus, daysToEnd) => {
+  if (healthStatus === "COMPLETED") {
+    return "Pekerjaan selesai";
+  }
+
+  if (daysToEnd === null || daysToEnd === undefined) {
+    return "-";
+  }
+
+  const days = Math.abs(Number(daysToEnd));
+
+  if (healthStatus === "EXPIRED") {
+    return `${days} Hari Terlambat`;
+  }
+
+  if (healthStatus === "DUE_SOON") {
+    return `${days} Hari Menuju Target`;
+  }
+
+  if (healthStatus === "ON_TRACK") {
+    return `${days} Hari Tersisa`;
+  }
+
+  return "-";
 };
 
 const InfoItem = ({ label, value }) => (
@@ -236,6 +266,7 @@ const ModalDetailWorkItem = ({ idWorkItem, onClose }) => {
                   <SectionTitle icon={MdWork} title="Informasi Pekerjaan" />
 
                   <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                    {/* Work Information */}
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
                       <InfoItem
                         label="Nomor Pekerjaan"
@@ -303,6 +334,37 @@ const ModalDetailWorkItem = ({ idWorkItem, onClose }) => {
                               )
                             }
                           />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Health */}
+                    <div
+                      className={`mt-5 rounded-xl border px-4 py-3 ${
+                        HEALTH_STATUS_BADGES[workItem.health_status] ||
+                        "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-white/5 dark:text-gray-300"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-[1.5px] opacity-70">
+                            Health Pekerjaan
+                          </p>
+
+                          <p className="mt-0.5 text-base font-black tracking-tight">
+                            {HEALTH_STATUS_LABELS[workItem.health_status] ||
+                              workItem.health_status ||
+                              "-"}
+                          </p>
+                        </div>
+
+                        <div className="sm:text-right">
+                          <p className="text-sm font-black">
+                            {getHealthDaysLabel(
+                              workItem.health_status,
+                              workItem.days_to_end,
+                            )}
+                          </p>
                         </div>
                       </div>
                     </div>

@@ -14,7 +14,12 @@ import ModalCreateContract from "../components/modals/contract/ModalCreateContra
 import ModalDetailContract from "../components/modals/contract/ModalDetailContract";
 import ModalEditContract from "../components/modals/contract/ModalEditContract";
 import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
-import { STAGE_BADGES, STAGE_LABELS } from "../utils/WorkBadge";
+import {
+  HEALTH_STATUS_BADGES,
+  HEALTH_STATUS_LABELS,
+  STAGE_BADGES,
+  STAGE_LABELS,
+} from "../utils/WorkBadge";
 import { formatFullDate, formatTanggalIndoLengkap } from "../utils/Helpers";
 
 const STATUS_OPTIONS = [
@@ -27,6 +32,14 @@ const STATUS_OPTIONS = [
 const STAGE_FILTER_OPTIONS = [
   { value: "ACTIVE", label: "Active" },
   { value: "CLOSED", label: "Closed" },
+];
+
+const HEALTH_OPTIONS = [
+  { value: "", label: "Semua Health" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "EXPIRED", label: "Expired" },
+  { value: "DUE_SOON", label: "Due Soon" },
+  { value: "ON_TRACK", label: "On Track" },
 ];
 
 const PER_PAGE_OPTIONS = [25, 50, 100];
@@ -73,6 +86,7 @@ const Contract = () => {
     stage: "ACTIVE",
     search: "",
     status: "",
+    health_status: "",
     id_client: "",
     id_work_item: "",
   });
@@ -106,6 +120,10 @@ const Contract = () => {
 
       if (filter.status) {
         params.status = filter.status;
+      }
+
+      if (filter.health_status) {
+        params.health_status = filter.health_status;
       }
 
       if (filter.id_work_item) {
@@ -188,6 +206,16 @@ const Contract = () => {
     fetchContracts();
   }, [fetchContracts]);
 
+  const formatVatRate = (value) => {
+    if (value === null || value === undefined || value === "") {
+      return "-";
+    }
+
+    return `${Number(value).toLocaleString("id-ID", {
+      maximumFractionDigits: 2,
+    })}%`;
+  };
+
   const handleFilterChange = (key, value) => {
     setPage(1);
 
@@ -204,6 +232,7 @@ const Contract = () => {
       stage: current.stage,
       search: "",
       status: "",
+      health_status: "",
       id_client: "",
       id_work_item: "",
     }));
@@ -438,6 +467,21 @@ const Contract = () => {
               ))}
             </select>
 
+            {/* Health */}
+            <select
+              value={filter.health_status}
+              onChange={(e) =>
+                handleFilterChange("health_status", e.target.value)
+              }
+              className="h-10 w-44 shrink-0 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
+            >
+              {HEALTH_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
             {/* Reset */}
             <button
               type="button"
@@ -477,6 +521,9 @@ const Contract = () => {
                   >
                     PIC - Client
                   </th>
+                  <th className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    Health
+                  </th>
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("contract_date")}
@@ -487,10 +534,7 @@ const Contract = () => {
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("contract_value")}
                   >
-                    Nilai Kontrak
-                  </th>
-                  <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    PPN
+                    Nilai Kontrak & PPN
                   </th>
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
@@ -556,7 +600,7 @@ const Contract = () => {
                       </td>
 
                       {/* WORK-ITEM NAME */}
-                      <td className="px-4 py-3 align-top min-w-[320px] max-w-[420px]">
+                      <td className="px-4 py-3 align-center min-w-[320px] max-w-[420px]">
                         {/* Work Number + Work Stage */}
                         <div className="flex items-center gap-2">
                           <span className="whitespace-nowrap text-[9px] font-bold text-gray-400">
@@ -577,7 +621,7 @@ const Contract = () => {
 
                         {/* Work Name */}
                         <p
-                          className="mt-1 line-clamp-2 text-[11px] font-black leading-4 text-custom-gelap dark:text-white"
+                          className="mt-1 line-clamp-3 text-[11px] font-black leading-4 text-custom-gelap dark:text-white"
                           title={item.work_name}
                         >
                           {item.work_name || "-"}
@@ -585,7 +629,7 @@ const Contract = () => {
                       </td>
 
                       {/* Client */}
-                      <td className="px-4 py-3 align-top">
+                      <td className="px-4 py-3 align-center">
                         <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
                           Pak {item.client_pic_name || "-"}
                         </p>
@@ -594,8 +638,47 @@ const Contract = () => {
                         </p>
                       </td>
 
+                      {/* Health */}
+                      <td className="min-w-[170px] px-3 py-2 align-middle">
+                        <div
+                          className={`inline-flex w-[155px] flex-col rounded-xl border px-3 py-2.5 ${
+                            HEALTH_STATUS_BADGES[item.health_status] ||
+                            "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-white/5 dark:text-gray-300"
+                          }`}
+                        >
+                          {/* Status */}
+                          <span className="text-[8px] font-black uppercase tracking-[1.5px] opacity-75">
+                            {HEALTH_STATUS_LABELS[item.health_status] ||
+                              item.health_status ||
+                              "-"}
+                          </span>
+
+                          {/* Main Information */}
+                          <p className="mt-0.5 text-[15px] font-black leading-5 tracking-tight">
+                            {item.health_status === "COMPLETED"
+                              ? "Selesai"
+                              : item.health_status === "NO_DATE"
+                                ? "-"
+                                : `${Math.abs(Number(item.days_to_end || 0))} Hari`}
+                          </p>
+
+                          {/* Description */}
+                          <p className="mt-0.5 whitespace-nowrap text-[9px] font-bold leading-3.5 opacity-70">
+                            {item.health_status === "COMPLETED"
+                              ? "Sudah mencapai BA"
+                              : item.health_status === "ON_TRACK"
+                                ? "Masa kontrak masih aman"
+                                : item.health_status === "DUE_SOON"
+                                  ? "Mendekati akhir kontrak"
+                                  : item.health_status === "EXPIRED"
+                                    ? "Melewati akhir kontrak"
+                                    : "Tanggal akhir belum tersedia"}
+                          </p>
+                        </div>
+                      </td>
+
                       {/* Contract Date */}
-                      <td className="whitespace-nowrap px-4 py-3 align-top">
+                      <td className="whitespace-nowrap px-4 py-3 align-center">
                         {(() => {
                           const date = formatFullDate(item.contract_date);
                           if (!date) {
@@ -619,23 +702,47 @@ const Contract = () => {
                       </td>
 
                       {/* Contract Value */}
-                      <td className="whitespace-nowrap px-4 py-3 align-top">
-                        <p className="text-[11px] font-black text-custom-merah-terang">
-                          {formatCurrency(item.contract_value)}
-                        </p>
-                      </td>
+                      <td className="min-w-[190px] px-4 py-3 align-top">
+                        <div className="space-y-1.5">
+                          {/* Nilai sebelum pajak */}
+                          <div className="flex items-center justify-between gap-4">
+                            <span className="text-[9px] font-bold text-gray-400">
+                              Nilai
+                            </span>
 
-                      {/* VAT */}
-                      <td className="px-4 py-3 text-center align-top">
-                        <span className="inline-flex items-center rounded-lg bg-orange-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
-                          {item.vat_rate !== null && item.vat_rate !== undefined
-                            ? `${item.vat_rate}%`
-                            : "-"}
-                        </span>
+                            <span className="text-[10px] font-black text-custom-gelap dark:text-white">
+                              {formatCurrency(item.contract_value)}
+                            </span>
+                          </div>
+
+                          {/* PPN */}
+                          <div className="flex items-center justify-between gap-4">
+                            <span className="inline-flex items-center rounded-lg bg-orange-50 px-0.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
+                              PPN ({formatVatRate(item.vat_rate)})
+                            </span>
+
+                            <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
+                              {formatCurrency(item.vat_amount)}
+                            </span>
+                          </div>
+
+                          {/* Total */}
+                          <div className="mt-1 border-t border-dashed border-gray-200 pt-1.5 dark:border-gray-700">
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-[9px] font-black uppercase text-gray-500 dark:text-gray-400">
+                                Total
+                              </span>
+
+                              <span className="text-[13px] font-black text-custom-merah-terang">
+                                {formatCurrency(item.total_contract)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </td>
 
                       {/* START DATE */}
-                      <td className="whitespace-nowrap px-4 py-3 align-top">
+                      <td className="whitespace-nowrap px-4 py-3 align-center">
                         {(() => {
                           const date = formatFullDate(item.start_date);
                           if (!date) {
@@ -659,7 +766,7 @@ const Contract = () => {
                       </td>
 
                       {/* DUE DATE */}
-                      <td className="whitespace-nowrap px-4 py-3 align-top">
+                      <td className="whitespace-nowrap px-4 py-3 align-center">
                         {(() => {
                           const date = formatFullDate(item.end_date);
                           if (!date) {
@@ -683,7 +790,7 @@ const Contract = () => {
                       </td>
 
                       {/* Status */}
-                      <td className="px-4 py-3 text-center align-top">
+                      <td className="px-4 py-3 text-center align-center">
                         <span
                           className={`inline-flex items-center whitespace-nowrap rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
                             STATUS_BADGES[item.status] ||
@@ -695,7 +802,7 @@ const Contract = () => {
                       </td>
 
                       {/* Document */}
-                      <td className="px-4 py-3 align-top text-center">
+                      <td className="px-4 py-3 align-center text-center">
                         {item.document_url ? (
                           <button
                             type="button"
@@ -714,7 +821,7 @@ const Contract = () => {
                       </td>
 
                       {/* Action */}
-                      <td className="px-4 py-3 align-top">
+                      <td className="px-4 py-3 align-center">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"

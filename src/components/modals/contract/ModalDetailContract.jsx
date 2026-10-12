@@ -4,14 +4,19 @@ import {
   MdDescription,
   MdWork,
   MdBusiness,
-  MdPerson,
-  MdReceipt,
   MdInfo,
-  MdVisibility,
 } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
 import DocumentPreviewModal from "../DocumentPreviewModal";
+import {
+  HEALTH_STATUS_BADGES,
+  HEALTH_STATUS_LABELS,
+} from "../../../utils/WorkBadge";
+
+// ==================================================
+// CONSTANTS
+// ==================================================
 
 const STATUS_BADGES = {
   ACTIVE:
@@ -30,6 +35,10 @@ const WORK_TYPE_LABELS = {
   TENDER: "Tender",
   MAINTENANCE: "Maintenance",
 };
+
+// ==================================================
+// FORMATTERS
+// ==================================================
 
 const formatDate = (date) => {
   if (!date) return "-";
@@ -62,8 +71,52 @@ const formatCurrency = (value) => {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(Number(value));
 };
+
+const formatVatRate = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+
+  return `${Number(value).toLocaleString("id-ID", {
+    maximumFractionDigits: 2,
+  })}%`;
+};
+
+// ==================================================
+// HEALTH HELPERS
+// ==================================================
+
+const getHealthDaysLabel = (healthStatus, daysToEnd) => {
+  if (healthStatus === "COMPLETED") {
+    return "BA Sudah Diterbitkan";
+  }
+
+  if (daysToEnd === null || daysToEnd === undefined) {
+    return "-";
+  }
+
+  const days = Math.abs(Number(daysToEnd));
+
+  if (healthStatus === "EXPIRED") {
+    return `${days} Hari Terlambat`;
+  }
+
+  if (healthStatus === "DUE_SOON") {
+    return `${days} Hari Menuju Akhir`;
+  }
+
+  if (healthStatus === "ON_TRACK") {
+    return `${days} Hari Tersisa`;
+  }
+
+  return "-";
+};
+
+// ==================================================
+// REUSABLE COMPONENTS
+// ==================================================
 
 const InfoItem = ({ label, value }) => (
   <div>
@@ -87,6 +140,10 @@ const SectionTitle = ({ icon: Icon, title }) => (
   </div>
 );
 
+// ==================================================
+// COMPONENT
+// ==================================================
+
 const ModalDetailContract = ({ show, onClose, contractId }) => {
   const [contract, setContract] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -94,6 +151,10 @@ const ModalDetailContract = ({ show, onClose, contractId }) => {
   const [showDocumentPreview, setShowDocumentPreview] = useState(false);
   const [selectedDocumentUrl, setSelectedDocumentUrl] = useState("");
   const [selectedDocumentTitle, setSelectedDocumentTitle] = useState("");
+
+  // ==================================================
+  // FETCH DETAIL
+  // ==================================================
 
   const fetchContractDetail = async () => {
     try {
@@ -120,6 +181,10 @@ const ModalDetailContract = ({ show, onClose, contractId }) => {
     }
   };
 
+  // ==================================================
+  // EFFECT
+  // ==================================================
+
   useEffect(() => {
     if (show && contractId) {
       fetchContractDetail();
@@ -127,6 +192,10 @@ const ModalDetailContract = ({ show, onClose, contractId }) => {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, contractId]);
+
+  // ==================================================
+  // DOCUMENT
+  // ==================================================
 
   const handleDocumentPreview = () => {
     if (!contract?.document_url) {
@@ -149,6 +218,10 @@ const ModalDetailContract = ({ show, onClose, contractId }) => {
     setSelectedDocumentTitle("");
   };
 
+  // ==================================================
+  // RENDER
+  // ==================================================
+
   if (!show) return null;
 
   return (
@@ -162,47 +235,78 @@ const ModalDetailContract = ({ show, onClose, contractId }) => {
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       >
         <div className="max-h-[93vh] w-full max-w-5xl overflow-hidden rounded-xl bg-white shadow-xl dark:bg-custom-gelap">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-            <div>
-              <div className="flex items-center gap-2">
-                <MdDescription className="text-custom-merah-terang" size={22} />
+          {/* ==================================================
+              HEADER
+          ================================================== */}
 
-                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                  Detail Kontrak
-                </h2>
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-custom-merah-terang dark:bg-red-500/10">
+                <MdDescription size={22} />
               </div>
 
-              {contract && (
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {contract.contract_number || "-"}
+              <div>
+                <h2 className="text-base font-bold text-gray-800 dark:text-white">
+                  Detail Kontrak
+                </h2>
+
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  Informasi lengkap kontrak pekerjaan
                 </p>
-              )}
+              </div>
             </div>
 
             <button
               type="button"
               onClick={onClose}
-              disabled={loading}
-              className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-200"
             >
-              <MdClose size={22} />
+              <MdClose size={20} />
             </button>
           </div>
 
-          {/* Content */}
-          <div className="max-h-[calc(90vh-130px)] overflow-y-auto p-6">
+          {/* ==================================================
+              CONTENT
+          ================================================== */}
+
+          <div className="max-h-[calc(93vh-73px)] overflow-y-auto px-6 py-5">
+            {/* ==================================================
+                LOADING
+            ================================================== */}
+
             {loading ? (
               <div className="flex min-h-[300px] items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-custom-merah-terang" />
+                <div className="text-center">
+                  <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-custom-merah-terang" />
+
+                  <p className="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Memuat detail kontrak...
+                  </p>
+                </div>
               </div>
             ) : !contract ? (
-              <div className="flex min-h-[300px] items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-                Data kontrak tidak ditemukan.
+              <div className="flex min-h-[300px] items-center justify-center">
+                <div className="text-center">
+                  <MdInfo
+                    size={40}
+                    className="mx-auto text-gray-300 dark:text-gray-600"
+                  />
+
+                  <p className="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Data kontrak tidak ditemukan.
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Informasi Kontrak */}
+                {/* ==================================================
+                    INFORMASI KONTRAK
+                ================================================== */}
+
+                {/* ==================================================
+    INFORMASI KONTRAK
+================================================== */}
+
                 <section>
                   <SectionTitle
                     icon={MdDescription}
@@ -210,6 +314,7 @@ const ModalDetailContract = ({ show, onClose, contractId }) => {
                   />
 
                   <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                    {/* Contract Information */}
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
                       <InfoItem
                         label="Nomor Kontrak"
@@ -219,22 +324,6 @@ const ModalDetailContract = ({ show, onClose, contractId }) => {
                       <InfoItem
                         label="Tanggal Kontrak"
                         value={formatDate(contract.contract_date)}
-                      />
-
-                      <InfoItem
-                        label="Status"
-                        value={
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                              STATUS_BADGES[contract.status] ||
-                              "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
-                            }`}
-                          >
-                            {STATUS_LABELS[contract.status] ||
-                              contract.status ||
-                              "-"}
-                          </span>
-                        }
                       />
 
                       <InfoItem
@@ -248,64 +337,138 @@ const ModalDetailContract = ({ show, onClose, contractId }) => {
                       />
 
                       <InfoItem
-                        label="Nilai Kontrak"
-                        value={formatCurrency(contract.contract_value)}
+                        label="Status"
+                        value={
+                          <span
+                            className={`inline-flex rounded-lg border px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
+                              STATUS_BADGES[contract.status] ||
+                              "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-white/5 dark:text-gray-300"
+                            }`}
+                          >
+                            {STATUS_LABELS[contract.status] ||
+                              contract.status ||
+                              "-"}
+                          </span>
+                        }
                       />
 
                       <InfoItem
-                        label="PPN"
+                        label="Health"
                         value={
-                          contract.vat_rate !== null &&
-                          contract.vat_rate !== undefined
-                            ? `${contract.vat_rate}%`
-                            : "-"
+                          <span
+                            className={`inline-flex rounded-lg border px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
+                              HEALTH_STATUS_BADGES[contract.health_status] ||
+                              "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-white/5 dark:text-gray-300"
+                            }`}
+                          >
+                            {HEALTH_STATUS_LABELS[contract.health_status] ||
+                              contract.health_status ||
+                              "-"}
+                          </span>
                         }
                       />
                     </div>
 
-                    {/* Contract Summary */}
-                    <div className="mt-5 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+                    {/* Contract Value */}
+                    <div className="mt-5 rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        {/* Contract Value */}
                         <div>
-                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          <p className="text-[9px] font-black uppercase tracking-[1.2px] text-gray-400">
                             Nilai Kontrak
                           </p>
 
-                          <p className="mt-1 text-base font-semibold text-custom-merah-terang">
+                          <p className="mt-1 text-lg font-black text-custom-merah-terang">
                             {formatCurrency(contract.contract_value)}
                           </p>
                         </div>
 
+                        {/* VAT */}
                         <div>
-                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          <p className="text-[9px] font-black uppercase tracking-[1.2px] text-gray-400">
                             PPN
                           </p>
 
-                          <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
-                            {contract.vat_rate !== null &&
-                            contract.vat_rate !== undefined
-                              ? `${contract.vat_rate}%`
-                              : "-"}
+                          <p className="mt-1 text-sm font-bold text-gray-700 dark:text-gray-200">
+                            {formatVatRate(contract.vat_rate)}
+                          </p>
+
+                          <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                            {formatCurrency(contract.vat_amount)}
                           </p>
                         </div>
 
+                        {/* Total Contract */}
                         <div>
-                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                            Periode Kontrak
+                          <p className="text-[9px] font-black uppercase tracking-[1.2px] text-gray-400">
+                            Total Kontrak
                           </p>
 
-                          <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
-                            {formatDate(contract.start_date)} s/d{" "}
-                            {formatDate(contract.end_date)}
+                          <p className="mt-1 text-lg font-black text-gray-800 dark:text-white">
+                            {formatCurrency(contract.total_contract)}
                           </p>
                         </div>
                       </div>
                     </div>
 
+                    {/* Health */}
+                    <div
+                      className={`mt-4 rounded-xl border px-4 py-3 ${
+                        HEALTH_STATUS_BADGES[contract.health_status] ||
+                        "border-gray-200 bg-gray-50 text-gray-600"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-[1.5px] opacity-70">
+                            Health Contract
+                          </p>
+
+                          <p className="mt-0.5 text-base font-black tracking-tight">
+                            {HEALTH_STATUS_LABELS[contract.health_status] ||
+                              contract.health_status ||
+                              "-"}
+                          </p>
+                        </div>
+
+                        <div className="sm:text-right">
+                          <p className="text-sm font-black">
+                            {getHealthDaysLabel(
+                              contract.health_status,
+                              contract.days_to_end,
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Document */}
+                    <div className="mt-4">
+                      <p className="mb-2 text-[9px] font-black uppercase tracking-[1.2px] text-gray-400">
+                        Dokumen Kontrak
+                      </p>
+
+                      {contract.document_url ? (
+                        <button
+                          type="button"
+                          onClick={handleDocumentPreview}
+                          className="inline-flex items-center gap-2 rounded-lg bg-custom-merah-terang px-3 py-2 text-xs font-bold text-white transition hover:bg-custom-merah"
+                        >
+                          <MdDescription size={16} />
+                          Preview Dokumen
+                        </button>
+                      ) : (
+                        <span className="text-xs font-medium text-gray-400">
+                          Dokumen kontrak tidak tersedia.
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Notes */}
                     {contract.notes && (
-                      <div className="mt-5 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                          Catatan
+                      <div className="mt-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+                        <p className="text-[9px] font-black uppercase tracking-[1.2px] text-gray-400">
+                          Catatan Kontrak
                         </p>
 
                         <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-200">
@@ -316,162 +479,96 @@ const ModalDetailContract = ({ show, onClose, contractId }) => {
                   </div>
                 </section>
 
-                {/* Dokumen Kontrak */}
-                <section>
-                  <SectionTitle icon={MdDescription} title="Dokumen Kontrak" />
+                {/* ==================================================
+                    INFORMASI PEKERJAAN
+                ================================================== */}
 
-                  <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                    {contract.document_url ? (
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-custom-merah-terang/10 text-custom-merah-terang dark:bg-custom-merah-terang/10 dark:text-custom-cerah">
-                            <MdDescription size={22} />
-                          </div>
-
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                              Dokumen Kontrak
-                            </p>
-
-                            <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
-                              Dokumen tersedia dan dapat dilihat.
-                            </p>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={handleDocumentPreview}
-                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-custom-merah-terang/10 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-custom-merah-terang transition hover:bg-custom-merah-terang/15 dark:bg-custom-merah-terang/10 dark:text-custom-cerah dark:hover:bg-custom-merah-terang/20"
-                        >
-                          <MdVisibility size={16} />
-                          Preview Dokumen
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500">
-                          <MdDescription size={20} />
-                        </div>
-
-                        <div>
-                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                            Dokumen belum tersedia
-                          </p>
-
-                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Belum ada dokumen kontrak yang diupload.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                {/* Informasi Pekerjaan */}
                 <section>
                   <SectionTitle icon={MdWork} title="Informasi Pekerjaan" />
 
                   <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                      {/* Work Number */}
                       <InfoItem
                         label="Nomor Pekerjaan"
                         value={contract.work_number}
                       />
 
-                      <InfoItem
-                        label="Jenis Pekerjaan"
-                        value={
-                          WORK_TYPE_LABELS[contract.work_type] ||
-                          contract.work_type
-                        }
-                      />
-
-                      <InfoItem
-                        label="Tahap Saat Ini"
-                        value={contract.current_stage}
-                      />
-
-                      <div className="md:col-span-2 lg:col-span-3">
+                      {/* Work Name */}
+                      <div className="md:col-span-2">
                         <InfoItem
                           label="Nama Pekerjaan"
                           value={contract.work_name}
                         />
                       </div>
 
+                      {/* Work Type */}
+                      <InfoItem
+                        label="Jenis Pekerjaan"
+                        value={
+                          WORK_TYPE_LABELS[contract.work_type] ||
+                          contract.work_type ||
+                          "-"
+                        }
+                      />
+
+                      {/* Current Stage */}
+                      <InfoItem label="Stage" value={contract.current_stage} />
+
+                      {/* Progress */}
                       <InfoItem
                         label="Progress"
-                        value={`${Number(contract.progress_percent || 0)}%`}
+                        value={
+                          contract.progress_percent !== null &&
+                          contract.progress_percent !== undefined
+                            ? `${Number(contract.progress_percent)}%`
+                            : "-"
+                        }
                       />
-                    </div>
-
-                    {/* Progress */}
-                    <div className="mt-5">
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                          Progress Pekerjaan
-                        </span>
-
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                          {Number(contract.progress_percent || 0)}%
-                        </span>
-                      </div>
-
-                      <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                        <div
-                          className="h-full rounded-full bg-custom-merah-terang transition-all"
-                          style={{
-                            width: `${Math.min(
-                              Number(contract.progress_percent || 0),
-                              100,
-                            )}%`,
-                          }}
-                        />
-                      </div>
                     </div>
                   </div>
                 </section>
 
-                {/* Client */}
+                {/* ==================================================
+                    INFORMASI CLIENT
+                ================================================== */}
+
                 <section>
-                  <SectionTitle icon={MdBusiness} title="Client" />
+                  <SectionTitle icon={MdBusiness} title="Informasi Client" />
 
                   <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                      {/* Client Code */}
                       <InfoItem
                         label="Kode Client"
                         value={contract.client_code}
                       />
 
+                      {/* Client Name */}
                       <InfoItem
                         label="Nama Client"
                         value={contract.client_name}
                       />
-                    </div>
-                  </div>
-                </section>
 
-                {/* PIC Client */}
-                <section>
-                  <SectionTitle icon={MdPerson} title="PIC Client" />
-
-                  <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                      {/* Client PIC */}
                       <InfoItem
-                        label="Nama PIC"
+                        label="PIC Client"
                         value={contract.client_pic_name}
                       />
 
+                      {/* Position */}
                       <InfoItem
                         label="Jabatan"
                         value={contract.client_pic_position}
                       />
 
+                      {/* Phone */}
                       <InfoItem
-                        label="No. Telepon"
+                        label="Telepon"
                         value={contract.client_pic_phone}
                       />
 
+                      {/* Email */}
                       <InfoItem
                         label="Email"
                         value={contract.client_pic_email}
@@ -480,63 +577,49 @@ const ModalDetailContract = ({ show, onClose, contractId }) => {
                   </div>
                 </section>
 
-                {/* Informasi Sistem */}
+                {/* ==================================================
+                    CATATAN
+                ================================================== */}
+
+                {contract.notes && (
+                  <section>
+                    <SectionTitle icon={MdInfo} title="Catatan" />
+
+                    <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                      <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700 dark:text-gray-300">
+                        {contract.notes}
+                      </p>
+                    </div>
+                  </section>
+                )}
+
+                {/* ==================================================
+                    METADATA
+                ================================================== */}
+
                 <section>
                   <SectionTitle icon={MdInfo} title="Informasi Sistem" />
 
-                  <div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
                       <InfoItem
                         label="Dibuat Oleh"
-                        value={`${contract.created_by || "-"} • ${formatDateTime(
-                          contract.created_at,
-                        )}`}
+                        value={contract.created_by}
                       />
 
                       <InfoItem
-                        label="Diperbarui Oleh"
-                        value={
-                          contract.updated_by
-                            ? `${contract.updated_by} • ${formatDateTime(
-                                contract.updated_at,
-                              )}`
-                            : "-"
-                        }
-                      />
-                    </div>
-                  </div>
-                </section>
-
-                {/* Contract Reference */}
-                <section>
-                  <SectionTitle icon={MdReceipt} title="Ringkasan Contract" />
-
-                  <div className="rounded-xl border border-gray-200 dark:border-gray-700">
-                    <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-3">
-                      <InfoItem
-                        label="Nomor Contract"
-                        value={contract.contract_number}
+                        label="Tanggal Dibuat"
+                        value={formatDateTime(contract.created_at)}
                       />
 
                       <InfoItem
-                        label="Tanggal Contract"
-                        value={formatDate(contract.contract_date)}
+                        label="Diubah Oleh"
+                        value={contract.updated_by}
                       />
 
                       <InfoItem
-                        label="Status"
-                        value={
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                              STATUS_BADGES[contract.status] ||
-                              "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
-                            }`}
-                          >
-                            {STATUS_LABELS[contract.status] ||
-                              contract.status ||
-                              "-"}
-                          </span>
-                        }
+                        label="Tanggal Diubah"
+                        value={formatDateTime(contract.updated_at)}
                       />
                     </div>
                   </div>
@@ -544,21 +627,13 @@ const ModalDetailContract = ({ show, onClose, contractId }) => {
               </div>
             )}
           </div>
-
-          {/* Footer */}
-          <div className="flex justify-end border-t border-gray-200 px-6 py-4 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg bg-gray-200 px-5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-            >
-              Tutup
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Document Preview */}
+      {/* ==================================================
+          DOCUMENT PREVIEW
+      ================================================== */}
+
       {showDocumentPreview && selectedDocumentUrl && (
         <DocumentPreviewModal
           show={showDocumentPreview}

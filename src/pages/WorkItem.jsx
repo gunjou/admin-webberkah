@@ -18,6 +18,8 @@ import ModalEditWorkItem from "../components/modals/work-item/ModalEditWorkItem"
 import ModalUpdateProgress from "../components/modals/work-item/ModalUpdateProgress";
 import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
 import {
+  HEALTH_STATUS_BADGES,
+  HEALTH_STATUS_LABELS,
   STAGE_BADGES,
   STAGE_LABELS,
   WORK_TYPE_BADGES,
@@ -47,6 +49,14 @@ const STAGE_OPTIONS = [
   // { value: "CLOSED", label: "Closed" },
 ];
 
+const HEALTH_OPTIONS = [
+  { value: "", label: "Semua Health" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "EXPIRED", label: "Expired" },
+  { value: "DUE_SOON", label: "Due Soon" },
+  { value: "ON_TRACK", label: "On Track" },
+];
+
 const PER_PAGE_OPTIONS = [25, 50, 100];
 
 const WorkItem = () => {
@@ -72,6 +82,7 @@ const WorkItem = () => {
     search: "",
     work_type: "",
     current_stage: "",
+    health_status: "",
     id_client: "",
   });
 
@@ -124,6 +135,10 @@ const WorkItem = () => {
 
       if (filter.current_stage) {
         params.current_stage = filter.current_stage;
+      }
+
+      if (filter.health_status) {
+        params.health_status = filter.health_status;
       }
 
       if (filter.id_client) {
@@ -198,6 +213,7 @@ const WorkItem = () => {
       search: "",
       work_type: "",
       current_stage: "",
+      health_status: "",
       id_client: "",
     }));
   };
@@ -463,6 +479,21 @@ const WorkItem = () => {
               ))}
             </select>
 
+            {/* Health */}
+            <select
+              value={filter.health_status}
+              onChange={(e) =>
+                handleFilterChange("health_status", e.target.value)
+              }
+              className="h-10 w-44 shrink-0 cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang dark:border-white/10 dark:bg-white/5 dark:text-white"
+            >
+              {HEALTH_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
             {/* Client */}
             <select
               value={filter.id_client}
@@ -522,6 +553,9 @@ const WorkItem = () => {
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     Stage
                   </th>
+                  <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Health
+                  </th>
                   <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     Tanggal Mulai
                   </th>
@@ -546,7 +580,7 @@ const WorkItem = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                 {displayedData.length === 0 ? (
                   <tr>
-                    <td colSpan="12" className="px-4 py-12 text-center">
+                    <td colSpan="13" className="px-4 py-12 text-center">
                       <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
                         Tidak ada data work item
                       </p>
@@ -568,7 +602,7 @@ const WorkItem = () => {
                       </td>
 
                       {/* WORK-ITEM NUMBER */}
-                      <td className="px-4 py-3 align-top">
+                      <td className="px-4 py-3 align-center">
                         <button
                           type="button"
                           onClick={() => handleDetail(item.id_work_item)}
@@ -582,14 +616,14 @@ const WorkItem = () => {
                       </td>
 
                       {/* WORK-ITEM NAME */}
-                      <td className="px-4 py-3 align-top min-w-[320px] max-w-[420px]">
-                        <p className="text-[11px] line-clamp-2 font-black text-custom-gelap dark:text-white leading-relaxed">
+                      <td className="px-4 py-3 align-center min-w-[320px] max-w-[420px]">
+                        <p className="text-[11px] line-clamp-3 font-black text-custom-gelap dark:text-white leading-relaxed">
                           {item.work_name || "-"}
                         </p>
                       </td>
 
                       {/* WORK-ITEM TYPE */}
-                      <td className="px-4 py-3 text-center align-top">
+                      <td className="px-4 py-3 text-center align-center">
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${WORK_TYPE_BADGES[item.work_type]}`}
                         >
@@ -598,7 +632,7 @@ const WorkItem = () => {
                       </td>
 
                       {/* PIC & CLIENT */}
-                      <td className="px-4 py-3 align-top">
+                      <td className="px-4 py-3 align-center">
                         <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
                           Pak {item.client_pic_name || "-"}
                         </p>
@@ -608,14 +642,14 @@ const WorkItem = () => {
                       </td>
 
                       {/* PIC INTERNAL */}
-                      <td className="px-4 py-3 align-top">
+                      <td className="px-4 py-3 align-center">
                         <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
                           {item.internal_pic_name || "-"}
                         </p>
                       </td>
 
                       {/* STAGE */}
-                      <td className="px-4 py-3 text-center align-top">
+                      <td className="px-4 py-3 text-center align-center">
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${STAGE_BADGES[item.current_stage]}`}
                         >
@@ -624,8 +658,47 @@ const WorkItem = () => {
                         </span>
                       </td>
 
+                      {/* Health */}
+                      <td className="min-w-[170px] px-3 py-2 align-middle">
+                        <div
+                          className={`inline-flex w-[155px] flex-col rounded-xl border px-3 py-2.5 ${
+                            HEALTH_STATUS_BADGES[item.health_status] ||
+                            "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-white/5 dark:text-gray-300"
+                          }`}
+                        >
+                          {/* Status */}
+                          <span className="text-[8px] font-black uppercase tracking-[1.5px] opacity-75">
+                            {HEALTH_STATUS_LABELS[item.health_status] ||
+                              item.health_status ||
+                              "-"}
+                          </span>
+
+                          {/* Main Information */}
+                          <p className="mt-0.5 text-[15px] font-black leading-5 tracking-tight">
+                            {item.health_status === "COMPLETED"
+                              ? "Selesai"
+                              : item.health_status === "NO_DATE"
+                                ? "-"
+                                : `${Math.abs(Number(item.days_to_end || 0))} Hari`}
+                          </p>
+
+                          {/* Description */}
+                          <p className="mt-0.5 whitespace-nowrap text-[9px] font-bold leading-3.5 opacity-70">
+                            {item.health_status === "COMPLETED"
+                              ? "Sudah mencapai BA"
+                              : item.health_status === "ON_TRACK"
+                                ? "Masa kontrak masih aman"
+                                : item.health_status === "DUE_SOON"
+                                  ? "Mendekati akhir kontrak"
+                                  : item.health_status === "EXPIRED"
+                                    ? "Melewati akhir kontrak"
+                                    : "Tanggal akhir belum tersedia"}
+                          </p>
+                        </div>
+                      </td>
+
                       {/* START DATE */}
-                      <td className="px-4 py-3 align-top whitespace-nowrap">
+                      <td className="px-4 py-3 align-center whitespace-nowrap">
                         {(() => {
                           const date = formatFullDate(item.start_date);
 
@@ -652,7 +725,7 @@ const WorkItem = () => {
                       </td>
 
                       {/* DUE DATE */}
-                      <td className="px-4 py-3 align-top whitespace-nowrap">
+                      <td className="px-4 py-3 align-center whitespace-nowrap">
                         {(() => {
                           const date = formatFullDate(item.target_end_date);
 
@@ -679,7 +752,7 @@ const WorkItem = () => {
                       </td>
 
                       {/* PROGRESS */}
-                      <td className="min-w-[150px] px-4 py-3 align-top">
+                      <td className="min-w-[150px] px-4 py-3 align-center">
                         <div className="space-y-2">
                           {/* Progress + Edit */}
                           <div className="flex items-center justify-between gap-2">
@@ -716,7 +789,7 @@ const WorkItem = () => {
                       </td>
 
                       {/* ATTACHMENT */}
-                      <td className="px-4 py-3 align-top text-center">
+                      <td className="px-4 py-3 align-center text-center">
                         {item.document_url ? (
                           <button
                             type="button"
@@ -735,7 +808,7 @@ const WorkItem = () => {
                       </td>
 
                       {/* CLOSED MANAGEMENT */}
-                      <td className="px-4 py-3 align-top text-center">
+                      <td className="px-4 py-3 align-center text-center">
                         {item.current_stage === "CLOSED" ? (
                           <span className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-100 px-3.5 py-2 text-[9px] font-black uppercase tracking-widest text-gray-500 dark:border-gray-700 dark:bg-white/10 dark:text-gray-400">
                             <MdLock size={14} />
@@ -766,7 +839,7 @@ const WorkItem = () => {
                       </td>
 
                       {/* ACTION */}
-                      <td className="px-4 py-3 align-top">
+                      <td className="px-4 py-3 align-center">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"

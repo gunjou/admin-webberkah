@@ -16,7 +16,12 @@ import ModalEditInvoice from "../components/modals/invoice/ModalEditInvoice";
 import ModalCreatePayment from "../components/modals/invoice/ModalCreatePayment";
 import ModalDetailPayment from "../components/modals/invoice/ModalDetailPayment";
 import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
-import { STAGE_BADGES, STAGE_LABELS } from "../utils/WorkBadge";
+import {
+  HEALTH_STATUS_BADGES,
+  HEALTH_STATUS_LABELS,
+  STAGE_BADGES,
+  STAGE_LABELS,
+} from "../utils/WorkBadge";
 import { formatFullDate } from "../utils/Helpers";
 
 const STAGE_OPTIONS = [
@@ -84,23 +89,6 @@ const PAYMENT_STATUS_LABELS = {
   BELUM_DIBAYAR: "Belum Dibayar",
   SEBAGIAN_DIBAYAR: "Sebagian Dibayar",
   SUDAH_DIBAYAR: "Sudah Dibayar",
-};
-
-const HEALTH_STATUS_BADGES = {
-  PAID: "border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400",
-  ON_TRACK:
-    "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400",
-  DUE_SOON:
-    "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-400",
-  OVERDUE:
-    "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400",
-};
-
-const HEALTH_STATUS_LABELS = {
-  PAID: "Paid",
-  ON_TRACK: "On Track",
-  DUE_SOON: "Due Soon",
-  OVERDUE: "Overdue",
 };
 
 const formatCurrency = (value) => {
@@ -624,7 +612,7 @@ const Invoice = () => {
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("invoice_value")}
                   >
-                    Nilai Invoice
+                    Nilai Invoice & PPN
                   </th>
                   <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     Status
@@ -730,7 +718,7 @@ const Invoice = () => {
 
                         {/* Work Name */}
                         <p
-                          className="mt-1 line-clamp-2 text-[10px] font-black leading-4 text-custom-gelap dark:text-white"
+                          className="mt-1 line-clamp-3 text-[11px] font-black leading-4 text-custom-gelap dark:text-white"
                           title={item.work_name}
                         >
                           {item.work_name || "-"}
@@ -894,7 +882,7 @@ const Invoice = () => {
                                 Total
                               </span>
 
-                              <span className="text-[11px] font-black text-custom-merah-terang">
+                              <span className="text-[13px] font-black text-custom-merah-terang">
                                 {formatCurrency(item.total_invoice)}
                               </span>
                             </div>
