@@ -14,6 +14,8 @@ import ModalCreateCompletion from "../components/modals/completion/ModalCreateCo
 import ModalDetailCompletion from "../components/modals/completion/ModalDetailCompletion";
 import ModalEditCompletion from "../components/modals/completion/ModalEditCompletion";
 import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
+import { STAGE_BADGES, STAGE_LABELS } from "../utils/WorkBadge";
+import { formatFullDate, formatTanggalIndoLengkap } from "../utils/Helpers";
 
 const STAGE_FILTER_OPTIONS = [
   { value: "ACTIVE", label: "Active" },
@@ -21,27 +23,6 @@ const STAGE_FILTER_OPTIONS = [
 ];
 
 const PER_PAGE_OPTIONS = [25, 50, 100];
-
-const WORK_TYPE_BADGES = {
-  TENDER: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
-  MAINTENANCE:
-    "bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400",
-};
-
-const WORK_TYPE_LABELS = {
-  TENDER: "Tender",
-  MAINTENANCE: "Maintenance",
-};
-
-const formatDate = (date) => {
-  if (!date) return "-";
-
-  return new Date(date).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
 
 const Completion = () => {
   const [dataCompletion, setDataCompletion] = useState([]);
@@ -503,58 +484,38 @@ const Completion = () => {
             <table className="w-full min-w-[1050px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 dark:border-white/5 dark:bg-white/5">
-                  {/* # */}
-
                   <th className="w-12 px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     #
                   </th>
-
-                  {/* Nomor BA */}
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("ba_number")}
                   >
-                    Nomor BA
+                    No. BA
                   </th>
-
-                  {/* Pekerjaan */}
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("work_name")}
                   >
-                    Pekerjaan
+                    Nama Pekerjaan
                   </th>
-
-                  {/* Client */}
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("client_name")}
                   >
-                    Client
+                    PIC - Client
                   </th>
-
-                  {/* Tanggal BA */}
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("ba_date")}
                   >
                     Tanggal BA
                   </th>
-
-                  {/* Dokumen */}
-
                   <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    Dokumen
+                    Lampiran
                   </th>
-
-                  {/* Action */}
-
                   <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    Action
+                    Aksi
                   </th>
                 </tr>
               </thead>
@@ -580,7 +541,7 @@ const Completion = () => {
                     >
                       {/* # */}
 
-                      <td className="px-4 py-3 text-center align-top text-[11px] font-bold text-gray-400">
+                      <td className="px-4 py-3 text-center align-center text-[11px] font-bold text-gray-400">
                         {filter.stage === "CLOSED"
                           ? (pagination.page - 1) * pagination.per_page +
                             index +
@@ -600,56 +561,74 @@ const Completion = () => {
                         </button>
 
                         <p className="mt-0.5 text-[9px] font-bold text-gray-400">
-                          Dibuat {formatDate(item.created_at)}
+                          {formatTanggalIndoLengkap(item.created_at)}
                         </p>
                       </td>
 
                       {/* Pekerjaan */}
 
                       <td className="max-w-[350px] px-4 py-3 align-top">
-                        <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
-                          {item.work_number || "-"}
-                        </p>
+                        {/* Work Number + Work Stage */}
+                        <div className="flex items-center gap-2">
+                          <span className="whitespace-nowrap text-[9px] font-bold text-gray-400">
+                            {item.work_number || "-"}
+                          </span>
 
+                          {item.stage && (
+                            <span
+                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-[8px] font-black uppercase tracking-wide ${
+                                STAGE_BADGES[item.stage] ||
+                                "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
+                              }`}
+                            >
+                              {STAGE_LABELS[item.stage] || item.stage}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Work Name */}
                         <p
-                          className="mt-0.5 truncate text-[9px] font-bold text-gray-400"
+                          className="mt-1 line-clamp-2 text-[10px] font-black leading-4 text-custom-gelap dark:text-white"
                           title={item.work_name}
                         >
                           {item.work_name || "-"}
                         </p>
-
-                        {item.work_type && (
-                          <span
-                            className={`mt-2 inline-flex items-center rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
-                              WORK_TYPE_BADGES[item.work_type] ||
-                              "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
-                            }`}
-                          >
-                            {WORK_TYPE_LABELS[item.work_type] || item.work_type}
-                          </span>
-                        )}
                       </td>
 
                       {/* Client */}
 
                       <td className="px-4 py-3 align-top">
-                        <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
+                        <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
+                          Pak {item.client_pic_name || "-"}
+                        </p>
+                        <p className="text-[9px] text-gray-400 font-bold mt-0.5 whitespace-nowrap">
                           {item.client_name || "-"}
                         </p>
-
-                        {item.client_code && (
-                          <p className="mt-0.5 text-[9px] font-bold text-gray-400">
-                            {item.client_code}
-                          </p>
-                        )}
                       </td>
 
                       {/* Tanggal BA */}
 
                       <td className="whitespace-nowrap px-4 py-3 align-top">
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.ba_date)}
-                        </p>
+                        {(() => {
+                          const date = formatFullDate(item.ba_date);
+                          if (!date) {
+                            return (
+                              <span className="text-[10px] font-bold text-gray-400">
+                                -
+                              </span>
+                            );
+                          }
+                          return (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black uppercase tracking-[1.5px] dark:text-white">
+                                {date.dayName}
+                              </span>
+                              <span className="mt-0.5 text-[12px] font-black leading-4 whitespace-nowrap text-custom-gelap dark:text-white">
+                                {date.date}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* ==================================================

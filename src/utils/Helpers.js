@@ -67,3 +67,25 @@ export const formatTanggalIndoLengkap = (dateString) => {
     year: "numeric",
   }).format(date);
 };
+
+/**
+ * Format tanggal: 2026-01-16
+ * → Jum'at,
+ * 16 Januari 2026
+ */
+export const formatFullDate = (date) => {
+  if (!date) return null;
+
+  const parsedDate = new Date(date);
+
+  return {
+    dayName: parsedDate.toLocaleDateString("id-ID", {
+      weekday: "long",
+    }),
+    date: parsedDate.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }),
+  };
+};

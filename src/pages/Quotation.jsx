@@ -14,6 +14,8 @@ import ModalDetailQuotation from "../components/modals/quotation/ModalDetailQuot
 import ModalCreateQuotation from "../components/modals/quotation/ModalCreateQuotation";
 import ModalEditQuotation from "../components/modals/quotation/ModalEditQuotation";
 import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
+import { STAGE_BADGES, STAGE_LABELS } from "../utils/WorkBadge";
+import { formatFullDate, formatTanggalIndoLengkap } from "../utils/Helpers";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Semua Status" },
@@ -291,16 +293,6 @@ const Quotation = () => {
     }
   };
 
-  const formatDate = (date) => {
-    if (!date) return "-";
-
-    return new Date(date).toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
   const formatCurrency = (value) => {
     if (value === null || value === undefined) return "-";
 
@@ -485,62 +477,53 @@ const Quotation = () => {
                   <th className="w-12 px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">
                     #
                   </th>
-
                   <th
                     className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider cursor-pointer whitespace-nowrap"
                     onClick={() => handleSort("proposal_number")}
                   >
-                    Nomor Penawaran
+                    No. Penawaran
                   </th>
-
                   <th
                     className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider cursor-pointer whitespace-nowrap"
                     onClick={() => handleSort("work_number")}
                   >
-                    Work Item
+                    Nama Pekerjaan
                   </th>
-
                   <th
                     className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider cursor-pointer whitespace-nowrap"
                     onClick={() => handleSort("client_name")}
                   >
-                    Client
+                    PIC - Client
                   </th>
-
+                  <th
+                    className="px-4 py-3 text-right text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap cursor-pointer"
+                    onClick={() => handleSort("proposal_value")}
+                  >
+                    Nilai Penawaran
+                  </th>
                   <th
                     className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap cursor-pointer"
                     onClick={() => handleSort("proposal_date")}
                   >
                     Tanggal
                   </th>
-
-                  <th
-                    className="px-4 py-3 text-right text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap cursor-pointer"
-                    onClick={() => handleSort("proposal_value")}
-                  >
-                    Nilai
-                  </th>
-
                   <th
                     className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap cursor-pointer"
                     onClick={() => handleSort("valid_until")}
                   >
-                    Berlaku Sampai
+                    Tanggal Berakhir
                   </th>
-
                   <th
                     className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap cursor-pointer"
                     onClick={() => handleSort("status")}
                   >
                     Status
                   </th>
-
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                    Document
+                    Lampiran
                   </th>
-
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                    Action
+                    Aksi
                   </th>
                 </tr>
               </thead>
@@ -560,12 +543,14 @@ const Quotation = () => {
                       key={item.id_proposal}
                       className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                     >
+                      {/* # */}
                       <td className="px-4 py-3 text-center text-[11px] font-bold text-gray-400">
                         {(pagination.page - 1) * pagination.per_page +
                           index +
                           1}
                       </td>
 
+                      {/* QUOTATION NUMBER */}
                       <td className="px-4 py-3 align-top">
                         <button
                           type="button"
@@ -575,52 +560,113 @@ const Quotation = () => {
                           {item.proposal_number}
                         </button>
 
-                        <p className="text-[9px] text-gray-400 font-bold mt-0.5">
-                          {formatDate(item.created_at)}
+                        <p className="text-[9px] text-gray-400 font-bold mt-0.5 whitespace-nowrap">
+                          {formatTanggalIndoLengkap(item.created_at)}
                         </p>
                       </td>
 
-                      <td className="px-4 py-3 align-top max-w-[350px]">
-                        <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
-                          {item.work_number || "-"}
-                        </p>
+                      {/* WORK-ITEM NAME */}
+                      <td className="px-4 py-3 align-top min-w-[320px] max-w-[420px]">
+                        {/* Work Number + Work Stage */}
+                        <div className="flex items-center gap-2">
+                          <span className="whitespace-nowrap text-[9px] font-bold text-gray-400">
+                            {item.work_number || "-"}
+                          </span>
 
+                          {item.current_stage && (
+                            <span
+                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-[8px] font-black uppercase tracking-wide ${
+                                STAGE_BADGES[item.current_stage] ||
+                                "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
+                              }`}
+                            >
+                              {STAGE_LABELS[item.current_stage] ||
+                                item.current_stage}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Work Name */}
                         <p
-                          className="text-[9px] text-gray-400 font-bold mt-0.5 truncate"
+                          className="mt-1 line-clamp-2 text-[11px] font-black leading-4 text-custom-gelap dark:text-white"
                           title={item.work_name}
                         >
                           {item.work_name || "-"}
                         </p>
                       </td>
 
+                      {/* PIC & CLIENT */}
                       <td className="px-4 py-3 align-top">
                         <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
-                          {item.client_name || "-"}
-                        </p>
-
-                        <p className="text-[9px] text-gray-400 font-bold mt-0.5">
                           Pak {item.client_pic_name || "-"}
                         </p>
-                      </td>
-
-                      <td className="px-4 py-3 align-top whitespace-nowrap">
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.proposal_date)}
+                        <p className="text-[9px] text-gray-400 font-bold mt-0.5 whitespace-nowrap">
+                          {item.client_name || "-"}
                         </p>
                       </td>
 
+                      {/* QUOTATION VALUE */}
                       <td className="px-4 py-3 align-top text-right whitespace-nowrap">
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
+                        <p className="mt-0.5 text-[13px] font-black leading-4 whitespace-nowrap text-custom-gelap dark:text-white">
                           {formatCurrency(item.proposal_value)}
                         </p>
                       </td>
 
+                      {/* QUOTATION DATE */}
                       <td className="px-4 py-3 align-top whitespace-nowrap">
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.valid_until)}
-                        </p>
+                        {(() => {
+                          const date = formatFullDate(item.proposal_date);
+
+                          if (!date) {
+                            return (
+                              <span className="text-[10px] font-bold text-gray-400">
+                                -
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black uppercase tracking-[1.5px] dark:text-white">
+                                {date.dayName}
+                              </span>
+
+                              <span className="mt-0.5 text-[12px] font-black leading-4 whitespace-nowrap text-custom-gelap dark:text-white">
+                                {date.date}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
 
+                      {/* DUE DATE */}
+                      <td className="px-4 py-3 align-top whitespace-nowrap">
+                        {(() => {
+                          const date = formatFullDate(item.valid_until);
+
+                          if (!date) {
+                            return (
+                              <span className="text-[10px] font-bold text-gray-400">
+                                -
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black uppercase tracking-[1.5px]  dark:text-white">
+                                {date.dayName}
+                              </span>
+
+                              <span className="mt-0.5 text-[12px] font-black leading-4 whitespace-nowrap text-custom-merah-terang">
+                                {date.date}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </td>
+
+                      {/* STATUS */}
                       <td className="px-4 py-3 text-center align-top">
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${getStatusClass(item.status)}`}
@@ -629,6 +675,7 @@ const Quotation = () => {
                         </span>
                       </td>
 
+                      {/* ATTACHMENT */}
                       <td className="px-4 py-3 align-top text-center">
                         {item.document_url ? (
                           <button
@@ -647,6 +694,7 @@ const Quotation = () => {
                         )}
                       </td>
 
+                      {/* ACTION */}
                       <td className="px-4 py-3 align-top">
                         <div className="flex items-center justify-center gap-1">
                           <button

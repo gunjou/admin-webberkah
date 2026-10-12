@@ -17,6 +17,13 @@ import ModalDetailWorkItem from "../components/modals/work-item/ModalDetailWorkI
 import ModalEditWorkItem from "../components/modals/work-item/ModalEditWorkItem";
 import ModalUpdateProgress from "../components/modals/work-item/ModalUpdateProgress";
 import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
+import {
+  STAGE_BADGES,
+  STAGE_LABELS,
+  WORK_TYPE_BADGES,
+  WORK_TYPE_LABELS,
+} from "../utils/WorkBadge";
+import { formatFullDate, formatTanggalIndoLengkap } from "../utils/Helpers";
 
 const STAGE_FILTER_OPTIONS = [
   { value: "ACTIVE", label: "Active" },
@@ -346,56 +353,6 @@ const WorkItem = () => {
     }
   };
 
-  const formatDate = (date) => {
-    if (!date) return "-";
-
-    return new Date(date).toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const formatStage = (stage) => {
-    if (!stage) return "-";
-
-    return stage.replaceAll("_", " ");
-  };
-
-  const getStageClass = (stage) => {
-    const classes = {
-      IDENTIFIED:
-        "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
-      QUOTATION:
-        "bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400",
-      CONTRACT:
-        "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400",
-      IN_PROGRESS:
-        "bg-yellow-50 text-yellow-600 dark:bg-yellow-500/10 dark:text-yellow-400",
-      COMPLETED:
-        "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400",
-      BA: "bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400",
-      INVOICE:
-        "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400",
-      PAYMENT:
-        "bg-pink-50 text-pink-600 dark:bg-pink-500/10 dark:text-pink-400",
-      CLOSED: "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300",
-    };
-
-    return (
-      classes[stage] ||
-      "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
-    );
-  };
-
-  const getWorkTypeClass = (workType) => {
-    if (workType === "TENDER") {
-      return "bg-custom-merah-terang/10 text-custom-merah-terang dark:text-custom-cerah";
-    }
-
-    return "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400";
-  };
-
   return (
     <>
       {loading && <LoadingOverlay message="Memuat Work Item..." />}
@@ -548,37 +505,40 @@ const WorkItem = () => {
                     className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider cursor-pointer whitespace-nowrap"
                     onClick={() => handleSort("work_number")}
                   >
-                    Work Number
+                    No. Pekerjaan
                   </th>
                   <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider cursor-pointer">
-                    Work Item
+                    Nama Pekerjaan
+                  </th>
+                  <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Type
                   </th>
                   <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    Client-PIC
+                    PIC - Client
                   </th>
                   <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     PIC
                   </th>
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    Type
-                  </th>
-                  <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     Stage
                   </th>
                   <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    Progress
+                    Tanggal Mulai
                   </th>
                   <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    Target
+                    Tanggal Target
                   </th>
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    Document
+                    Progress
+                  </th>
+                  <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Lampiran
                   </th>
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     Close
                   </th>
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                    Action
+                    Aksi
                   </th>
                 </tr>
               </thead>
@@ -586,7 +546,7 @@ const WorkItem = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                 {displayedData.length === 0 ? (
                   <tr>
-                    <td colSpan="11" className="px-4 py-12 text-center">
+                    <td colSpan="12" className="px-4 py-12 text-center">
                       <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
                         Tidak ada data work item
                       </p>
@@ -598,6 +558,7 @@ const WorkItem = () => {
                       key={item.id_work_item}
                       className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
                     >
+                      {/* # */}
                       <td className="px-4 py-3 text-center text-[11px] font-bold text-gray-400">
                         {filter.stage === "CLOSED"
                           ? (pagination.page - 1) * pagination.per_page +
@@ -606,6 +567,7 @@ const WorkItem = () => {
                           : index + 1}
                       </td>
 
+                      {/* WORK-ITEM NUMBER */}
                       <td className="px-4 py-3 align-top">
                         <button
                           type="button"
@@ -614,17 +576,28 @@ const WorkItem = () => {
                         >
                           {item.work_number}
                         </button>
-                        <p className="text-[9px] text-gray-400 font-bold mt-0.5">
-                          {formatDate(item.created_at)}
+                        <p className="text-[9px] text-gray-400 font-bold mt-0.5 whitespace-nowrap">
+                          {formatTanggalIndoLengkap(item.created_at)}
                         </p>
                       </td>
 
+                      {/* WORK-ITEM NAME */}
                       <td className="px-4 py-3 align-top min-w-[320px] max-w-[420px]">
                         <p className="text-[11px] line-clamp-2 font-black text-custom-gelap dark:text-white leading-relaxed">
                           {item.work_name || "-"}
                         </p>
                       </td>
 
+                      {/* WORK-ITEM TYPE */}
+                      <td className="px-4 py-3 text-center align-top">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${WORK_TYPE_BADGES[item.work_type]}`}
+                        >
+                          {WORK_TYPE_LABELS[item.work_type] || item.work_type}
+                        </span>
+                      </td>
+
+                      {/* PIC & CLIENT */}
                       <td className="px-4 py-3 align-top">
                         <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
                           Pak {item.client_pic_name || "-"}
@@ -634,31 +607,78 @@ const WorkItem = () => {
                         </p>
                       </td>
 
+                      {/* PIC INTERNAL */}
                       <td className="px-4 py-3 align-top">
                         <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
                           {item.internal_pic_name || "-"}
                         </p>
-                        {/* <p className="text-[9px] text-gray-400 font-bold mt-0.5">
-                          Client: {item.client_pic_name || "-"}
-                        </p> */}
                       </td>
 
+                      {/* STAGE */}
                       <td className="px-4 py-3 text-center align-top">
                         <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${getWorkTypeClass(item.work_type)}`}
+                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${STAGE_BADGES[item.current_stage]}`}
                         >
-                          {item.work_type || "-"}
+                          {STAGE_LABELS[item.current_stage] ||
+                            item.current_stage}
                         </span>
                       </td>
 
-                      <td className="px-4 py-3 text-center align-top">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${getStageClass(item.current_stage)}`}
-                        >
-                          {formatStage(item.current_stage)}
-                        </span>
+                      {/* START DATE */}
+                      <td className="px-4 py-3 align-top whitespace-nowrap">
+                        {(() => {
+                          const date = formatFullDate(item.start_date);
+
+                          if (!date) {
+                            return (
+                              <span className="text-[10px] font-bold text-gray-400">
+                                -
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black uppercase tracking-[1.5px] dark:text-white">
+                                {date.dayName}
+                              </span>
+
+                              <span className="mt-0.5 text-[12px] font-black leading-4 whitespace-nowrap text-custom-gelap dark:text-white">
+                                {date.date}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
 
+                      {/* DUE DATE */}
+                      <td className="px-4 py-3 align-top whitespace-nowrap">
+                        {(() => {
+                          const date = formatFullDate(item.target_end_date);
+
+                          if (!date) {
+                            return (
+                              <span className="text-[10px] font-bold text-gray-400">
+                                -
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black uppercase tracking-[1.5px]  dark:text-white">
+                                {date.dayName}
+                              </span>
+
+                              <span className="mt-0.5 text-[12px] font-black leading-4 whitespace-nowrap text-custom-merah-terang">
+                                {date.date}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </td>
+
+                      {/* PROGRESS */}
                       <td className="min-w-[150px] px-4 py-3 align-top">
                         <div className="space-y-2">
                           {/* Progress + Edit */}
@@ -695,17 +715,7 @@ const WorkItem = () => {
                         </div>
                       </td>
 
-                      <td className="px-4 py-3 align-top whitespace-nowrap">
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.target_end_date)}
-                        </p>
-                        {item.completion_date && (
-                          <p className="text-[9px] text-green-500 font-bold mt-0.5">
-                            Selesai: {formatDate(item.completion_date)}
-                          </p>
-                        )}
-                      </td>
-
+                      {/* ATTACHMENT */}
                       <td className="px-4 py-3 align-top text-center">
                         {item.document_url ? (
                           <button
@@ -724,7 +734,7 @@ const WorkItem = () => {
                         )}
                       </td>
 
-                      {/* Close Management */}
+                      {/* CLOSED MANAGEMENT */}
                       <td className="px-4 py-3 align-top text-center">
                         {item.current_stage === "CLOSED" ? (
                           <span className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-100 px-3.5 py-2 text-[9px] font-black uppercase tracking-widest text-gray-500 dark:border-gray-700 dark:bg-white/10 dark:text-gray-400">
@@ -755,6 +765,7 @@ const WorkItem = () => {
                         )}
                       </td>
 
+                      {/* ACTION */}
                       <td className="px-4 py-3 align-top">
                         <div className="flex items-center justify-center gap-1">
                           <button

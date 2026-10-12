@@ -14,6 +14,8 @@ import ModalCreateContract from "../components/modals/contract/ModalCreateContra
 import ModalDetailContract from "../components/modals/contract/ModalDetailContract";
 import ModalEditContract from "../components/modals/contract/ModalEditContract";
 import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
+import { STAGE_BADGES, STAGE_LABELS } from "../utils/WorkBadge";
+import { formatFullDate, formatTanggalIndoLengkap } from "../utils/Helpers";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Semua Status" },
@@ -39,16 +41,6 @@ const STATUS_LABELS = {
   ACTIVE: "Active",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
-};
-
-const formatDate = (date) => {
-  if (!date) return "-";
-
-  return new Date(date).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 };
 
 const formatCurrency = (value) => {
@@ -467,63 +459,59 @@ const Contract = () => {
                   <th className="w-12 px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     #
                   </th>
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("contract_number")}
                   >
-                    Nomor Kontrak
+                    No. Kontrak
                   </th>
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("work_number")}
                   >
-                    Pekerjaan
+                    Nama Pekerjaan
                   </th>
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("client_name")}
                   >
-                    Client
+                    PIC - Client
                   </th>
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("contract_date")}
                   >
                     Tanggal
                   </th>
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("contract_value")}
                   >
                     Nilai Kontrak
                   </th>
-
+                  <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    PPN
+                  </th>
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("start_date")}
                   >
-                    Periode
+                    Tanggal Mulai
                   </th>
-
-                  <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    PPN
+                  <th
+                    className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
+                    onClick={() => handleSort("end_date")}
+                  >
+                    Tanggal Selesai
                   </th>
-
                   <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     Status
                   </th>
-
                   <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    Document
+                    Lampiran
                   </th>
-
                   <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    Action
+                    Aksi
                   </th>
                 </tr>
               </thead>
@@ -531,7 +519,7 @@ const Contract = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                 {displayedData.length === 0 ? (
                   <tr>
-                    <td colSpan="11" className="px-4 py-12 text-center">
+                    <td colSpan="12" className="px-4 py-12 text-center">
                       <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">
                         Tidak ada data kontrak
                       </p>
@@ -544,7 +532,7 @@ const Contract = () => {
                       className="transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                     >
                       {/* # */}
-                      <td className="px-4 py-3 text-center align-top text-[11px] font-bold text-gray-400">
+                      <td className="px-4 py-3 text-center align-center text-[11px] font-bold text-gray-400">
                         {filter.stage === "CLOSED"
                           ? (pagination.page - 1) * pagination.per_page +
                             index +
@@ -553,7 +541,7 @@ const Contract = () => {
                       </td>
 
                       {/* Contract Number */}
-                      <td className="px-4 py-3 align-top">
+                      <td className="px-4 py-3 align-center">
                         <button
                           type="button"
                           onClick={() => handleDetail(item)}
@@ -562,76 +550,78 @@ const Contract = () => {
                           {item.contract_number || "-"}
                         </button>
 
-                        <p className="mt-0.5 text-[9px] font-bold text-gray-400">
-                          {formatDate(item.created_at)}
+                        <p className="mt-0.5 text-[9px] font-bold text-gray-400 whitespace-nowrap">
+                          {formatTanggalIndoLengkap(item.created_at)}
                         </p>
                       </td>
 
-                      {/* Work */}
-                      <td className="max-w-[350px] px-4 py-3 align-top">
-                        <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
-                          {item.work_number || "-"}
-                        </p>
+                      {/* WORK-ITEM NAME */}
+                      <td className="px-4 py-3 align-top min-w-[320px] max-w-[420px]">
+                        {/* Work Number + Work Stage */}
+                        <div className="flex items-center gap-2">
+                          <span className="whitespace-nowrap text-[9px] font-bold text-gray-400">
+                            {item.work_number || "-"}
+                          </span>
 
+                          {item.stage && (
+                            <span
+                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-[8px] font-black uppercase tracking-wide ${
+                                STAGE_BADGES[item.stage] ||
+                                "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
+                              }`}
+                            >
+                              {STAGE_LABELS[item.stage] || item.stage}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Work Name */}
                         <p
-                          className="mt-0.5 truncate text-[9px] font-bold text-gray-400"
+                          className="mt-1 line-clamp-2 text-[11px] font-black leading-4 text-custom-gelap dark:text-white"
                           title={item.work_name}
                         >
                           {item.work_name || "-"}
                         </p>
-
-                        {item.work_type && (
-                          <span className="mt-2 inline-flex items-center rounded-lg bg-gray-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-gray-600 dark:bg-white/10 dark:text-gray-300">
-                            {item.work_type}
-                          </span>
-                        )}
                       </td>
 
                       {/* Client */}
                       <td className="px-4 py-3 align-top">
-                        <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
-                          {item.client_pic_name
-                            ? `Pak ${item.client_pic_name}`
-                            : "-"}
+                        <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
+                          Pak {item.client_pic_name || "-"}
                         </p>
-
-                        <p className="mt-0.5 text-[9px] font-bold text-gray-400">
+                        <p className="text-[9px] text-gray-400 font-bold mt-0.5 whitespace-nowrap">
                           {item.client_name || "-"}
                         </p>
-
-                        {item.client_code && (
-                          <p className="mt-0.5 text-[9px] font-bold text-gray-400">
-                            {item.client_code}
-                          </p>
-                        )}
                       </td>
 
                       {/* Contract Date */}
                       <td className="whitespace-nowrap px-4 py-3 align-top">
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.contract_date)}
-                        </p>
+                        {(() => {
+                          const date = formatFullDate(item.contract_date);
+                          if (!date) {
+                            return (
+                              <span className="text-[10px] font-bold text-gray-400">
+                                -
+                              </span>
+                            );
+                          }
+                          return (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black uppercase tracking-[1.5px] dark:text-white">
+                                {date.dayName}
+                              </span>
+                              <span className="mt-0.5 text-[12px] font-black leading-4 whitespace-nowrap text-custom-gelap dark:text-white">
+                                {date.date}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Contract Value */}
                       <td className="whitespace-nowrap px-4 py-3 align-top">
                         <p className="text-[11px] font-black text-custom-merah-terang">
                           {formatCurrency(item.contract_value)}
-                        </p>
-                      </td>
-
-                      {/* Period */}
-                      <td className="whitespace-nowrap px-4 py-3 align-top">
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.start_date)}
-                        </p>
-
-                        <p className="my-0.5 text-[9px] font-bold text-gray-400">
-                          s/d
-                        </p>
-
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.end_date)}
                         </p>
                       </td>
 
@@ -642,6 +632,54 @@ const Contract = () => {
                             ? `${item.vat_rate}%`
                             : "-"}
                         </span>
+                      </td>
+
+                      {/* START DATE */}
+                      <td className="whitespace-nowrap px-4 py-3 align-top">
+                        {(() => {
+                          const date = formatFullDate(item.start_date);
+                          if (!date) {
+                            return (
+                              <span className="text-[10px] font-bold text-gray-400">
+                                -
+                              </span>
+                            );
+                          }
+                          return (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black uppercase tracking-[1.5px] dark:text-white">
+                                {date.dayName}
+                              </span>
+                              <span className="mt-0.5 text-[12px] font-black leading-4 whitespace-nowrap text-custom-gelap dark:text-white">
+                                {date.date}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </td>
+
+                      {/* DUE DATE */}
+                      <td className="whitespace-nowrap px-4 py-3 align-top">
+                        {(() => {
+                          const date = formatFullDate(item.end_date);
+                          if (!date) {
+                            return (
+                              <span className="text-[10px] font-bold text-gray-400">
+                                -
+                              </span>
+                            );
+                          }
+                          return (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black uppercase tracking-[1.5px]  dark:text-white">
+                                {date.dayName}
+                              </span>
+                              <span className="mt-0.5 text-[12px] font-black leading-4 whitespace-nowrap text-custom-merah-terang">
+                                {date.date}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Status */}

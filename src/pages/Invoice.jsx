@@ -16,6 +16,8 @@ import ModalEditInvoice from "../components/modals/invoice/ModalEditInvoice";
 import ModalCreatePayment from "../components/modals/invoice/ModalCreatePayment";
 import ModalDetailPayment from "../components/modals/invoice/ModalDetailPayment";
 import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
+import { STAGE_BADGES, STAGE_LABELS } from "../utils/WorkBadge";
+import { formatFullDate } from "../utils/Helpers";
 
 const STAGE_OPTIONS = [
   {
@@ -68,12 +70,6 @@ const PAYMENT_STATUS_OPTIONS = [
 
 const PER_PAGE_OPTIONS = [25, 50, 100];
 
-const WORK_TYPE_BADGES = {
-  TENDER: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
-  MAINTENANCE:
-    "bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400",
-};
-
 const PAYMENT_STATUS_BADGES = {
   BELUM_DIBAYAR: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
 
@@ -105,28 +101,6 @@ const HEALTH_STATUS_LABELS = {
   ON_TRACK: "On Track",
   DUE_SOON: "Due Soon",
   OVERDUE: "Overdue",
-};
-
-const WORK_TYPE_LABELS = {
-  TENDER: "Tender",
-  MAINTENANCE: "Maintenance",
-};
-
-const formatFullDate = (date) => {
-  if (!date) return null;
-
-  const parsedDate = new Date(date);
-
-  return {
-    dayName: parsedDate.toLocaleDateString("id-ID", {
-      weekday: "long",
-    }),
-    date: parsedDate.toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    }),
-  };
 };
 
 const formatCurrency = (value) => {
@@ -610,67 +584,56 @@ const Invoice = () => {
                   <th className="w-12 px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     #
                   </th>
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("invoice_number")}
                   >
-                    Nomor
+                    No. Invoice
                   </th>
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("work_number")}
                   >
-                    Pekerjaan
+                    Nama Pekerjaan
                   </th>
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("client_name")}
                   >
-                    Client
+                    PIC - Client
                   </th>
-
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400">
+                  <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     Health
                   </th>
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("invoice_date")}
                   >
-                    Tanggal
+                    Tanggal Invoice
                   </th>
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("due_date")}
                   >
-                    Jatuh Tempo
+                    Invoice Berakhir
                   </th>
-
                   <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    Document
+                    Lampiran
                   </th>
-
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("invoice_value")}
                   >
                     Nilai Invoice
                   </th>
-
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    Pembayaran
+                  <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    Status
                   </th>
-
                   <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     Payment
                   </th>
-
                   <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    Action
+                    Aksi
                   </th>
                 </tr>
               </thead>
@@ -734,13 +697,13 @@ const Invoice = () => {
 
                       {/* Work */}
                       <td className="min-w-[320px] max-w-[420px] px-4 py-3 align-center">
-                        {/* Work Number + Work Type */}
+                        {/* Work Number + Work Stage */}
                         <div className="flex items-center gap-2">
                           <span className="whitespace-nowrap text-[9px] font-bold text-gray-400">
                             {item.work_number || "-"}
                           </span>
 
-                          {item.work_type && (
+                          {/* {item.work_type && (
                             <span
                               className={`inline-flex items-center rounded-md px-2 py-0.5 text-[8px] font-black uppercase tracking-wide ${
                                 WORK_TYPE_BADGES[item.work_type] ||
@@ -749,6 +712,18 @@ const Invoice = () => {
                             >
                               {WORK_TYPE_LABELS[item.work_type] ||
                                 item.work_type}
+                            </span>
+                          )} */}
+
+                          {item.current_stage && (
+                            <span
+                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-[8px] font-black uppercase tracking-wide ${
+                                STAGE_BADGES[item.current_stage] ||
+                                "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
+                              }`}
+                            >
+                              {STAGE_LABELS[item.current_stage] ||
+                                item.current_stage}
                             </span>
                           )}
                         </div>
