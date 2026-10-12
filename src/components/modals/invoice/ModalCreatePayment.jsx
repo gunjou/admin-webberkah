@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { MdClose, MdPayment } from "react-icons/md";
+import {
+  MdClose,
+  MdPayment,
+  MdAttachFile,
+  MdDescription,
+} from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
 
@@ -9,7 +14,7 @@ const ModalCreatePayment = ({ show, onClose, invoice, onSuccess }) => {
   const [form, setForm] = useState({
     payment_date: new Date().toISOString().split("T")[0],
     amount: "",
-    document_url: "",
+    document: null,
     notes: "",
   });
 
@@ -18,7 +23,7 @@ const ModalCreatePayment = ({ show, onClose, invoice, onSuccess }) => {
       setForm({
         payment_date: new Date().toISOString().split("T")[0],
         amount: invoice?.outstanding_amount ?? invoice?.total_invoice ?? "",
-        document_url: "",
+        document: null,
         notes: "",
       });
     }
@@ -30,6 +35,29 @@ const ModalCreatePayment = ({ show, onClose, invoice, onSuccess }) => {
     setForm((current) => ({
       ...current,
       [name]: value,
+    }));
+  };
+
+  const handleDocumentChange = (e) => {
+    const file = e.target.files?.[0] || null;
+
+    if (!file) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      document: file,
+    }));
+
+    // Allow selecting the same file again
+    e.target.value = "";
+  };
+
+  const handleRemoveDocument = () => {
+    setForm((current) => ({
+      ...current,
+      document: null,
     }));
   };
 
@@ -72,15 +100,31 @@ const ModalCreatePayment = ({ show, onClose, invoice, onSuccess }) => {
     try {
       setLoading(true);
 
-      const payload = {
-        id_invoice: Number(invoice.id_invoice),
-        payment_date: form.payment_date,
-        amount: Number(form.amount),
-        document_url: form.document_url.trim() || null,
-        notes: form.notes.trim() || null,
-      };
+      const formData = new FormData();
 
-      const response = await Api.post("/work-item/payment", payload);
+      formData.append("id_invoice", Number(invoice.id_invoice));
+      formData.append("payment_date", form.payment_date);
+      formData.append("amount", Number(form.amount));
+
+      if (form.notes.trim()) {
+        formData.append("notes", form.notes.trim());
+      }
+
+      if (form.document) {
+        formData.append("document", form.document);
+      }
+
+      const response = await Api.post("/work-item/payment", formData, {
+        transformRequest: [
+          (data, headers) => {
+            if (data instanceof FormData) {
+              delete headers["Content-Type"];
+            }
+
+            return data;
+          },
+        ],
+      });
 
       if (response.data?.success) {
         await SwalHelper.success(
@@ -262,21 +306,70 @@ const ModalCreatePayment = ({ show, onClose, invoice, onSuccess }) => {
                     )}
                   </div>
 
-                  {/* Document URL */}
+                  {/* Document */}
                   <div className="md:col-span-2">
                     <label className="mb-1.5 block text-[9px] font-black uppercase tracking-[1.2px] text-gray-500 dark:text-gray-300">
-                      URL Bukti Pembayaran
+                      Bukti Pembayaran
                     </label>
 
-                    <input
-                      type="url"
-                      name="document_url"
-                      value={form.document_url}
-                      onChange={handleChange}
-                      disabled={loading}
-                      placeholder="https://example.com/payment.pdf"
-                      className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-[11px] font-semibold text-gray-700 outline-none transition focus:border-custom-merah focus:ring-1 focus:ring-custom-merah dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                    />
+                    {!form.document ? (
+                      <label
+                        className={`flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 transition hover:border-custom-merah hover:bg-custom-merah/5 dark:border-gray-600 dark:bg-white/5 dark:hover:border-custom-merah`}
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-custom-merah/10 text-custom-merah">
+                          <MdAttachFile size={18} />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black text-gray-700 dark:text-gray-200">
+                            Pilih dokumen bukti pembayaran
+                          </p>
+
+                          <p className="mt-0.5 text-[8px] font-semibold text-gray-400">
+                            Format yang didukung: PDF, DOC, DOCX, XLS, XLSX.
+                          </p>
+                        </div>
+
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx"
+                          onChange={handleDocumentChange}
+                          disabled={loading}
+                          className="hidden"
+                        />
+                      </label>
+                    ) : (
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-white/5">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-custom-merah/10 text-custom-merah">
+                            <MdDescription size={18} />
+                          </div>
+
+                          <div className="min-w-0">
+                            <p
+                              className="truncate text-[10px] font-black text-gray-700 dark:text-gray-200"
+                              title={form.document.name}
+                            >
+                              {form.document.name}
+                            </p>
+
+                            <p className="mt-0.5 text-[8px] font-semibold text-gray-400">
+                              {(form.document.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleRemoveDocument}
+                          disabled={loading}
+                          className="shrink-0 rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-500/10"
+                          title="Hapus dokumen"
+                        >
+                          <MdClose size={17} />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Notes */}

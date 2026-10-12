@@ -1,14 +1,23 @@
 import React, { useEffect, useState } from "react";
-import { MdClose, MdSave } from "react-icons/md";
+import { MdAttachFile, MdClose, MdDescription, MdSave } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
+
+const getTodayDate = () => {
+  const today = new Date();
+
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
 
 const INITIAL_FORM = {
   id_work_item: "",
   ba_number: "",
-  ba_date: "",
-  completion_date: "",
-  document_url: "",
+  ba_date: getTodayDate(),
+  document: null,
   notes: "",
 };
 
@@ -53,11 +62,19 @@ const ModalCreateCompletion = ({ show, onClose, onSuccess }) => {
 
   useEffect(() => {
     if (show) {
-      setForm(INITIAL_FORM);
+      setForm({
+        ...INITIAL_FORM,
+        ba_date: getTodayDate(),
+      });
+
       setErrors({});
       fetchWorkItems();
     } else {
-      setForm(INITIAL_FORM);
+      setForm({
+        ...INITIAL_FORM,
+        ba_date: getTodayDate(),
+      });
+
       setErrors({});
       setWorkItems([]);
     }
@@ -77,6 +94,18 @@ const ModalCreateCompletion = ({ show, onClose, onSuccess }) => {
     }
   };
 
+  const handleDocumentChange = (event) => {
+    const file = event.target.files?.[0] || null;
+
+    handleChange("document", file);
+
+    event.target.value = "";
+  };
+
+  const handleRemoveDocument = () => {
+    handleChange("document", null);
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -90,19 +119,6 @@ const ModalCreateCompletion = ({ show, onClose, onSuccess }) => {
 
     if (!form.ba_date) {
       newErrors.ba_date = "Tanggal BA wajib diisi.";
-    }
-
-    if (!form.completion_date) {
-      newErrors.completion_date = "Tanggal selesai wajib diisi.";
-    }
-
-    if (
-      form.ba_date &&
-      form.completion_date &&
-      form.completion_date < form.ba_date
-    ) {
-      newErrors.completion_date =
-        "Tanggal selesai tidak boleh sebelum tanggal BA.";
     }
 
     setErrors(newErrors);
@@ -120,16 +136,28 @@ const ModalCreateCompletion = ({ show, onClose, onSuccess }) => {
     setLoading(true);
 
     try {
-      const payload = {
-        id_work_item: Number(form.id_work_item),
-        ba_number: form.ba_number.trim(),
-        ba_date: form.ba_date,
-        completion_date: form.completion_date,
-        document_url: form.document_url.trim() || null,
-        notes: form.notes.trim() || null,
-      };
+      const formData = new FormData();
 
-      const response = await Api.post("/work-item/completion", payload);
+      formData.append("id_work_item", String(form.id_work_item));
+      formData.append("ba_number", form.ba_number.trim());
+      formData.append("ba_date", form.ba_date);
+      formData.append("notes", form.notes.trim());
+
+      if (form.document) {
+        formData.append("document", form.document);
+      }
+
+      const response = await Api.post("/work-item/completion", formData, {
+        transformRequest: [
+          (data, headers) => {
+            if (data instanceof FormData) {
+              delete headers["Content-Type"];
+            }
+
+            return data;
+          },
+        ],
+      });
 
       if (response.data?.success) {
         await SwalHelper.success(
@@ -245,7 +273,7 @@ const ModalCreateCompletion = ({ show, onClose, onSuccess }) => {
                   type="text"
                   value={form.ba_number}
                   onChange={(e) => handleChange("ba_number", e.target.value)}
-                  placeholder="Contoh: BA-202609-001"
+                  placeholder="Contoh: BA-202610-001"
                   disabled={loading}
                   className={`h-10 w-full rounded-xl border ${
                     errors.ba_number
@@ -276,50 +304,74 @@ const ModalCreateCompletion = ({ show, onClose, onSuccess }) => {
                 />
 
                 {renderError("ba_date")}
+
+                <p className="mt-1 text-[8px] font-bold text-gray-400">
+                  Default menggunakan tanggal hari ini.
+                </p>
               </div>
 
-              {/* Completion Date */}
-              <div>
-                <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Tanggal Selesai <span className="text-red-500">*</span>
-                </label>
-
-                <input
-                  type="date"
-                  value={form.completion_date}
-                  min={form.ba_date || undefined}
-                  onChange={(e) =>
-                    handleChange("completion_date", e.target.value)
-                  }
-                  disabled={loading}
-                  className={`h-10 w-full rounded-xl border ${
-                    errors.completion_date
-                      ? "border-red-500"
-                      : "border-gray-100 dark:border-white/10"
-                  } bg-gray-50 px-3 text-[10px] font-bold text-custom-gelap outline-none focus:border-custom-merah-terang disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white/5 dark:text-white`}
-                />
-
-                {renderError("completion_date")}
-              </div>
-
-              {/* Document URL */}
-              <div>
+              {/* Document */}
+              <div className="md:col-span-2">
                 <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Dokumen BA
                 </label>
 
-                <input
-                  type="text"
-                  value={form.document_url}
-                  onChange={(e) => handleChange("document_url", e.target.value)}
-                  placeholder="/uploads/ba/BA-202609-001.pdf"
-                  disabled={loading}
-                  className="h-10 w-full rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-bold text-custom-gelap outline-none placeholder:text-gray-400 focus:border-custom-merah-terang disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-white"
-                />
+                {form.document ? (
+                  <div className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 dark:border-blue-500/20 dark:bg-blue-500/10">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <MdDescription
+                        size={18}
+                        className="shrink-0 text-blue-600 dark:text-blue-400"
+                      />
+
+                      <div className="min-w-0">
+                        <p className="truncate text-[10px] font-bold text-blue-700 dark:text-blue-300">
+                          {form.document.name}
+                        </p>
+
+                        <p className="mt-0.5 text-[8px] font-medium text-blue-500 dark:text-blue-400">
+                          {(form.document.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleRemoveDocument}
+                      disabled={loading}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-blue-500 transition hover:bg-blue-100 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-500/20"
+                      title="Hapus dokumen"
+                    >
+                      <MdClose size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    className={`flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed ${
+                      errors.document
+                        ? "border-red-500"
+                        : "border-gray-200 dark:border-white/10"
+                    } bg-gray-50 text-[9px] font-black uppercase tracking-wider text-gray-400 transition hover:border-custom-merah-terang hover:text-custom-merah-terang dark:bg-white/5`}
+                  >
+                    <MdAttachFile size={17} />
+
+                    <span>Pilih Dokumen BA</span>
+
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                      onChange={handleDocumentChange}
+                      disabled={loading}
+                      className="hidden"
+                    />
+                  </label>
+                )}
 
                 <p className="mt-1 text-[8px] font-bold text-gray-400">
-                  Masukkan path atau URL dokumen BA.
+                  Opsional. Format: PDF, JPG, JPEG, PNG, WEBP.
                 </p>
+
+                {renderError("document")}
               </div>
 
               {/* Notes */}

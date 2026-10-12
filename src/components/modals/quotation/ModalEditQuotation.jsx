@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { MdClose, MdSave } from "react-icons/md";
+import {
+  MdAttachFile,
+  MdClose,
+  MdDescription,
+  MdOpenInNew,
+  MdSave,
+} from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
 
@@ -22,6 +28,8 @@ const INITIAL_FORM = {
   valid_until: "",
   status: "DRAFT",
   notes: "",
+  document: null,
+  document_url: "",
 };
 
 const ModalEditQuotation = ({ show, onClose, quotationId, onSuccess }) => {
@@ -66,7 +74,10 @@ const ModalEditQuotation = ({ show, onClose, quotationId, onSuccess }) => {
             : "",
         valid_until: quotation.valid_until || "",
         status: quotation.status || "DRAFT",
+        filename: `${"Penawaran - " + quotation.work_name}` || "",
         notes: quotation.notes || "",
+        document: null,
+        document_url: quotation.document_url || "",
       });
     } catch (err) {
       setError(
@@ -108,6 +119,26 @@ const ModalEditQuotation = ({ show, onClose, quotationId, onSuccess }) => {
     }
   };
 
+  const handleDocumentChange = (e) => {
+    const file = e.target.files?.[0] || null;
+
+    setForm((prev) => ({
+      ...prev,
+      document: file,
+    }));
+
+    if (error) {
+      setError("");
+    }
+  };
+
+  const handleRemoveDocument = () => {
+    setForm((prev) => ({
+      ...prev,
+      document: null,
+    }));
+  };
+
   const validateForm = () => {
     if (!form.proposal_number.trim()) {
       return "Nomor penawaran wajib diisi.";
@@ -146,20 +177,41 @@ const ModalEditQuotation = ({ show, onClose, quotationId, onSuccess }) => {
       setSaving(true);
       setError("");
 
-      const payload = {
-        id_work_item: Number(form.id_work_item),
-        proposal_number: form.proposal_number.trim(),
-        proposal_date: form.proposal_date,
-        proposal_value:
-          form.proposal_value === "" ? null : Number(form.proposal_value),
-        valid_until: form.valid_until || null,
-        status: form.status,
-        notes: form.notes.trim() || null,
-      };
+      const formData = new FormData();
+
+      formData.append("id_work_item", String(form.id_work_item));
+      formData.append("proposal_number", form.proposal_number.trim());
+      formData.append("proposal_date", form.proposal_date);
+
+      if (form.proposal_value !== "") {
+        formData.append("proposal_value", String(Number(form.proposal_value)));
+      }
+
+      if (form.valid_until) {
+        formData.append("valid_until", form.valid_until);
+      }
+
+      formData.append("status", form.status);
+      formData.append("notes", form.notes.trim());
+
+      if (form.document) {
+        formData.append("document", form.document);
+      }
 
       const response = await Api.put(
         `/work-item/quotation/${quotationId}`,
-        payload,
+        formData,
+        {
+          transformRequest: [
+            (data, headers) => {
+              if (data instanceof FormData) {
+                delete headers["Content-Type"];
+              }
+
+              return data;
+            },
+          ],
+        },
       );
 
       if (!response.data?.success) {
@@ -177,6 +229,8 @@ const ModalEditQuotation = ({ show, onClose, quotationId, onSuccess }) => {
 
       onClose();
     } catch (err) {
+      console.error("Gagal memperbarui quotation:", err);
+
       setError(err.response?.data?.message || "Gagal memperbarui penawaran.");
     } finally {
       setSaving(false);
@@ -337,6 +391,111 @@ const ModalEditQuotation = ({ show, onClose, quotationId, onSuccess }) => {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                {/* Document */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">
+                    Dokumen Penawaran
+                  </label>
+
+                  {/* Existing Document */}
+                  {form.document_url && !form.document && (
+                    <div className="mb-3 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-3 dark:border-blue-500/20 dark:bg-blue-500/10">
+                      <MdDescription
+                        size={20}
+                        className="shrink-0 text-blue-500"
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                          {form.filename}
+                        </p>
+
+                        <p className="mt-0.5 truncate text-[9px] font-bold text-blue-500">
+                          Dokumen penawaran tersimpan
+                        </p>
+                      </div>
+
+                      <a
+                        href={form.document_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-[9px] font-black uppercase tracking-widest text-blue-600 transition hover:bg-blue-100 dark:bg-white/10 dark:text-blue-400 dark:hover:bg-white/20"
+                      >
+                        <MdOpenInNew size={14} />
+                        Buka
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Selected New Document */}
+                  {form.document && (
+                    <div className="mb-3 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-3 py-3 dark:border-green-500/20 dark:bg-green-500/10">
+                      <MdDescription
+                        size={20}
+                        className="shrink-0 text-green-500"
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-green-600 dark:text-green-400">
+                          Dokumen Baru
+                        </p>
+
+                        <p className="mt-0.5 truncate text-[9px] font-bold text-green-500">
+                          {form.document.name}
+                        </p>
+
+                        <p className="mt-0.5 text-[8px] font-bold text-green-400">
+                          {(form.document.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleRemoveDocument}
+                        disabled={saving}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-white hover:text-red-500 disabled:opacity-50 dark:hover:bg-white/10"
+                        title="Batalkan dokumen baru"
+                      >
+                        <MdClose size={17} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* File Picker */}
+                  <label
+                    htmlFor="quotation-document"
+                    className={`flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-4 transition hover:border-custom-merah-terang hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-custom-merah-terang dark:hover:bg-gray-700 ${
+                      saving
+                        ? "pointer-events-none cursor-not-allowed opacity-50"
+                        : ""
+                    }`}
+                  >
+                    <MdAttachFile
+                      size={18}
+                      className="text-custom-merah-terang"
+                    />
+
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                      {form.document
+                        ? "Ganti Dokumen Baru"
+                        : "Pilih Dokumen Baru"}
+                    </span>
+
+                    <input
+                      id="quotation-document"
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                      onChange={handleDocumentChange}
+                      disabled={saving}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <p className="mt-1.5 text-[9px] text-gray-400">
+                    Kosongkan jika tidak ingin mengganti dokumen.
+                  </p>
                 </div>
 
                 {/* Notes */}

@@ -13,6 +13,7 @@ import {
 import ModalDetailQuotation from "../components/modals/quotation/ModalDetailQuotation";
 import ModalCreateQuotation from "../components/modals/quotation/ModalCreateQuotation";
 import ModalEditQuotation from "../components/modals/quotation/ModalEditQuotation";
+import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Semua Status" },
@@ -40,6 +41,10 @@ const Quotation = () => {
   const [selectedQuotationId, setSelectedQuotationId] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+
+  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
+  const [selectedDocumentUrl, setSelectedDocumentUrl] = useState("");
+  const [selectedDocumentTitle, setSelectedDocumentTitle] = useState("");
 
   const [filter, setFilter] = useState({
     stage: "ACTIVE",
@@ -235,6 +240,19 @@ const Quotation = () => {
   const handleEdit = (item) => {
     setSelectedQuotationId(item.id_proposal);
     setShowEdit(true);
+  };
+
+  const handleDocumentPreview = (item) => {
+    if (!item.document_url) {
+      SwalHelper.warning("Dokumen belum tersedia.");
+      return;
+    }
+
+    setSelectedDocumentUrl(item.document_url);
+    setSelectedDocumentTitle(
+      `${item.proposal_number} - ${item.work_name || "Penawaran"}`,
+    );
+    setShowDocumentPreview(true);
   };
 
   const handleDelete = async (item) => {
@@ -518,6 +536,10 @@ const Quotation = () => {
                   </th>
 
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                    Document
+                  </th>
+
+                  <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">
                     Action
                   </th>
                 </tr>
@@ -526,7 +548,7 @@ const Quotation = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                 {displayedData.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="px-4 py-12 text-center">
+                    <td colSpan="10" className="px-4 py-12 text-center">
                       <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
                         Tidak ada data penawaran
                       </p>
@@ -605,6 +627,24 @@ const Quotation = () => {
                         >
                           {formatStatus(item.status)}
                         </span>
+                      </td>
+
+                      <td className="px-4 py-3 align-top text-center">
+                        {item.document_url ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDocumentPreview(item)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-custom-merah-terang/20 bg-custom-merah-terang/10 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-custom-merah-terang transition-all hover:-translate-y-0.5 hover:bg-custom-merah-terang/15 dark:border-custom-merah-terang/30 dark:bg-custom-merah-terang/10 dark:text-custom-cerah dark:hover:bg-custom-merah-terang/20"
+                            title="Preview Dokumen"
+                          >
+                            <MdVisibility size={14} />
+                            Preview
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center rounded-xl bg-gray-100 px-3 py-2 text-[9px] font-black uppercase whitespace-nowrap tracking-widest text-gray-400 dark:bg-white/5 dark:text-gray-500">
+                            No File
+                          </span>
+                        )}
                       </td>
 
                       <td className="px-4 py-3 align-top">
@@ -781,6 +821,20 @@ const Quotation = () => {
           }}
           quotationId={selectedQuotationId}
           onSuccess={fetchQuotations}
+        />
+      )}
+
+      {/* Modal Preview Document */}
+      {showDocumentPreview && selectedDocumentUrl && (
+        <DocumentPreviewModal
+          show={showDocumentPreview}
+          url={selectedDocumentUrl}
+          title={selectedDocumentTitle}
+          onClose={() => {
+            setShowDocumentPreview(false);
+            setSelectedDocumentUrl("");
+            setSelectedDocumentTitle("");
+          }}
         />
       )}
     </>

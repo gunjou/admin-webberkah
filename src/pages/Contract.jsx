@@ -13,6 +13,7 @@ import {
 import ModalCreateContract from "../components/modals/contract/ModalCreateContract";
 import ModalDetailContract from "../components/modals/contract/ModalDetailContract";
 import ModalEditContract from "../components/modals/contract/ModalEditContract";
+import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Semua Status" },
@@ -71,6 +72,10 @@ const Contract = () => {
   const [selectedContractId, setSelectedContractId] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+
+  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
+  const [selectedDocumentUrl, setSelectedDocumentUrl] = useState("");
+  const [selectedDocumentTitle, setSelectedDocumentTitle] = useState("");
 
   const [filter, setFilter] = useState({
     stage: "ACTIVE",
@@ -280,6 +285,21 @@ const Contract = () => {
   const handleEdit = (item) => {
     setSelectedContractId(item.id_contract);
     setShowEdit(true);
+  };
+
+  const handleDocumentPreview = (item) => {
+    if (!item.document_url) {
+      SwalHelper.warning("Dokumen kontrak belum tersedia.");
+      return;
+    }
+
+    setSelectedDocumentUrl(item.document_url);
+    setSelectedDocumentTitle(
+      `${item.contract_number || "Kontrak"} - ${
+        item.work_name || "Dokumen Kontrak"
+      }`,
+    );
+    setShowDocumentPreview(true);
   };
 
   const handleDelete = async (item) => {
@@ -498,6 +518,10 @@ const Contract = () => {
                     Status
                   </th>
 
+                  <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    Document
+                  </th>
+
                   <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     Action
                   </th>
@@ -507,7 +531,7 @@ const Contract = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                 {displayedData.length === 0 ? (
                   <tr>
-                    <td colSpan="10" className="px-4 py-12 text-center">
+                    <td colSpan="11" className="px-4 py-12 text-center">
                       <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">
                         Tidak ada data kontrak
                       </p>
@@ -630,6 +654,25 @@ const Contract = () => {
                         >
                           {STATUS_LABELS[item.status] || item.status || "-"}
                         </span>
+                      </td>
+
+                      {/* Document */}
+                      <td className="px-4 py-3 align-top text-center">
+                        {item.document_url ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDocumentPreview(item)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-custom-merah-terang/20 bg-custom-merah-terang/10 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-custom-merah-terang transition-all hover:-translate-y-0.5 hover:bg-custom-merah-terang/15 dark:border-custom-merah-terang/30 dark:bg-custom-merah-terang/10 dark:text-custom-cerah dark:hover:bg-custom-merah-terang/20"
+                            title="Preview Dokumen"
+                          >
+                            <MdVisibility size={14} />
+                            Preview
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center rounded-xl bg-gray-100 px-3 py-2 text-[9px] font-black uppercase whitespace-nowrap tracking-widest text-gray-400 dark:bg-white/5 dark:text-gray-500">
+                            No File
+                          </span>
+                        )}
                       </td>
 
                       {/* Action */}
@@ -807,6 +850,20 @@ const Contract = () => {
           }}
           contractId={selectedContractId}
           onSuccess={fetchContracts}
+        />
+      )}
+
+      {/* Document Preview */}
+      {showDocumentPreview && selectedDocumentUrl && (
+        <DocumentPreviewModal
+          show={showDocumentPreview}
+          url={selectedDocumentUrl}
+          title={selectedDocumentTitle}
+          onClose={() => {
+            setShowDocumentPreview(false);
+            setSelectedDocumentUrl("");
+            setSelectedDocumentTitle("");
+          }}
         />
       )}
     </>

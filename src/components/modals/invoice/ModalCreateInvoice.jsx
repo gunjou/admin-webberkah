@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { MdClose, MdSave } from "react-icons/md";
+import { MdAttachFile, MdClose, MdDescription, MdSave } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
 
@@ -11,8 +11,8 @@ const INITIAL_FORM = {
   invoice_value: "",
   vat_rate: "",
   due_date: "",
-  document_url: "",
   notes: "",
+  document: null,
 };
 
 const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
@@ -96,6 +96,19 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
     }
   };
 
+  const handleDocumentChange = (event) => {
+    const file = event.target.files?.[0] || null;
+
+    handleChange("document", file);
+
+    // Supaya file yang sama bisa dipilih kembali setelah dihapus
+    event.target.value = "";
+  };
+
+  const handleRemoveDocument = () => {
+    handleChange("document", null);
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -160,19 +173,39 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
     setLoading(true);
 
     try {
-      const payload = {
-        id_work_item: Number(form.id_work_item),
-        id_completion: Number(form.id_completion),
-        invoice_number: form.invoice_number.trim(),
-        invoice_date: form.invoice_date,
-        invoice_value: Number(form.invoice_value),
-        vat_rate: Number(form.vat_rate),
-        due_date: form.due_date,
-        document_url: form.document_url.trim() || null,
-        notes: form.notes.trim() || null,
-      };
+      const formData = new FormData();
 
-      const response = await Api.post("/work-item/invoice", payload);
+      formData.append("id_work_item", String(form.id_work_item));
+
+      formData.append("id_completion", String(form.id_completion));
+
+      formData.append("invoice_number", form.invoice_number.trim());
+
+      formData.append("invoice_date", form.invoice_date);
+
+      formData.append("invoice_value", String(Number(form.invoice_value)));
+
+      formData.append("vat_rate", String(Number(form.vat_rate)));
+
+      formData.append("due_date", form.due_date);
+
+      formData.append("notes", form.notes.trim());
+
+      if (form.document) {
+        formData.append("document", form.document);
+      }
+
+      const response = await Api.post("/work-item/invoice", formData, {
+        transformRequest: [
+          (data, headers) => {
+            if (data instanceof FormData) {
+              delete headers["Content-Type"];
+            }
+
+            return data;
+          },
+        ],
+      });
 
       if (response.data?.success) {
         await SwalHelper.success(
@@ -342,6 +375,39 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
                 {renderError("invoice_number")}
               </div>
 
+              {/* VAT */}
+              <div>
+                <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  PPN (%) <span className="text-red-500">*</span>
+                </label>
+
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={form.vat_rate}
+                    onChange={(event) =>
+                      handleChange("vat_rate", event.target.value)
+                    }
+                    placeholder="12"
+                    disabled={loading}
+                    className={`h-10 w-full rounded-xl border ${
+                      errors.vat_rate
+                        ? "border-red-500"
+                        : "border-gray-100 dark:border-white/10"
+                    } bg-gray-50 px-3 pr-9 text-[10px] font-bold text-custom-gelap outline-none placeholder:text-gray-400 focus:border-custom-merah-terang disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white/5 dark:text-white`}
+                  />
+
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-500 dark:text-gray-400">
+                    %
+                  </span>
+                </div>
+
+                {renderError("vat_rate")}
+              </div>
+
               {/* Invoice Date */}
               <div>
                 <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -363,6 +429,30 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
                 />
 
                 {renderError("invoice_date")}
+              </div>
+
+              {/* Due Date */}
+              <div>
+                <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Jatuh Tempo <span className="text-red-500">*</span>
+                </label>
+
+                <input
+                  type="date"
+                  value={form.due_date}
+                  min={form.invoice_date || undefined}
+                  onChange={(event) =>
+                    handleChange("due_date", event.target.value)
+                  }
+                  disabled={loading}
+                  className={`h-10 w-full rounded-xl border ${
+                    errors.due_date
+                      ? "border-red-500"
+                      : "border-gray-100 dark:border-white/10"
+                  } bg-gray-50 px-3 text-[10px] font-bold text-custom-gelap outline-none focus:border-custom-merah-terang disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white/5 dark:text-white`}
+                />
+
+                {renderError("due_date")}
               </div>
 
               {/* Invoice Value */}
@@ -397,83 +487,63 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
                 {renderError("invoice_value")}
               </div>
 
-              {/* VAT */}
-              <div>
+              {/* Document */}
+              <div className="md:col-span-2">
                 <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  PPN (%) <span className="text-red-500">*</span>
+                  Dokumen Invoice
                 </label>
 
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={form.vat_rate}
-                    onChange={(event) =>
-                      handleChange("vat_rate", event.target.value)
-                    }
-                    placeholder="12"
-                    disabled={loading}
-                    className={`h-10 w-full rounded-xl border ${
-                      errors.vat_rate
-                        ? "border-red-500"
-                        : "border-gray-100 dark:border-white/10"
-                    } bg-gray-50 px-3 pr-9 text-[10px] font-bold text-custom-gelap outline-none placeholder:text-gray-400 focus:border-custom-merah-terang disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white/5 dark:text-white`}
-                  />
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 dark:border-white/10 dark:bg-white/5">
+                  {!form.document ? (
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 transition hover:border-custom-merah-terang hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:hover:border-custom-merah-terang">
+                      <MdAttachFile size={16} className="text-gray-400" />
 
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-500 dark:text-gray-400">
-                    %
-                  </span>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-300">
+                        Pilih Dokumen
+                      </span>
+
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx"
+                        onChange={handleDocumentChange}
+                        disabled={loading}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-white/5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-custom-merah-terang dark:bg-red-500/10">
+                          <MdDescription size={18} />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="truncate text-[10px] font-black text-custom-gelap dark:text-white">
+                            {form.document.name}
+                          </p>
+
+                          <p className="mt-0.5 text-[9px] font-bold text-gray-400">
+                            {(form.document.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleRemoveDocument}
+                        disabled={loading}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                        title="Hapus dokumen"
+                      >
+                        <MdClose size={16} />
+                      </button>
+                    </div>
+                  )}
+
+                  <p className="mt-2 text-[8px] font-bold text-gray-400">
+                    Format yang didukung: PDF, DOC, DOCX, XLS, XLSX.
+                  </p>
                 </div>
-
-                {renderError("vat_rate")}
-              </div>
-
-              {/* Due Date */}
-              <div>
-                <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Jatuh Tempo <span className="text-red-500">*</span>
-                </label>
-
-                <input
-                  type="date"
-                  value={form.due_date}
-                  min={form.invoice_date || undefined}
-                  onChange={(event) =>
-                    handleChange("due_date", event.target.value)
-                  }
-                  disabled={loading}
-                  className={`h-10 w-full rounded-xl border ${
-                    errors.due_date
-                      ? "border-red-500"
-                      : "border-gray-100 dark:border-white/10"
-                  } bg-gray-50 px-3 text-[10px] font-bold text-custom-gelap outline-none focus:border-custom-merah-terang disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white/5 dark:text-white`}
-                />
-
-                {renderError("due_date")}
-              </div>
-
-              {/* Document URL */}
-              <div>
-                <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  URL Dokumen
-                </label>
-
-                <input
-                  type="text"
-                  value={form.document_url}
-                  onChange={(event) =>
-                    handleChange("document_url", event.target.value)
-                  }
-                  placeholder="/uploads/invoice/INV-202609-001.pdf"
-                  disabled={loading}
-                  className="h-10 w-full rounded-xl border border-gray-100 bg-gray-50 px-3 text-[10px] font-bold text-custom-gelap outline-none placeholder:text-gray-400 focus:border-custom-merah-terang disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-white"
-                />
-
-                <p className="mt-1 text-[9px] font-bold text-gray-400">
-                  Masukkan path atau URL dokumen invoice jika tersedia.
-                </p>
               </div>
 
               {/* Notes */}

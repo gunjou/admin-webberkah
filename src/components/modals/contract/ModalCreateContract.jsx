@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { MdClose, MdSave } from "react-icons/md";
+import { MdAttachFile, MdClose, MdDescription, MdSave } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
 
@@ -19,6 +19,7 @@ const INITIAL_FORM = {
   vat_rate: 11,
   status: "ACTIVE",
   notes: "",
+  document: null,
 };
 
 const ModalCreateContract = ({ show, onClose, onSuccess }) => {
@@ -86,6 +87,19 @@ const ModalCreateContract = ({ show, onClose, onSuccess }) => {
     }
   };
 
+  const handleDocumentChange = (event) => {
+    const file = event.target.files?.[0] || null;
+
+    handleChange("document", file);
+
+    // Supaya file yang sama bisa dipilih kembali setelah dihapus
+    event.target.value = "";
+  };
+
+  const handleRemoveDocument = () => {
+    handleChange("document", null);
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -150,19 +164,41 @@ const ModalCreateContract = ({ show, onClose, onSuccess }) => {
     setLoading(true);
 
     try {
-      const payload = {
-        id_work_item: Number(form.id_work_item),
-        contract_number: form.contract_number.trim(),
-        contract_date: form.contract_date,
-        start_date: form.start_date,
-        end_date: form.end_date,
-        contract_value: Number(form.contract_value),
-        vat_rate: Number(form.vat_rate),
-        status: form.status,
-        notes: form.notes.trim() || null,
-      };
+      const formData = new FormData();
 
-      const response = await Api.post("/work-item/contract", payload);
+      formData.append("id_work_item", String(form.id_work_item));
+
+      formData.append("contract_number", form.contract_number.trim());
+
+      formData.append("contract_date", form.contract_date);
+
+      formData.append("start_date", form.start_date);
+
+      formData.append("end_date", form.end_date);
+
+      formData.append("contract_value", String(Number(form.contract_value)));
+
+      formData.append("vat_rate", String(Number(form.vat_rate)));
+
+      formData.append("status", form.status);
+
+      formData.append("notes", form.notes.trim());
+
+      if (form.document) {
+        formData.append("document", form.document);
+      }
+
+      const response = await Api.post("/work-item/contract", formData, {
+        transformRequest: [
+          (data, headers) => {
+            if (data instanceof FormData) {
+              delete headers["Content-Type"];
+            }
+
+            return data;
+          },
+        ],
+      });
 
       if (response.data?.success) {
         await SwalHelper.success(
@@ -455,6 +491,67 @@ const ModalCreateContract = ({ show, onClose, onSuccess }) => {
                 </div>
 
                 {renderError("vat_rate")}
+              </div>
+
+              {/* Document */}
+              <div className="md:col-span-2">
+                <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Dokumen Kontrak
+                </label>
+
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 dark:border-white/10 dark:bg-white/5">
+                  {!form.document ? (
+                    <label
+                      className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 transition hover:border-custom-merah-terang hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:hover:border-custom-merah-terang`}
+                    >
+                      <MdAttachFile size={16} className="text-gray-400" />
+
+                      <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-300">
+                        Pilih Dokumen
+                      </span>
+
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png,.webp"
+                        onChange={handleDocumentChange}
+                        disabled={loading}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-white/5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-custom-merah-terang dark:bg-red-500/10">
+                          <MdDescription size={18} />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="truncate text-[10px] font-black text-custom-gelap dark:text-white">
+                            {form.document.name}
+                          </p>
+
+                          <p className="mt-0.5 text-[9px] font-bold text-gray-400">
+                            {(form.document.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleRemoveDocument}
+                        disabled={loading}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                        title="Hapus dokumen"
+                      >
+                        <MdClose size={16} />
+                      </button>
+                    </div>
+                  )}
+
+                  <p className="mt-2 text-[8px] font-bold text-gray-400">
+                    Format yang didukung: PDF, JPG, JPEG, PNG, WEBP.
+                  </p>
+                </div>
               </div>
 
               {/* Notes */}

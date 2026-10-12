@@ -6,10 +6,11 @@ import {
   MdBusiness,
   MdPerson,
   MdInfo,
-  MdOpenInNew,
+  MdVisibility,
 } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
+import DocumentPreviewModal from "../DocumentPreviewModal";
 
 const WORK_TYPE_LABELS = {
   TENDER: "Tender",
@@ -109,6 +110,10 @@ const ModalDetailCompletion = ({ show, onClose, completionId }) => {
   const [completion, setCompletion] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
+  const [selectedDocumentUrl, setSelectedDocumentUrl] = useState("");
+  const [selectedDocumentTitle, setSelectedDocumentTitle] = useState("");
+
   const fetchCompletionDetail = async () => {
     try {
       setLoading(true);
@@ -142,6 +147,25 @@ const ModalDetailCompletion = ({ show, onClose, completionId }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, completionId]);
 
+  const handleDocumentPreview = () => {
+    if (!completion?.document_url) {
+      SwalHelper.warning("Dokumen BA belum tersedia.");
+      return;
+    }
+
+    setSelectedDocumentUrl(completion.document_url);
+
+    setSelectedDocumentTitle(`${completion.ba_number || "BA"} - Dokumen BA`);
+
+    setShowDocumentPreview(true);
+  };
+
+  const handleCloseDocumentPreview = () => {
+    setShowDocumentPreview(false);
+    setSelectedDocumentUrl("");
+    setSelectedDocumentTitle("");
+  };
+
   if (!show) return null;
 
   const progress = Math.min(
@@ -150,318 +174,360 @@ const ModalDetailCompletion = ({ show, onClose, completionId }) => {
   );
 
   return (
-    <div
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-    >
-      <div className="max-h-[93vh] w-full max-w-5xl overflow-hidden rounded-xl bg-white shadow-xl dark:bg-custom-gelap">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-          <div>
-            <div className="flex items-center gap-2">
-              <MdDescription className="text-custom-merah-terang" size={22} />
+    <>
+      <div
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) {
+            onClose();
+          }
+        }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      >
+        <div className="max-h-[93vh] w-full max-w-5xl overflow-hidden rounded-xl bg-white shadow-xl dark:bg-custom-gelap">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+            <div>
+              <div className="flex items-center gap-2">
+                <MdDescription className="text-custom-merah-terang" size={22} />
 
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                Detail Berita Acara
-              </h2>
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                  Detail Berita Acara
+                </h2>
+              </div>
+
+              {completion && (
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {completion.ba_number || "-"}
+                </p>
+              )}
             </div>
 
-            {completion && (
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {completion.ba_number || "-"}
-              </p>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+            >
+              <MdClose size={22} />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="max-h-[calc(90vh-130px)] overflow-y-auto p-6">
+            {loading ? (
+              <div className="flex min-h-[300px] items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-custom-merah-terang" />
+              </div>
+            ) : !completion ? (
+              <div className="flex min-h-[300px] items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                Data BA tidak ditemukan.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Informasi BA */}
+                <section>
+                  <SectionTitle
+                    icon={MdDescription}
+                    title="Informasi Berita Acara"
+                  />
+
+                  <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                      <InfoItem label="Nomor BA" value={completion.ba_number} />
+
+                      <InfoItem
+                        label="Tanggal BA"
+                        value={formatDate(completion.ba_date)}
+                      />
+
+                      <InfoItem
+                        label="Tanggal Penyelesaian"
+                        value={formatDate(completion.completion_date)}
+                      />
+
+                      <InfoItem
+                        label="Nomor Pekerjaan"
+                        value={completion.work_number}
+                      />
+
+                      <InfoItem
+                        label="Jenis Pekerjaan"
+                        value={
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                              WORK_TYPE_BADGES[completion.work_type] ||
+                              "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                            }`}
+                          >
+                            {WORK_TYPE_LABELS[completion.work_type] ||
+                              completion.work_type ||
+                              "-"}
+                          </span>
+                        }
+                      />
+
+                      <InfoItem
+                        label="Tahap Saat Ini"
+                        value={
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                              STAGE_BADGES[completion.current_stage] ||
+                              "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                            }`}
+                          >
+                            {STAGE_LABELS[completion.current_stage] ||
+                              completion.current_stage ||
+                              "-"}
+                          </span>
+                        }
+                      />
+                    </div>
+
+                    {/* Dokumen BA */}
+                    <div className="mt-5">
+                      <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                        Dokumen BA
+                      </p>
+
+                      {completion.document_url ? (
+                        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-700">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-custom-merah-terang/10 text-custom-merah-terang dark:bg-custom-merah-terang/10 dark:text-custom-cerah">
+                              <MdDescription size={22} />
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                                Dokumen Berita Acara
+                              </p>
+
+                              <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
+                                Dokumen tersedia dan dapat dilihat.
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleDocumentPreview}
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-custom-merah-terang/10 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-custom-merah-terang transition hover:bg-custom-merah-terang/15 dark:bg-custom-merah-terang/10 dark:text-custom-cerah dark:hover:bg-custom-merah-terang/20"
+                          >
+                            <MdVisibility size={16} />
+                            Preview Dokumen
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500">
+                            <MdDescription size={20} />
+                          </div>
+
+                          <div>
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                              Dokumen belum tersedia
+                            </p>
+
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                              Belum ada dokumen BA yang diupload.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Catatan */}
+                    {completion.notes && (
+                      <div className="mt-5 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          Catatan
+                        </p>
+
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-200">
+                          {completion.notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* Informasi Pekerjaan */}
+                <section>
+                  <SectionTitle icon={MdWork} title="Informasi Pekerjaan" />
+
+                  <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                      <InfoItem
+                        label="Nomor Pekerjaan"
+                        value={completion.work_number}
+                      />
+
+                      <InfoItem
+                        label="Jenis Pekerjaan"
+                        value={
+                          WORK_TYPE_LABELS[completion.work_type] ||
+                          completion.work_type
+                        }
+                      />
+
+                      <InfoItem
+                        label="Tahap Saat Ini"
+                        value={
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                              STAGE_BADGES[completion.current_stage] ||
+                              "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                            }`}
+                          >
+                            {STAGE_LABELS[completion.current_stage] ||
+                              completion.current_stage ||
+                              "-"}
+                          </span>
+                        }
+                      />
+
+                      <div className="md:col-span-2 lg:col-span-3">
+                        <InfoItem
+                          label="Nama Pekerjaan"
+                          value={completion.work_name}
+                        />
+                      </div>
+
+                      <InfoItem
+                        label="Progress"
+                        value={formatProgress(completion.progress_percent)}
+                      />
+                    </div>
+
+                    {/* Progress */}
+                    <div className="mt-5">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          Progress Pekerjaan
+                        </span>
+
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                          {formatProgress(completion.progress_percent)}
+                        </span>
+                      </div>
+
+                      <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                        <div
+                          className="h-full rounded-full bg-custom-merah-terang transition-all"
+                          style={{
+                            width: `${progress}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Client */}
+                <section>
+                  <SectionTitle icon={MdBusiness} title="Client" />
+
+                  <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                      <InfoItem
+                        label="Kode Client"
+                        value={completion.client_code}
+                      />
+
+                      <InfoItem
+                        label="Nama Client"
+                        value={completion.client_name}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* PIC Client */}
+                <section>
+                  <SectionTitle icon={MdPerson} title="PIC Client" />
+
+                  <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                      <InfoItem
+                        label="Nama PIC"
+                        value={completion.client_pic_name}
+                      />
+
+                      <InfoItem
+                        label="Jabatan"
+                        value={completion.client_pic_position}
+                      />
+
+                      <InfoItem
+                        label="No. Telepon"
+                        value={completion.client_pic_phone}
+                      />
+
+                      <InfoItem
+                        label="Email"
+                        value={completion.client_pic_email}
+                      />
+
+                      <InfoItem
+                        label="PIC Internal"
+                        value={completion.internal_pic_name}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* Informasi Sistem */}
+                <section>
+                  <SectionTitle icon={MdInfo} title="Informasi Sistem" />
+
+                  <div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <InfoItem
+                        label="Dibuat Oleh"
+                        value={`${completion.created_by || "-"} • ${formatDateTime(
+                          completion.created_at,
+                        )}`}
+                      />
+
+                      <InfoItem
+                        label="Diperbarui Oleh"
+                        value={
+                          completion.updated_by
+                            ? `${completion.updated_by} • ${formatDateTime(
+                                completion.updated_at,
+                              )}`
+                            : "-"
+                        }
+                      />
+                    </div>
+                  </div>
+                </section>
+              </div>
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-          >
-            <MdClose size={22} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="max-h-[calc(90vh-130px)] overflow-y-auto p-6">
-          {loading ? (
-            <div className="flex min-h-[300px] items-center justify-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-custom-merah-terang" />
-            </div>
-          ) : !completion ? (
-            <div className="flex min-h-[300px] items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-              Data BA tidak ditemukan.
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Informasi BA */}
-              <section>
-                <SectionTitle
-                  icon={MdDescription}
-                  title="Informasi Berita Acara"
-                />
-
-                <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-                    <InfoItem label="Nomor BA" value={completion.ba_number} />
-
-                    <InfoItem
-                      label="Tanggal BA"
-                      value={formatDate(completion.ba_date)}
-                    />
-
-                    <InfoItem
-                      label="Tanggal Penyelesaian"
-                      value={formatDate(completion.completion_date)}
-                    />
-
-                    <InfoItem
-                      label="Dokumen BA"
-                      value={
-                        completion.document_url ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              window.open(
-                                completion.document_url,
-                                "_blank",
-                                "noopener,noreferrer",
-                              )
-                            }
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-custom-merah-terang px-3 py-1.5 text-xs font-medium text-white transition hover:bg-custom-merah"
-                          >
-                            <MdDescription size={15} />
-                            Lihat Dokumen
-                            <MdOpenInNew size={14} />
-                          </button>
-                        ) : (
-                          "-"
-                        )
-                      }
-                    />
-
-                    <InfoItem
-                      label="Nomor Pekerjaan"
-                      value={completion.work_number}
-                    />
-
-                    <InfoItem
-                      label="Jenis Pekerjaan"
-                      value={
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                            WORK_TYPE_BADGES[completion.work_type] ||
-                            "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
-                          }`}
-                        >
-                          {WORK_TYPE_LABELS[completion.work_type] ||
-                            completion.work_type ||
-                            "-"}
-                        </span>
-                      }
-                    />
-                  </div>
-
-                  {/* Notes */}
-                  {completion.notes && (
-                    <div className="mt-5 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                        Catatan
-                      </p>
-
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-200">
-                        {completion.notes}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* Informasi Pekerjaan */}
-              <section>
-                <SectionTitle icon={MdWork} title="Informasi Pekerjaan" />
-
-                <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-                    <InfoItem
-                      label="Nomor Pekerjaan"
-                      value={completion.work_number}
-                    />
-
-                    <InfoItem
-                      label="Jenis Pekerjaan"
-                      value={
-                        WORK_TYPE_LABELS[completion.work_type] ||
-                        completion.work_type
-                      }
-                    />
-
-                    <InfoItem
-                      label="Tahap Saat Ini"
-                      value={
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                            STAGE_BADGES[completion.current_stage] ||
-                            "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
-                          }`}
-                        >
-                          {STAGE_LABELS[completion.current_stage] ||
-                            completion.current_stage ||
-                            "-"}
-                        </span>
-                      }
-                    />
-
-                    <div className="md:col-span-2 lg:col-span-3">
-                      <InfoItem
-                        label="Nama Pekerjaan"
-                        value={completion.work_name}
-                      />
-                    </div>
-
-                    <InfoItem
-                      label="Progress"
-                      value={formatProgress(completion.progress_percent)}
-                    />
-                  </div>
-
-                  {/* Progress */}
-                  <div className="mt-5">
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                        Progress Pekerjaan
-                      </span>
-
-                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                        {formatProgress(completion.progress_percent)}
-                      </span>
-                    </div>
-
-                    <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                      <div
-                        className="h-full rounded-full bg-custom-merah-terang transition-all"
-                        style={{
-                          width: `${progress}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Client */}
-              <section>
-                <SectionTitle icon={MdBusiness} title="Client" />
-
-                <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <InfoItem
-                      label="Kode Client"
-                      value={completion.client_code}
-                    />
-
-                    <InfoItem
-                      label="Nama Client"
-                      value={completion.client_name}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              {/* PIC Client */}
-              <section>
-                <SectionTitle icon={MdPerson} title="PIC Client" />
-
-                <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-                    <InfoItem
-                      label="Nama PIC"
-                      value={completion.client_pic_name}
-                    />
-
-                    <InfoItem
-                      label="Jabatan"
-                      value={completion.client_pic_position}
-                    />
-
-                    <InfoItem
-                      label="No. Telepon"
-                      value={completion.client_pic_phone}
-                    />
-
-                    <InfoItem
-                      label="Email"
-                      value={completion.client_pic_email}
-                    />
-
-                    <InfoItem
-                      label="PIC Internal"
-                      value={completion.internal_pic_name}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              {/* Catatan */}
-              {completion.notes && (
-                <section>
-                  <SectionTitle icon={MdDescription} title="Catatan" />
-
-                  <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 dark:text-gray-200">
-                      {completion.notes}
-                    </p>
-                  </div>
-                </section>
-              )}
-
-              {/* Informasi Sistem */}
-              <section>
-                <SectionTitle icon={MdInfo} title="Informasi Sistem" />
-
-                <div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <InfoItem
-                      label="Dibuat Oleh"
-                      value={`${completion.created_by || "-"} • ${formatDateTime(
-                        completion.created_at,
-                      )}`}
-                    />
-
-                    <InfoItem
-                      label="Diperbarui Oleh"
-                      value={
-                        completion.updated_by
-                          ? `${completion.updated_by} • ${formatDateTime(
-                              completion.updated_at,
-                            )}`
-                          : "-"
-                      }
-                    />
-                  </div>
-                </div>
-              </section>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end border-t border-gray-200 px-6 py-4 dark:border-gray-700">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg bg-gray-200 px-5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-          >
-            Tutup
-          </button>
+          {/* Footer */}
+          <div className="flex justify-end border-t border-gray-200 px-6 py-4 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg bg-gray-200 px-5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+            >
+              Tutup
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Document Preview */}
+      {showDocumentPreview && selectedDocumentUrl && (
+        <DocumentPreviewModal
+          show={showDocumentPreview}
+          url={selectedDocumentUrl}
+          title={selectedDocumentTitle}
+          onClose={handleCloseDocumentPreview}
+        />
+      )}
+    </>
   );
 };
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { MdClose, MdSave } from "react-icons/md";
+import { MdAttachFile, MdClose, MdSave, MdDescription } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
 
@@ -20,6 +20,7 @@ const INITIAL_FORM = {
   valid_until: "",
   status: "DRAFT",
   notes: "",
+  document: null,
 };
 
 const ModalCreateQuotation = ({ show, onClose, onSuccess }) => {
@@ -87,6 +88,12 @@ const ModalCreateQuotation = ({ show, onClose, onSuccess }) => {
     }
   };
 
+  const handleDocumentChange = (event) => {
+    const file = event.target.files?.[0] || null;
+
+    handleChange("document", file);
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -142,17 +149,31 @@ const ModalCreateQuotation = ({ show, onClose, onSuccess }) => {
     setLoading(true);
 
     try {
-      const payload = {
-        id_work_item: Number(form.id_work_item),
-        proposal_number: form.proposal_number.trim(),
-        proposal_date: form.proposal_date,
-        proposal_value: Number(form.proposal_value),
-        valid_until: form.valid_until,
-        status: form.status,
-        notes: form.notes.trim() || null,
-      };
+      const formData = new FormData();
 
-      const response = await Api.post("/work-item/quotation", payload);
+      formData.append("id_work_item", String(form.id_work_item));
+      formData.append("proposal_number", form.proposal_number.trim());
+      formData.append("proposal_date", form.proposal_date);
+      formData.append("proposal_value", String(Number(form.proposal_value)));
+      formData.append("valid_until", form.valid_until);
+      formData.append("status", form.status);
+      formData.append("notes", form.notes.trim());
+
+      if (form.document) {
+        formData.append("document", form.document);
+      }
+
+      const response = await Api.post("/work-item/quotation", formData, {
+        transformRequest: [
+          (data, headers) => {
+            if (data instanceof FormData) {
+              delete headers["Content-Type"];
+            }
+
+            return data;
+          },
+        ],
+      });
 
       if (response.data.success) {
         await SwalHelper.success(
@@ -383,6 +404,75 @@ const ModalCreateQuotation = ({ show, onClose, onSuccess }) => {
                 </div>
 
                 {renderError("proposal_value")}
+              </div>
+
+              {/* Document */}
+              <div className="md:col-span-2">
+                <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Dokumen Penawaran
+                </label>
+
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 dark:border-white/10 dark:bg-white/5">
+                  <label
+                    htmlFor="quotation-document"
+                    className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 transition-all hover:border-custom-merah-terang hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:hover:border-custom-merah-terang ${
+                      loading
+                        ? "pointer-events-none cursor-not-allowed opacity-50"
+                        : ""
+                    }`}
+                  >
+                    <MdAttachFile
+                      size={18}
+                      className="text-custom-merah-terang"
+                    />
+
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">
+                      {form.document ? "Ganti Dokumen" : "Pilih Dokumen"}
+                    </span>
+
+                    <input
+                      id="quotation-document"
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                      onChange={handleDocumentChange}
+                      disabled={loading}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {form.document && (
+                    <div className="mt-2 flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2.5 dark:bg-blue-500/10">
+                      <MdDescription
+                        size={17}
+                        className="shrink-0 text-blue-500"
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[9px] font-black text-blue-600 dark:text-blue-400">
+                          {form.document.name}
+                        </p>
+
+                        <p className="mt-0.5 text-[8px] font-bold text-blue-400">
+                          {(form.document.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleChange("document", null)}
+                        disabled={loading}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-white hover:text-red-500 disabled:opacity-50 dark:hover:bg-white/10"
+                        title="Hapus dokumen"
+                      >
+                        <MdClose size={15} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <p className="mt-1.5 text-[8px] font-bold text-gray-400">
+                  Format yang didukung: PDF, JPG, JPEG, PNG, WEBP.
+                </p>
               </div>
 
               {/* Notes */}

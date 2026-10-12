@@ -15,6 +15,7 @@ import ModalDetailInvoice from "../components/modals/invoice/ModalDetailInvoice"
 import ModalEditInvoice from "../components/modals/invoice/ModalEditInvoice";
 import ModalCreatePayment from "../components/modals/invoice/ModalCreatePayment";
 import ModalDetailPayment from "../components/modals/invoice/ModalDetailPayment";
+import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
 
 const STAGE_OPTIONS = [
   {
@@ -164,6 +165,10 @@ const Invoice = () => {
   const [selectedPaymentInvoice, setSelectedPaymentInvoice] = useState(null);
   const [showCreatePayment, setShowCreatePayment] = useState(false);
   const [showDetailPayment, setShowDetailPayment] = useState(false);
+
+  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
+  const [selectedDocumentUrl, setSelectedDocumentUrl] = useState("");
+  const [selectedDocumentTitle, setSelectedDocumentTitle] = useState("");
 
   const [filter, setFilter] = useState({
     stage: "ACTIVE",
@@ -394,6 +399,19 @@ const Invoice = () => {
     setShowDetailPayment(true);
   };
 
+  const handleDocumentPreview = (item) => {
+    if (!item.document_url) {
+      SwalHelper.warning("Dokumen invoice belum tersedia.");
+      return;
+    }
+
+    setSelectedDocumentUrl(item.document_url);
+    setSelectedDocumentTitle(
+      `${item.invoice_number || "Invoice"} - Dokumen Invoice`,
+    );
+    setShowDocumentPreview(true);
+  };
+
   const handleDelete = async (item) => {
     const confirmed = await SwalHelper.confirm({
       title: "Nonaktifkan Invoice?",
@@ -586,7 +604,7 @@ const Invoice = () => {
         {/* Table */}
         <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-white/5 dark:bg-custom-gelap">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1350px]">
+            <table className="w-full min-w-[1450px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 dark:border-white/5 dark:bg-white/5">
                   <th className="w-12 px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
@@ -632,6 +650,10 @@ const Invoice = () => {
                     Jatuh Tempo
                   </th>
 
+                  <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    Document
+                  </th>
+
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("invoice_value")}
@@ -656,7 +678,7 @@ const Invoice = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                 {displayedData.length === 0 ? (
                   <tr>
-                    <td colSpan="10" className="px-4 py-12 text-center">
+                    <td colSpan="11" className="px-4 py-12 text-center">
                       <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">
                         Tidak ada data invoice
                       </p>
@@ -844,6 +866,25 @@ const Invoice = () => {
                             </div>
                           );
                         })()}
+                      </td>
+
+                      {/* Document */}
+                      <td className="min-w-[120px] px-4 py-3 text-center align-middle">
+                        {item.document_url ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDocumentPreview(item)}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-custom-merah-terang/10 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-custom-merah-terang transition-all hover:bg-custom-merah-terang hover:text-white dark:bg-custom-merah-terang/10 dark:text-custom-cerah"
+                            title="Lihat Document"
+                          >
+                            <MdVisibility size={14} />
+                            Preview
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center rounded-xl bg-gray-100 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:bg-white/5 dark:text-gray-500">
+                            No File
+                          </span>
+                        )}
                       </td>
 
                       {/* Invoice Value */}
@@ -1141,6 +1182,20 @@ const Invoice = () => {
             setSelectedPaymentId(null);
           }}
           onSuccess={fetchInvoices}
+        />
+      )}
+
+      {/* Document Preview */}
+      {showDocumentPreview && selectedDocumentUrl && (
+        <DocumentPreviewModal
+          show={showDocumentPreview}
+          url={selectedDocumentUrl}
+          title={selectedDocumentTitle}
+          onClose={() => {
+            setShowDocumentPreview(false);
+            setSelectedDocumentUrl("");
+            setSelectedDocumentTitle("");
+          }}
         />
       )}
     </>

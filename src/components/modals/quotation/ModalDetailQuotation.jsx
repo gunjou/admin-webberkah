@@ -6,9 +6,11 @@ import {
   MdBusiness,
   MdPerson,
   MdNotes,
+  MdVisibility,
 } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
+import DocumentPreviewModal from "../DocumentPreviewModal";
 
 const STATUS_LABELS = {
   DRAFT: "Draft",
@@ -88,6 +90,10 @@ const ModalDetailQuotation = ({ quotationId, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState(null);
 
+  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
+  const [selectedDocumentUrl, setSelectedDocumentUrl] = useState("");
+  const [selectedDocumentTitle, setSelectedDocumentTitle] = useState("");
+
   const fetchDetail = async () => {
     try {
       setLoading(true);
@@ -114,8 +120,32 @@ const ModalDetailQuotation = ({ quotationId, onClose }) => {
     if (quotationId) {
       fetchDetail();
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quotationId]);
+
+  const handleDocumentPreview = () => {
+    if (!detail?.document_url) {
+      SwalHelper.warning("Dokumen penawaran belum tersedia.");
+      return;
+    }
+
+    setSelectedDocumentUrl(detail.document_url);
+
+    setSelectedDocumentTitle(
+      `${detail.proposal_number || "Penawaran"} - ${
+        detail.work_name || "Dokumen Penawaran"
+      }`,
+    );
+
+    setShowDocumentPreview(true);
+  };
+
+  const handleCloseDocumentPreview = () => {
+    setShowDocumentPreview(false);
+    setSelectedDocumentUrl("");
+    setSelectedDocumentTitle("");
+  };
 
   return (
     <div
@@ -208,6 +238,30 @@ const ModalDetailQuotation = ({ quotationId, onClose }) => {
                         </span>
                       }
                     />
+
+                    {/* Document */}
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                        Dokumen Penawaran
+                      </p>
+
+                      <div className="mt-1">
+                        {detail.document_url ? (
+                          <button
+                            type="button"
+                            onClick={handleDocumentPreview}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-custom-merah-terang/10 px-3 py-1.5 text-xs font-semibold text-custom-merah-terang transition hover:bg-custom-merah-terang/15 dark:bg-custom-merah-terang/20 dark:text-custom-cerah dark:hover:bg-custom-merah-terang/30"
+                          >
+                            <MdVisibility size={15} />
+                            Preview Dokumen
+                          </button>
+                        ) : (
+                          <p className="text-sm font-medium text-gray-400 dark:text-gray-500">
+                            Belum ada dokumen
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {detail.notes && (
@@ -335,6 +389,16 @@ const ModalDetailQuotation = ({ quotationId, onClose }) => {
           </button>
         </div>
       </div>
+
+      {/* Document Preview */}
+      {showDocumentPreview && selectedDocumentUrl && (
+        <DocumentPreviewModal
+          show={showDocumentPreview}
+          url={selectedDocumentUrl}
+          title={selectedDocumentTitle}
+          onClose={handleCloseDocumentPreview}
+        />
+      )}
     </div>
   );
 };

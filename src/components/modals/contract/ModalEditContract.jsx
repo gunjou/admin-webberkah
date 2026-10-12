@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { MdClose, MdSave } from "react-icons/md";
+import {
+  MdAttachFile,
+  MdClose,
+  MdDescription,
+  MdOpenInNew,
+  MdSave,
+} from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
 
@@ -21,6 +27,8 @@ const INITIAL_FORM = {
   vat_rate: 11,
   status: "ACTIVE",
   notes: "",
+  document: null,
+  document_url: "",
 };
 
 const ModalEditContract = ({ show, onClose, contractId, onSuccess }) => {
@@ -70,7 +78,10 @@ const ModalEditContract = ({ show, onClose, contractId, onSuccess }) => {
             ? contract.vat_rate
             : 11,
         status: contract.status || "ACTIVE",
+        filename: `${"Kontrak - " + contract.work_name}` || "",
         notes: contract.notes || "",
+        document: null,
+        document_url: contract.document_url || "",
       });
     } catch (err) {
       setError(
@@ -110,6 +121,29 @@ const ModalEditContract = ({ show, onClose, contractId, onSuccess }) => {
     if (error) {
       setError("");
     }
+  };
+
+  const handleDocumentChange = (e) => {
+    const file = e.target.files?.[0] || null;
+
+    setForm((prev) => ({
+      ...prev,
+      document: file,
+    }));
+
+    if (error) {
+      setError("");
+    }
+
+    // Supaya file yang sama dapat dipilih kembali
+    e.target.value = "";
+  };
+
+  const handleRemoveDocument = () => {
+    setForm((prev) => ({
+      ...prev,
+      document: null,
+    }));
   };
 
   const validateForm = () => {
@@ -170,21 +204,44 @@ const ModalEditContract = ({ show, onClose, contractId, onSuccess }) => {
       setSaving(true);
       setError("");
 
-      const payload = {
-        id_work_item: Number(form.id_work_item),
-        contract_number: form.contract_number.trim(),
-        contract_date: form.contract_date,
-        start_date: form.start_date,
-        end_date: form.end_date,
-        contract_value: Number(form.contract_value),
-        vat_rate: Number(form.vat_rate),
-        status: form.status,
-        notes: form.notes.trim() || null,
-      };
+      const formData = new FormData();
+
+      formData.append("id_work_item", String(form.id_work_item));
+
+      formData.append("contract_number", form.contract_number.trim());
+
+      formData.append("contract_date", form.contract_date);
+
+      formData.append("start_date", form.start_date);
+
+      formData.append("end_date", form.end_date);
+
+      formData.append("contract_value", String(Number(form.contract_value)));
+
+      formData.append("vat_rate", String(Number(form.vat_rate)));
+
+      formData.append("status", form.status);
+
+      formData.append("notes", form.notes.trim());
+
+      if (form.document) {
+        formData.append("document", form.document);
+      }
 
       const response = await Api.put(
         `/work-item/contract/${contractId}`,
-        payload,
+        formData,
+        {
+          transformRequest: [
+            (data, headers) => {
+              if (data instanceof FormData) {
+                delete headers["Content-Type"];
+              }
+
+              return data;
+            },
+          ],
+        },
       );
 
       if (!response.data?.success) {
@@ -219,7 +276,7 @@ const ModalEditContract = ({ show, onClose, contractId, onSuccess }) => {
       }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
     >
-      <div className="w-full max-w-3xl max-h-[93vh] overflow-hidden rounded-xl bg-white shadow-xl dark:bg-custom-gelap">
+      <div className="max-h-[93vh] w-full max-w-3xl overflow-hidden rounded-xl bg-white shadow-xl dark:bg-custom-gelap">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
           <div className="min-w-0">
@@ -397,6 +454,105 @@ const ModalEditContract = ({ show, onClose, contractId, onSuccess }) => {
                       disabled={saving}
                       className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none transition focus:border-custom-merah-terang focus:ring-1 focus:ring-custom-merah-terang disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                     />
+                  </div>
+                </div>
+
+                {/* Document */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">
+                    Dokumen Kontrak
+                  </label>
+
+                  <div className="space-y-2">
+                    {/* Existing Document */}
+                    {form.document_url && !form.document && (
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 dark:border-gray-700 dark:bg-gray-800">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-custom-merah-terang dark:bg-red-500/10">
+                            <MdDescription size={18} />
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                              {form.filename}
+                            </p>
+
+                            <p className="truncate text-sm font-semibold text-gray-700 dark:text-gray-200">
+                              Dokumen Kontrak
+                            </p>
+                          </div>
+                        </div>
+
+                        <a
+                          href={form.document_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-gray-200 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-gray-700 transition hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        >
+                          <MdOpenInNew size={14} />
+                          Buka
+                        </a>
+                      </div>
+                    )}
+
+                    {/* New Document */}
+                    {form.document && (
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-3 dark:border-blue-500/20 dark:bg-blue-500/10">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-blue-600 dark:bg-white/10 dark:text-blue-400">
+                            <MdDescription size={18} />
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-blue-500 dark:text-blue-400">
+                              Dokumen Baru
+                            </p>
+
+                            <p className="truncate text-sm font-semibold text-gray-700 dark:text-gray-200">
+                              {form.document.name}
+                            </p>
+
+                            <p className="mt-0.5 text-[9px] font-bold text-gray-400">
+                              {(form.document.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleRemoveDocument}
+                          disabled={saving}
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-gray-500 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                          title="Batalkan dokumen baru"
+                        >
+                          <MdClose size={16} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* File Picker */}
+                    {!form.document && (
+                      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 transition hover:border-custom-merah-terang hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-custom-merah-terang dark:hover:bg-gray-700">
+                        <MdAttachFile size={17} className="text-gray-400" />
+
+                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-300">
+                          Pilih Dokumen Baru
+                        </span>
+
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png,.webp"
+                          onChange={handleDocumentChange}
+                          disabled={saving}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+
+                    <p className="text-[9px] font-bold text-gray-400">
+                      Kosongkan jika tidak ingin mengganti dokumen. Format: PDF,
+                      JPG, JPEG, PNG, WEBP.
+                    </p>
                   </div>
                 </div>
 

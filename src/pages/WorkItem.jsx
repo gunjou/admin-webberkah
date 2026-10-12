@@ -16,6 +16,7 @@ import ModalCreateWorkItem from "../components/modals/work-item/ModalCreateWorkI
 import ModalDetailWorkItem from "../components/modals/work-item/ModalDetailWorkItem";
 import ModalEditWorkItem from "../components/modals/work-item/ModalEditWorkItem";
 import ModalUpdateProgress from "../components/modals/work-item/ModalUpdateProgress";
+import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
 
 const STAGE_FILTER_OPTIONS = [
   { value: "ACTIVE", label: "Active" },
@@ -54,6 +55,10 @@ const WorkItem = () => {
   const [selectedWorkItemName, setSelectedWorkItemName] = useState("");
   const [selectedWorkItemProgress, setSelectedWorkItemProgress] = useState(0);
   const [showUpdateProgress, setShowUpdateProgress] = useState(false);
+
+  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
+  const [selectedDocumentUrl, setSelectedDocumentUrl] = useState("");
+  const [selectedDocumentTitle, setSelectedDocumentTitle] = useState("");
 
   const [filter, setFilter] = useState({
     stage: "ACTIVE",
@@ -252,6 +257,17 @@ const WorkItem = () => {
     setSelectedWorkItemName(`${item.work_number} - ${item.work_name}` ?? "");
     setSelectedWorkItemProgress(item.progress_percent ?? 0);
     setShowUpdateProgress(true);
+  };
+
+  const handleDocumentPreview = (item) => {
+    if (!item.document_url) {
+      SwalHelper.warning("Dokumen belum tersedia.");
+      return;
+    }
+
+    setSelectedDocumentUrl(item.document_url);
+    setSelectedDocumentTitle(`${item.work_number} - ${item.work_name}`);
+    setShowDocumentPreview(true);
   };
 
   const handleDelete = async (item) => {
@@ -556,6 +572,9 @@ const WorkItem = () => {
                     Target
                   </th>
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Document
+                  </th>
+                  <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     Close
                   </th>
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">
@@ -684,6 +703,24 @@ const WorkItem = () => {
                           <p className="text-[9px] text-green-500 font-bold mt-0.5">
                             Selesai: {formatDate(item.completion_date)}
                           </p>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-3 align-top text-center">
+                        {item.document_url ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDocumentPreview(item)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-custom-merah-terang/20 bg-custom-merah-terang/10 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-custom-merah-terang transition-all hover:-translate-y-0.5 hover:bg-custom-merah-terang/15 dark:border-custom-merah-terang/30 dark:bg-custom-merah-terang/10 dark:text-custom-cerah dark:hover:bg-custom-merah-terang/20"
+                            title="Preview Dokumen"
+                          >
+                            <MdVisibility size={14} />
+                            Preview
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center rounded-xl bg-gray-100 px-3 py-2 text-[9px] font-black uppercase whitespace-nowrap tracking-widest text-gray-400 dark:bg-white/5 dark:text-gray-500">
+                            No File
+                          </span>
                         )}
                       </td>
 
@@ -896,6 +933,19 @@ const WorkItem = () => {
             setSelectedWorkItemProgress(0);
           }}
           onSuccess={fetchWorkItems}
+        />
+      )}
+
+      {showDocumentPreview && selectedDocumentUrl && (
+        <DocumentPreviewModal
+          show={showDocumentPreview}
+          url={selectedDocumentUrl}
+          title={selectedDocumentTitle}
+          onClose={() => {
+            setShowDocumentPreview(false);
+            setSelectedDocumentUrl("");
+            setSelectedDocumentTitle("");
+          }}
         />
       )}
     </>

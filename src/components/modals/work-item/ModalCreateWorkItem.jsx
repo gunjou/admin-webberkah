@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { MdClose, MdSave } from "react-icons/md";
+import { MdClose, MdSave, MdAttachFile } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
 
@@ -13,6 +13,7 @@ const INITIAL_FORM = {
   progress_percent: 0,
   start_date: "",
   target_end_date: "",
+  document: null,
   notes: "",
 };
 
@@ -116,6 +117,22 @@ const ModalCreateWorkItem = ({ onClose, onSuccess }) => {
     }
   };
 
+  const handleDocumentChange = (event) => {
+    const file = event.target.files?.[0] || null;
+
+    setForm((current) => ({
+      ...current,
+      document: file,
+    }));
+
+    if (errors.document) {
+      setErrors((current) => ({
+        ...current,
+        document: "",
+      }));
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -185,20 +202,37 @@ const ModalCreateWorkItem = ({ onClose, onSuccess }) => {
     setLoading(true);
 
     try {
-      const payload = {
-        work_number: form.work_number.trim(),
-        work_name: form.work_name.trim(),
-        work_type: form.work_type,
-        id_client: Number(form.id_client),
-        id_client_pic: Number(form.id_client_pic),
-        internal_pic_name: form.internal_pic_name.trim(),
-        progress_percent: Number(form.progress_percent),
-        start_date: form.start_date,
-        target_end_date: form.target_end_date,
-        notes: form.notes.trim() || null,
-      };
+      const formData = new FormData();
 
-      const response = await Api.post("/work-item/work", payload);
+      formData.append("work_number", form.work_number.trim());
+      formData.append("work_name", form.work_name.trim());
+      formData.append("work_type", form.work_type);
+      formData.append("id_client", String(Number(form.id_client)));
+      formData.append("id_client_pic", String(Number(form.id_client_pic)));
+      formData.append("internal_pic_name", form.internal_pic_name.trim());
+      formData.append(
+        "progress_percent",
+        String(Number(form.progress_percent)),
+      );
+      formData.append("start_date", form.start_date);
+      formData.append("target_end_date", form.target_end_date);
+      formData.append("notes", form.notes.trim());
+
+      if (form.document) {
+        formData.append("document", form.document);
+      }
+
+      const response = await Api.post("/work-item/work", formData, {
+        transformRequest: [
+          (data, headers) => {
+            if (data instanceof FormData) {
+              delete headers["Content-Type"];
+            }
+
+            return data;
+          },
+        ],
+      });
 
       if (response.data.success) {
         await SwalHelper.success(
@@ -245,6 +279,7 @@ const ModalCreateWorkItem = ({ onClose, onSuccess }) => {
             <h2 className="text-sm font-black text-custom-gelap dark:text-white uppercase tracking-tight">
               Tambah Work Item
             </h2>
+
             <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[1.5px] mt-0.5">
               Create New Work Item
             </p>
@@ -263,82 +298,122 @@ const ModalCreateWorkItem = ({ onClose, onSuccess }) => {
         <form onSubmit={handleSubmit}>
           <div className="max-h-[calc(90vh-135px)] overflow-y-auto px-5 py-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* WORK NUMBER */}
+
               <div>
                 <label className="block text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   Work Number <span className="text-red-500">*</span>
                 </label>
+
                 <input
                   type="text"
                   value={form.work_number}
                   onChange={(e) => handleChange("work_number", e.target.value)}
                   placeholder="Contoh: WI-202609-001"
-                  className={`w-full h-10 rounded-xl border ${errors.work_number ? "border-red-500" : "border-gray-100 dark:border-white/10"} bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang placeholder:text-gray-400`}
+                  className={`w-full h-10 rounded-xl border ${
+                    errors.work_number
+                      ? "border-red-500"
+                      : "border-gray-100 dark:border-white/10"
+                  } bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang placeholder:text-gray-400`}
                 />
+
                 {renderError("work_number")}
               </div>
+
+              {/* WORK TYPE */}
 
               <div>
                 <label className="block text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   Work Type <span className="text-red-500">*</span>
                 </label>
+
                 <select
                   value={form.work_type}
                   onChange={(e) => handleChange("work_type", e.target.value)}
-                  className={`w-full h-10 rounded-xl border ${errors.work_type ? "border-red-500" : "border-gray-100 dark:border-white/10"} bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer`}
+                  className={`w-full h-10 rounded-xl border ${
+                    errors.work_type
+                      ? "border-red-500"
+                      : "border-gray-100 dark:border-white/10"
+                  } bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer`}
                 >
                   <option value="TENDER">TENDER</option>
                   <option value="MAINTENANCE">MAINTENANCE</option>
                 </select>
+
                 {renderError("work_type")}
               </div>
+
+              {/* WORK NAME */}
 
               <div className="md:col-span-2">
                 <label className="block text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   Nama Pekerjaan <span className="text-red-500">*</span>
                 </label>
+
                 <textarea
                   value={form.work_name}
                   onChange={(e) => handleChange("work_name", e.target.value)}
                   rows={3}
                   placeholder="Masukkan nama pekerjaan..."
-                  className={`w-full rounded-xl border ${errors.work_name ? "border-red-500" : "border-gray-100 dark:border-white/10"} bg-gray-50 dark:bg-white/5 px-3 py-2.5 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang placeholder:text-gray-400 resize-none`}
+                  className={`w-full rounded-xl border ${
+                    errors.work_name
+                      ? "border-red-500"
+                      : "border-gray-100 dark:border-white/10"
+                  } bg-gray-50 dark:bg-white/5 px-3 py-2.5 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang placeholder:text-gray-400 resize-none`}
                 />
+
                 {renderError("work_name")}
               </div>
+
+              {/* CLIENT */}
 
               <div>
                 <label className="block text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   Client <span className="text-red-500">*</span>
                 </label>
+
                 <select
                   value={form.id_client}
                   onChange={(e) => handleClientChange(e.target.value)}
                   disabled={loadingClients || loading}
-                  className={`w-full h-10 rounded-xl border ${errors.id_client ? "border-red-500" : "border-gray-100 dark:border-white/10"} bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`w-full h-10 rounded-xl border ${
+                    errors.id_client
+                      ? "border-red-500"
+                      : "border-gray-100 dark:border-white/10"
+                  } bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <option value="">
                     {loadingClients ? "Memuat client..." : "Pilih Client"}
                   </option>
+
                   {clients.map((client) => (
                     <option key={client.id_client} value={client.id_client}>
                       {client.name}
                     </option>
                   ))}
                 </select>
+
                 {renderError("id_client")}
               </div>
+
+              {/* CLIENT PIC */}
 
               <div>
                 <label className="block text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   Client PIC <span className="text-red-500">*</span>
                 </label>
+
                 <select
                   value={form.id_client_pic}
                   onChange={(e) =>
                     handleChange("id_client_pic", e.target.value)
                   }
                   disabled={!form.id_client || loadingClientPics || loading}
-                  className={`w-full h-10 rounded-xl border ${errors.id_client_pic ? "border-red-500" : "border-gray-100 dark:border-white/10"} bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`w-full h-10 rounded-xl border ${
+                    errors.id_client_pic
+                      ? "border-red-500"
+                      : "border-gray-100 dark:border-white/10"
+                  } bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-black text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <option value="">
                     {!form.id_client
@@ -349,6 +424,7 @@ const ModalCreateWorkItem = ({ onClose, onSuccess }) => {
                           ? "Tidak ada PIC"
                           : "Pilih Client PIC"}
                   </option>
+
                   {clientPics.map((pic) => (
                     <option key={pic.id_client_pic} value={pic.id_client_pic}>
                       {pic.name}
@@ -356,13 +432,17 @@ const ModalCreateWorkItem = ({ onClose, onSuccess }) => {
                     </option>
                   ))}
                 </select>
+
                 {renderError("id_client_pic")}
               </div>
+
+              {/* INTERNAL PIC */}
 
               <div>
                 <label className="block text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   PIC Internal <span className="text-red-500">*</span>
                 </label>
+
                 <input
                   type="text"
                   value={form.internal_pic_name}
@@ -370,15 +450,23 @@ const ModalCreateWorkItem = ({ onClose, onSuccess }) => {
                     handleChange("internal_pic_name", e.target.value)
                   }
                   placeholder="Nama PIC internal"
-                  className={`w-full h-10 rounded-xl border ${errors.internal_pic_name ? "border-red-500" : "border-gray-100 dark:border-white/10"} bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang placeholder:text-gray-400`}
+                  className={`w-full h-10 rounded-xl border ${
+                    errors.internal_pic_name
+                      ? "border-red-500"
+                      : "border-gray-100 dark:border-white/10"
+                  } bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang placeholder:text-gray-400`}
                 />
+
                 {renderError("internal_pic_name")}
               </div>
+
+              {/* PROGRESS */}
 
               <div>
                 <label className="block text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   Progress (%)
                 </label>
+
                 <input
                   type="number"
                   min="0"
@@ -388,43 +476,113 @@ const ModalCreateWorkItem = ({ onClose, onSuccess }) => {
                   onChange={(e) =>
                     handleChange("progress_percent", e.target.value)
                   }
-                  className={`w-full h-10 rounded-xl border ${errors.progress_percent ? "border-red-500" : "border-gray-100 dark:border-white/10"} bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang`}
+                  className={`w-full h-10 rounded-xl border ${
+                    errors.progress_percent
+                      ? "border-red-500"
+                      : "border-gray-100 dark:border-white/10"
+                  } bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang`}
                 />
+
                 {renderError("progress_percent")}
               </div>
+
+              {/* START DATE */}
 
               <div>
                 <label className="block text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   Tanggal Mulai <span className="text-red-500">*</span>
                 </label>
+
                 <input
                   type="date"
                   value={form.start_date}
                   onChange={(e) => handleChange("start_date", e.target.value)}
-                  className={`w-full h-10 rounded-xl border ${errors.start_date ? "border-red-500" : "border-gray-100 dark:border-white/10"} bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang`}
+                  className={`w-full h-10 rounded-xl border ${
+                    errors.start_date
+                      ? "border-red-500"
+                      : "border-gray-100 dark:border-white/10"
+                  } bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang`}
                 />
+
                 {renderError("start_date")}
               </div>
+
+              {/* TARGET END DATE */}
 
               <div>
                 <label className="block text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   Target Selesai <span className="text-red-500">*</span>
                 </label>
+
                 <input
                   type="date"
                   value={form.target_end_date}
                   onChange={(e) =>
                     handleChange("target_end_date", e.target.value)
                   }
-                  className={`w-full h-10 rounded-xl border ${errors.target_end_date ? "border-red-500" : "border-gray-100 dark:border-white/10"} bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang`}
+                  className={`w-full h-10 rounded-xl border ${
+                    errors.target_end_date
+                      ? "border-red-500"
+                      : "border-gray-100 dark:border-white/10"
+                  } bg-gray-50 dark:bg-white/5 px-3 text-[10px] font-bold text-custom-gelap dark:text-white outline-none focus:border-custom-merah-terang`}
                 />
+
                 {renderError("target_end_date")}
               </div>
+
+              {/* DOCUMENT */}
+
+              <div className="md:col-span-2">
+                <label className="block text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                  Dokumen
+                </label>
+
+                <div
+                  className={`relative rounded-xl border ${
+                    errors.document
+                      ? "border-red-500"
+                      : "border-gray-100 dark:border-white/10"
+                  } bg-gray-50 dark:bg-white/5 p-3`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-white/5 text-gray-500 dark:text-gray-300">
+                      <MdAttachFile size={18} />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-bold text-custom-gelap dark:text-white">
+                        {form.document
+                          ? form.document.name
+                          : "Belum ada dokumen"}
+                      </p>
+
+                      <p className="mt-0.5 text-[9px] text-gray-400">
+                        Pilih file dokumen yang akan diupload.
+                      </p>
+                    </div>
+
+                    <label className="cursor-pointer rounded-xl bg-white px-3 py-2 text-[9px] font-black uppercase tracking-wider text-custom-gelap shadow-sm transition-all hover:bg-gray-100 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">
+                      Pilih File
+                      <input
+                        type="file"
+                        className="hidden"
+                        onChange={handleDocumentChange}
+                        disabled={loading}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {renderError("document")}
+              </div>
+
+              {/* NOTES */}
 
               <div className="md:col-span-2">
                 <label className="block text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   Catatan
                 </label>
+
                 <textarea
                   value={form.notes}
                   onChange={(e) => handleChange("notes", e.target.value)}
@@ -435,6 +593,8 @@ const ModalCreateWorkItem = ({ onClose, onSuccess }) => {
               </div>
             </div>
           </div>
+
+          {/* FOOTER */}
 
           <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100 dark:border-white/5">
             <button

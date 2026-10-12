@@ -9,17 +9,11 @@ import {
   MdRefresh,
   MdSearch,
   MdVisibility,
-  MdDescription,
 } from "react-icons/md";
 import ModalCreateCompletion from "../components/modals/completion/ModalCreateCompletion";
 import ModalDetailCompletion from "../components/modals/completion/ModalDetailCompletion";
 import ModalEditCompletion from "../components/modals/completion/ModalEditCompletion";
-
-// const WORK_TYPE_OPTIONS = [
-//   { value: "", label: "Semua Jenis" },
-//   { value: "TENDER", label: "Tender" },
-//   { value: "MAINTENANCE", label: "Maintenance" },
-// ];
+import DocumentPreviewModal from "../components/modals/DocumentPreviewModal";
 
 const STAGE_FILTER_OPTIONS = [
   { value: "ACTIVE", label: "Active" },
@@ -59,6 +53,12 @@ const Completion = () => {
   const [showDetail, setShowDetail] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
+  // Document Preview
+  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
+  const [selectedDocumentUrl, setSelectedDocumentUrl] = useState("");
+  const [selectedDocumentTitle, setSelectedDocumentTitle] =
+    useState("Preview Dokumen BA");
+
   const [filter, setFilter] = useState({
     stage: "ACTIVE",
     search: "",
@@ -81,6 +81,10 @@ const Completion = () => {
     direction: "desc",
   });
 
+  // ============================================================
+  // FETCH CLIENT OPTIONS
+  // ============================================================
+
   const fetchClients = useCallback(async () => {
     try {
       const response = await Api.get("/work-item/master/clients/options");
@@ -100,6 +104,10 @@ const Completion = () => {
       );
     }
   }, []);
+
+  // ============================================================
+  // FETCH BA
+  // ============================================================
 
   const fetchCompletions = useCallback(async () => {
     setLoading(true);
@@ -148,16 +156,20 @@ const Completion = () => {
         } else {
           setPagination({
             page: 1,
-            per_page: items.length,
+            per_page: items.length || perPage,
             total: items.length,
             total_pages: 1,
           });
         }
       } else {
+        setDataCompletion([]);
+
         SwalHelper.error(response.data?.message || "Gagal mengambil data BA.");
       }
     } catch (error) {
       console.error("Gagal mengambil data BA:", error);
+
+      setDataCompletion([]);
 
       SwalHelper.error(
         error.response?.data?.message || "Gagal mengambil data BA.",
@@ -167,10 +179,21 @@ const Completion = () => {
     }
   }, [filter, page, perPage]);
 
+  // ============================================================
+  // INITIAL LOAD
+  // ============================================================
+
   useEffect(() => {
     fetchClients();
+  }, [fetchClients]);
+
+  useEffect(() => {
     fetchCompletions();
-  }, [fetchClients, fetchCompletions]);
+  }, [fetchCompletions]);
+
+  // ============================================================
+  // FILTER
+  // ============================================================
 
   const handleFilterChange = (key, value) => {
     setPage(1);
@@ -192,14 +215,26 @@ const Completion = () => {
     }));
   };
 
+  // ============================================================
+  // REFRESH
+  // ============================================================
+
   const handleRefresh = () => {
     fetchCompletions();
   };
+
+  // ============================================================
+  // PAGINATION
+  // ============================================================
 
   const handlePerPageChange = (value) => {
     setPerPage(Number(value));
     setPage(1);
   };
+
+  // ============================================================
+  // SORTING
+  // ============================================================
 
   const handleSort = (key) => {
     setSortConfig((current) => ({
@@ -218,11 +253,7 @@ const Completion = () => {
       let valueA = a[key];
       let valueB = b[key];
 
-      if (
-        key === "ba_date" ||
-        key === "completion_date" ||
-        key === "created_at"
-      ) {
+      if (key === "ba_date" || key === "created_at") {
         valueA = new Date(valueA || 0).getTime();
         valueB = new Date(valueB || 0).getTime();
       } else {
@@ -244,19 +275,35 @@ const Completion = () => {
     return data;
   }, [dataCompletion, sortConfig]);
 
+  // ============================================================
+  // CREATE
+  // ============================================================
+
   const handleCreate = () => {
     setShowCreate(true);
   };
+
+  // ============================================================
+  // DETAIL
+  // ============================================================
 
   const handleDetail = (item) => {
     setSelectedCompletionId(item.id_completion);
     setShowDetail(true);
   };
 
+  // ============================================================
+  // EDIT
+  // ============================================================
+
   const handleEdit = (item) => {
     setSelectedCompletionId(item.id_completion);
     setShowEdit(true);
   };
+
+  // ============================================================
+  // DELETE
+  // ============================================================
 
   const handleDelete = async (item) => {
     const confirmed = await SwalHelper.confirm({
@@ -279,11 +326,14 @@ const Completion = () => {
         await SwalHelper.success(
           response.data?.message || "BA berhasil dinonaktifkan.",
         );
+
         await fetchCompletions();
       } else {
         SwalHelper.error(response.data?.message || "Gagal menonaktifkan BA.");
       }
     } catch (error) {
+      console.error("Gagal menonaktifkan BA:", error);
+
       SwalHelper.error(
         error.response?.data?.message || "Gagal menonaktifkan BA.",
       );
@@ -292,21 +342,42 @@ const Completion = () => {
     }
   };
 
-  const handleDocument = (item) => {
+  // ============================================================
+  // DOCUMENT PREVIEW
+  // ============================================================
+
+  const handleDocumentPreview = (item) => {
     if (!item.document_url) {
       SwalHelper.info("Dokumen BA tidak tersedia.");
       return;
     }
 
-    window.open(item.document_url, "_blank");
+    setSelectedDocumentUrl(item.document_url);
+    setSelectedDocumentTitle(
+      item.ba_number ? `Dokumen BA - ${item.ba_number}` : "Preview Dokumen BA",
+    );
+    setShowDocumentPreview(true);
   };
+
+  const handleCloseDocumentPreview = () => {
+    setShowDocumentPreview(false);
+    setSelectedDocumentUrl("");
+    setSelectedDocumentTitle("Preview Dokumen BA");
+  };
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <>
       {loading && <LoadingOverlay message="Memuat Berita Acara..." />}
 
       <div className="space-y-3 pb-3 font-poppins">
-        {/* Header */}
+        {/* ======================================================
+            HEADER
+        ====================================================== */}
+
         <div className="flex flex-col items-start justify-between gap-4 px-1 md:flex-row md:items-center">
           <div>
             <h1 className="text-xl font-black uppercase tracking-tighter text-custom-gelap dark:text-white">
@@ -340,10 +411,14 @@ const Completion = () => {
           </div>
         </div>
 
-        {/* Filter */}
+        {/* ======================================================
+            FILTER
+        ====================================================== */}
+
         <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-white/5 dark:bg-custom-gelap">
           <div className="flex items-center gap-3 overflow-x-auto">
             {/* Stage */}
+
             <div className="flex shrink-0 items-center rounded-xl bg-gray-100 p-1 dark:bg-white/5">
               {STAGE_FILTER_OPTIONS.map((option) => (
                 <button
@@ -362,6 +437,7 @@ const Completion = () => {
             </div>
 
             {/* Search */}
+
             <div className="relative min-w-[280px] flex-1">
               <MdSearch
                 size={16}
@@ -378,6 +454,7 @@ const Completion = () => {
             </div>
 
             {/* Client */}
+
             <select
               value={filter.id_client}
               onChange={(e) => handleFilterChange("id_client", e.target.value)}
@@ -393,6 +470,7 @@ const Completion = () => {
             </select>
 
             {/* Work Item */}
+
             <input
               type="number"
               value={filter.id_work_item}
@@ -404,6 +482,7 @@ const Completion = () => {
             />
 
             {/* Reset */}
+
             <button
               type="button"
               onClick={handleResetFilter}
@@ -415,15 +494,22 @@ const Completion = () => {
           </div>
         </div>
 
-        {/* Table */}
+        {/* ======================================================
+            TABLE
+        ====================================================== */}
+
         <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-white/5 dark:bg-custom-gelap">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1150px]">
+            <table className="w-full min-w-[1050px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 dark:border-white/5 dark:bg-white/5">
+                  {/* # */}
+
                   <th className="w-12 px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     #
                   </th>
+
+                  {/* Nomor BA */}
 
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
@@ -432,12 +518,16 @@ const Completion = () => {
                     Nomor BA
                   </th>
 
+                  {/* Pekerjaan */}
+
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("work_name")}
                   >
                     Pekerjaan
                   </th>
+
+                  {/* Client */}
 
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
@@ -446,6 +536,8 @@ const Completion = () => {
                     Client
                   </th>
 
+                  {/* Tanggal BA */}
+
                   <th
                     className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
                     onClick={() => handleSort("ba_date")}
@@ -453,16 +545,13 @@ const Completion = () => {
                     Tanggal BA
                   </th>
 
-                  <th
-                    className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400"
-                    onClick={() => handleSort("completion_date")}
-                  >
-                    Tanggal Selesai
-                  </th>
+                  {/* Dokumen */}
 
                   <th className="whitespace-nowrap px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     Dokumen
                   </th>
+
+                  {/* Action */}
 
                   <th className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     Action
@@ -473,7 +562,7 @@ const Completion = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                 {displayedData.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="px-4 py-12 text-center">
+                    <td colSpan="7" className="px-4 py-12 text-center">
                       <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">
                         Tidak ada data BA
                       </p>
@@ -490,6 +579,7 @@ const Completion = () => {
                       className="transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                     >
                       {/* # */}
+
                       <td className="px-4 py-3 text-center align-top text-[11px] font-bold text-gray-400">
                         {filter.stage === "CLOSED"
                           ? (pagination.page - 1) * pagination.per_page +
@@ -498,7 +588,8 @@ const Completion = () => {
                           : index + 1}
                       </td>
 
-                      {/* BA Number */}
+                      {/* Nomor BA */}
+
                       <td className="px-4 py-3 align-top">
                         <button
                           type="button"
@@ -509,11 +600,12 @@ const Completion = () => {
                         </button>
 
                         <p className="mt-0.5 text-[9px] font-bold text-gray-400">
-                          {formatDate(item.created_at)}
+                          Dibuat {formatDate(item.created_at)}
                         </p>
                       </td>
 
-                      {/* Work */}
+                      {/* Pekerjaan */}
+
                       <td className="max-w-[350px] px-4 py-3 align-top">
                         <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
                           {item.work_number || "-"}
@@ -539,6 +631,7 @@ const Completion = () => {
                       </td>
 
                       {/* Client */}
+
                       <td className="px-4 py-3 align-top">
                         <p className="whitespace-nowrap text-[11px] font-black text-custom-gelap dark:text-white">
                           {item.client_name || "-"}
@@ -551,39 +644,38 @@ const Completion = () => {
                         )}
                       </td>
 
-                      {/* BA Date */}
+                      {/* Tanggal BA */}
+
                       <td className="whitespace-nowrap px-4 py-3 align-top">
                         <p className="text-[10px] font-black text-custom-gelap dark:text-white">
                           {formatDate(item.ba_date)}
                         </p>
                       </td>
 
-                      {/* Completion Date */}
-                      <td className="whitespace-nowrap px-4 py-3 align-top">
-                        <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                          {formatDate(item.completion_date)}
-                        </p>
-                      </td>
+                      {/* ==================================================
+                          DOCUMENT
+                      ================================================== */}
 
-                      {/* Document */}
-                      <td className="px-4 py-3 text-center align-top">
+                      <td className="px-4 py-3 align-top text-center">
                         {item.document_url ? (
                           <button
                             type="button"
-                            onClick={() => handleDocument(item)}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider text-custom-gelap transition-all hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                            onClick={() => handleDocumentPreview(item)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-custom-merah-terang/20 bg-custom-merah-terang/10 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-custom-merah-terang transition-all hover:-translate-y-0.5 hover:bg-custom-merah-terang/15 dark:border-custom-merah-terang/30 dark:bg-custom-merah-terang/10 dark:text-custom-cerah dark:hover:bg-custom-merah-terang/20"
+                            title="Preview Dokumen"
                           >
-                            <MdDescription size={14} />
-                            Lihat
+                            <MdVisibility size={14} />
+                            Preview
                           </button>
                         ) : (
-                          <span className="text-[9px] font-bold text-gray-400">
-                            Tidak tersedia
+                          <span className="inline-flex items-center whitespace-nowrap rounded-xl bg-gray-100 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:bg-white/5 dark:text-gray-500">
+                            No File
                           </span>
                         )}
                       </td>
 
                       {/* Action */}
+
                       <td className="px-4 py-3 align-top">
                         <div className="flex items-center justify-center gap-1">
                           <button
@@ -622,7 +714,10 @@ const Completion = () => {
           </div>
         </div>
 
-        {/* Pagination */}
+        {/* ======================================================
+            PAGINATION
+        ====================================================== */}
+
         {filter.stage === "CLOSED" && pagination.total > 0 && (
           <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 dark:border-white/5 dark:bg-custom-gelap sm:flex-row">
             <div className="flex w-full items-center gap-3 sm:w-auto">
@@ -658,7 +753,6 @@ const Completion = () => {
 
             {pagination.total_pages > 1 && (
               <div className="flex items-center gap-1">
-                {/* Previous */}
                 <button
                   type="button"
                   disabled={page <= 1 || loading}
@@ -669,9 +763,10 @@ const Completion = () => {
                   <span className="text-xs">‹</span>
                 </button>
 
-                {/* Pages */}
                 {Array.from(
-                  { length: pagination.total_pages },
+                  {
+                    length: pagination.total_pages,
+                  },
                   (_, index) => index + 1,
                 )
                   .filter(
@@ -711,7 +806,6 @@ const Completion = () => {
                     );
                   })}
 
-                {/* Next */}
                 <button
                   type="button"
                   disabled={page >= pagination.total_pages || loading}
@@ -727,7 +821,10 @@ const Completion = () => {
         )}
       </div>
 
-      {/* Modal Create */}
+      {/* ========================================================
+          MODAL CREATE
+      ======================================================== */}
+
       {showCreate && (
         <ModalCreateCompletion
           show={showCreate}
@@ -736,7 +833,10 @@ const Completion = () => {
         />
       )}
 
-      {/* Modal Detail */}
+      {/* ========================================================
+          MODAL DETAIL
+      ======================================================== */}
+
       {showDetail && selectedCompletionId && (
         <ModalDetailCompletion
           show={showDetail}
@@ -748,7 +848,10 @@ const Completion = () => {
         />
       )}
 
-      {/* Modal Edit */}
+      {/* ========================================================
+          MODAL EDIT
+      ======================================================== */}
+
       {showEdit && selectedCompletionId && (
         <ModalEditCompletion
           show={showEdit}
@@ -760,6 +863,17 @@ const Completion = () => {
           onSuccess={fetchCompletions}
         />
       )}
+
+      {/* ========================================================
+          DOCUMENT PREVIEW
+      ======================================================== */}
+
+      <DocumentPreviewModal
+        show={showDocumentPreview}
+        url={selectedDocumentUrl}
+        title={selectedDocumentTitle}
+        onClose={handleCloseDocumentPreview}
+      />
     </>
   );
 };
