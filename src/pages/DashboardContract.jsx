@@ -1,716 +1,1049 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  MdBusinessCenter,
-  MdDescription,
-  MdWarning,
+  MdAccountTree,
   MdAccessTime,
-  MdArrowForward,
-  MdCalendarToday,
+  MdAutorenew,
   MdCheckCircle,
-  MdSchedule,
-  MdOutlineAssignment,
-  MdRefresh,
   MdChevronRight,
+  MdErrorOutline,
+  MdEventNote,
+  MdGroups,
   MdInfoOutline,
+  MdInventory2,
+  MdPayments,
+  MdReceiptLong,
+  MdRefresh,
   MdTrendingUp,
+  MdWarningAmber,
 } from "react-icons/md";
+import Api from "../utils/Api";
+import SwalHelper from "../utils/Swal";
 
-const DashboardContract = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState("ALL");
+// ============================================================================ //
+//                              #SECTION - CONSTANTS                            //
+// ============================================================================ //
 
-  // =========================================================
-  // DUMMY DATA
-  // =========================================================
+const HEALTH_STATUS = {
+  COMPLETED: {
+    label: "Completed",
+    description: "Pekerjaan sudah ditutup",
+    icon: MdCheckCircle,
+    className:
+      "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-500/30 dark:bg-gray-500/10 dark:text-gray-400",
+    progressClass: "bg-gray-500",
+  },
 
-  const summary = {
-    activeWork: 24,
-    pendingContract: 5,
-    atRisk: 4,
-    delayed: 3,
-  };
+  ACTIVE: {
+    label: "Active",
+    description: "Pekerjaan aktif",
+    icon: MdAccountTree,
+    className:
+      "border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400",
+    progressClass: "bg-green-500",
+  },
 
-  const pipeline = [
-    {
-      key: "PROPOSAL",
-      label: "Proposal",
-      count: 4,
-      description: "Menunggu keputusan",
-      icon: <MdDescription />,
-    },
-    {
-      key: "CONTRACT",
-      label: "Contract",
-      count: 5,
-      description: "Menunggu kontrak",
-      icon: <MdBusinessCenter />,
-    },
-    {
-      key: "EXECUTION",
-      label: "Execution",
-      count: 12,
-      description: "Sedang berjalan",
-      icon: <MdTrendingUp />,
-    },
-    {
-      key: "COMPLETION",
-      label: "Completion",
-      count: 3,
-      description: "Menuju selesai",
-      icon: <MdCheckCircle />,
-    },
-  ];
+  ON_TRACK: {
+    label: "On Track",
+    description: "Target pekerjaan masih aman",
+    icon: MdTrendingUp,
+    className:
+      "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400",
+    progressClass: "bg-blue-500",
+  },
 
-  const attentionItems = [
-    {
-      id: 1,
-      title: "Kontrak belum tersedia",
-      work: "Instalasi Panel Distribusi Gedung A",
-      client: "PT. Energi Nusantara",
-      days: 8,
-      reason: "Menunggu dokumen kontrak dari client",
-      severity: "DELAYED",
-    },
-    {
-      id: 2,
-      title: "Deadline kontrak mendekat",
-      work: "Maintenance Electrical System",
-      client: "PT. Lombok Engineering",
-      days: 2,
-      reason: "Deadline kontrak 28 Aug 2026",
-      severity: "AT_RISK",
-    },
-    {
-      id: 3,
-      title: "Pekerjaan belum memiliki kontrak",
-      work: "Pengadaan Spare Part Generator",
-      client: "PT. Mitra Infrastruktur",
-      days: 5,
-      reason: "Pekerjaan sudah dimulai",
-      severity: "AT_RISK",
-    },
-    {
-      id: 4,
-      title: "Kontrak melewati target",
-      work: "Upgrade Control Panel",
-      client: "CV. Sinar Teknik",
-      days: 4,
-      reason: "Menunggu approval client",
-      severity: "DELAYED",
-    },
-  ];
+  DUE_SOON: {
+    label: "Due Soon",
+    description: "Mendekati target pekerjaan",
+    icon: MdAccessTime,
+    className:
+      "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-400",
+    progressClass: "bg-orange-500",
+  },
 
-  const activeWorks = [
-    {
-      id: 1,
-      name: "Instalasi Panel Distribusi Gedung A",
-      client: "PT. Energi Nusantara",
-      stage: "EXECUTION",
-      health: "ON TRACK",
-      progress: 75,
-      contract: "CTR-2026-014",
-      endDate: "15 Sep 2026",
-    },
-    {
-      id: 2,
-      name: "Maintenance Electrical System",
-      client: "PT. Lombok Engineering",
-      stage: "CONTRACT",
-      health: "AT RISK",
-      progress: 0,
-      contract: "-",
-      endDate: "28 Aug 2026",
-    },
-    {
-      id: 3,
-      name: "Pengadaan Spare Part Generator",
-      client: "PT. Mitra Infrastruktur",
-      stage: "EXECUTION",
-      health: "AT RISK",
-      progress: 35,
-      contract: "-",
-      endDate: "10 Sep 2026",
-    },
-    {
-      id: 4,
-      name: "Upgrade Control Panel",
-      client: "CV. Sinar Teknik",
-      stage: "CONTRACT",
-      health: "DELAYED",
-      progress: 0,
-      contract: "-",
-      endDate: "22 Aug 2026",
-    },
-    {
-      id: 5,
-      name: "Maintenance Genset Area Produksi",
-      client: "PT. Berkah Power System",
-      stage: "EXECUTION",
-      health: "ON TRACK",
-      progress: 60,
-      contract: "CTR-2026-011",
-      endDate: "05 Sep 2026",
-    },
-  ];
+  EXPIRED: {
+    label: "Expired",
+    description: "Melewati target pekerjaan",
+    icon: MdWarningAmber,
+    className:
+      "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400",
+    progressClass: "bg-red-500",
+  },
+};
 
-  const recentActivities = [
-    {
-      id: 1,
-      action: "Contract dibuat",
-      work: "Instalasi Panel Distribusi Gedung A",
-      user: "Admin Contract",
-      time: "10 menit lalu",
-    },
-    {
-      id: 2,
-      action: "Health diubah menjadi At Risk",
-      work: "Maintenance Electrical System",
-      user: "Admin Contract",
-      time: "1 jam lalu",
-    },
-    {
-      id: 3,
-      action: "Progress diperbarui menjadi 60%",
-      work: "Maintenance Genset Area Produksi",
-      user: "Admin Contract",
-      time: "3 jam lalu",
-    },
-  ];
+const PIPELINE_STAGES = [
+  {
+    key: "identified",
+    label: "Identified",
+    shortLabel: "Identified",
+  },
+  {
+    key: "quotation",
+    label: "Quotation",
+    shortLabel: "Quotation",
+  },
+  {
+    key: "contract",
+    label: "Contract",
+    shortLabel: "Contract",
+  },
+  {
+    key: "ba",
+    label: "BA",
+    shortLabel: "BA",
+  },
+  {
+    key: "invoice",
+    label: "Invoice",
+    shortLabel: "Invoice",
+  },
+  {
+    key: "payment",
+    label: "Payment",
+    shortLabel: "Payment",
+  },
+];
 
-  // =========================================================
-  // FILTER
-  // =========================================================
+// ============================================================================ //
+//                              #SECTION - HELPERS                              //
+// ============================================================================ //
 
-  const filteredWorks = useMemo(() => {
-    if (selectedFilter === "ALL") return activeWorks;
+const formatNumber = (value) => {
+  return new Intl.NumberFormat("id-ID").format(Number(value || 0));
+};
 
-    return activeWorks.filter((item) => item.health === selectedFilter);
-  }, [selectedFilter]);
+const formatDateTime = (value) => {
+  if (!value) {
+    return "-";
+  }
 
-  // =========================================================
-  // HELPERS
-  // =========================================================
+  const date = new Date(value);
 
-  const getHealthStyle = (health) => {
-    switch (health) {
-      case "ON TRACK":
-        return "bg-green-50 dark:bg-green-500/10 text-green-600 border-green-100 dark:border-green-500/20";
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
 
-      case "AT RISK":
-        return "bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 border-yellow-100 dark:border-yellow-500/20";
+  return date.toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
-      case "DELAYED":
-        return "bg-red-50 dark:bg-red-500/10 text-red-600 border-red-100 dark:border-red-500/20";
+const getActivityIcon = (activityType) => {
+  switch (activityType) {
+    case "STAGE_CHANGE":
+      return MdAutorenew;
 
-      default:
-        return "bg-gray-50 dark:bg-white/5 text-gray-500 border-gray-100 dark:border-white/10";
-    }
-  };
+    case "PROPOSAL":
+      return MdEventNote;
 
-  const handleRefresh = () => {
-    setIsLoading(true);
+    case "CONTRACT":
+      return MdInventory2;
 
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 700);
+    case "BA":
+      return MdAccountTree;
+
+    case "INVOICE":
+      return MdReceiptLong;
+
+    case "PAYMENT":
+      return MdPayments;
+
+    default:
+      return MdInfoOutline;
+  }
+};
+
+const getActivityStyle = (activityType) => {
+  switch (activityType) {
+    case "STAGE_CHANGE":
+      return {
+        wrapper:
+          "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
+        line: "bg-blue-200 dark:bg-blue-500/30",
+      };
+
+    case "PROPOSAL":
+      return {
+        wrapper:
+          "bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400",
+        line: "bg-purple-200 dark:bg-purple-500/30",
+      };
+
+    case "CONTRACT":
+      return {
+        wrapper:
+          "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400",
+        line: "bg-indigo-200 dark:bg-indigo-500/30",
+      };
+
+    case "BA":
+      return {
+        wrapper:
+          "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400",
+        line: "bg-orange-200 dark:bg-orange-500/30",
+      };
+
+    case "INVOICE":
+      return {
+        wrapper:
+          "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+        line: "bg-amber-200 dark:bg-amber-500/30",
+      };
+
+    case "PAYMENT":
+      return {
+        wrapper:
+          "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400",
+        line: "bg-green-200 dark:bg-green-500/30",
+      };
+
+    default:
+      return {
+        wrapper: "bg-gray-50 text-gray-600 dark:bg-white/5 dark:text-gray-300",
+        line: "bg-gray-200 dark:bg-white/10",
+      };
+  }
+};
+
+// ============================================================================ //
+//                         #SECTION - REUSABLE CARD                            //
+// ============================================================================ //
+
+const DashboardCard = ({
+  title,
+  subtitle,
+  icon: Icon,
+  children,
+  className = "",
+}) => {
+  return (
+    <div
+      className={`rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-custom-gelap ${className}`}
+    >
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-black tracking-tight text-custom-gelap dark:text-white">
+            {title}
+          </h2>
+
+          {subtitle && (
+            <p className="mt-1 text-[9px] font-bold uppercase tracking-widest text-gray-400">
+              {subtitle}
+            </p>
+          )}
+        </div>
+
+        {Icon && (
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-custom-merah-terang/10 text-custom-merah-terang">
+            <Icon size={18} />
+          </div>
+        )}
+      </div>
+
+      {children}
+    </div>
+  );
+};
+
+// ============================================================================ //
+//                         #SECTION - KPI CARD                                  //
+// ============================================================================ //
+
+const HealthKpiCard = ({ label, value, description, status, icon: Icon }) => {
+  const health = HEALTH_STATUS[status];
+
+  return (
+    <div
+      className={`rounded-[24px] border p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${health.className}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[8px] font-black uppercase tracking-[1.5px] opacity-70">
+            {label}
+          </p>
+
+          <p className="mt-2 text-2xl font-black tracking-tight">
+            {formatNumber(value)}
+          </p>
+
+          <p className="mt-1 text-[9px] font-bold leading-4 opacity-70">
+            {description}
+          </p>
+        </div>
+
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/60 dark:bg-black/10">
+          <Icon size={18} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================ //
+//                         #SECTION - ATTENTION CARD                            //
+// ============================================================================ //
+
+const AttentionCard = ({ label, value, description, icon: Icon, type }) => {
+  const styles = {
+    danger:
+      "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400",
+    warning:
+      "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-400",
+    neutral:
+      "border-gray-200 bg-gray-50 text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300",
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-500 pb-8">
-      {/* =====================================================
-          HEADER
-      ====================================================== */}
-
-      <div className="flex items-center justify-between">
+    <div
+      className={`rounded-[22px] border p-4 transition-all hover:-translate-y-0.5 hover:shadow-sm ${
+        styles[type] || styles.neutral
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-custom-gelap dark:text-white tracking-tight">
-            Dashboard Contract
+          <p className="text-[8px] font-black uppercase tracking-[1.4px] opacity-70">
+            {label}
+          </p>
+
+          <p className="mt-1 text-xl font-black tracking-tight">
+            {formatNumber(value)}
+          </p>
+
+          <p className="mt-1 text-[9px] font-bold opacity-70">{description}</p>
+        </div>
+
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/60 dark:bg-black/10">
+          <Icon size={18} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================ //
+//                    #SECTION - DASHBOARD WORK ITEM                            //
+// ============================================================================ //
+
+const DashboardWorkItem = () => {
+  const [summary, setSummary] = useState(null);
+  const [activities, setActivities] = useState([]);
+
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [loadingActivity, setLoadingActivity] = useState(true);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  // ========================================================================== //
+  //                           #SECTION - API                                    //
+  // ========================================================================== //
+
+  const fetchDashboardSummary = useCallback(async () => {
+    try {
+      setLoadingSummary(true);
+
+      const response = await Api.get("/work-item/dashboard/summary");
+
+      if (response.data?.success) {
+        setSummary(response.data?.data || null);
+      } else {
+        await SwalHelper.error(
+          response.data?.message || "Gagal mengambil data dashboard.",
+        );
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data dashboard:", error);
+
+      await SwalHelper.error(
+        error?.response?.data?.message || "Gagal mengambil data dashboard.",
+      );
+    } finally {
+      setLoadingSummary(false);
+    }
+  }, []);
+
+  const fetchDashboardActivity = useCallback(async () => {
+    try {
+      setLoadingActivity(true);
+
+      const response = await Api.get("/work-item/dashboard/activity", {
+        params: {
+          limit: 5,
+        },
+      });
+
+      if (response.data?.success) {
+        setActivities(response.data?.data || []);
+      } else {
+        await SwalHelper.error(
+          response.data?.message || "Gagal mengambil aktivitas dashboard.",
+        );
+      }
+    } catch (error) {
+      console.error("Gagal mengambil aktivitas dashboard:", error);
+
+      await SwalHelper.error(
+        error?.response?.data?.message ||
+          "Gagal mengambil aktivitas dashboard.",
+      );
+    } finally {
+      setLoadingActivity(false);
+    }
+  }, []);
+
+  const fetchDashboard = useCallback(async () => {
+    await Promise.all([fetchDashboardSummary(), fetchDashboardActivity()]);
+  }, [fetchDashboardSummary, fetchDashboardActivity]);
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+
+      await fetchDashboard();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  // ========================================================================== //
+  //                           #SECTION - DATA                                  //
+  // ========================================================================== //
+
+  const overview = summary?.overview || {};
+
+  const workType = summary?.work_type || {};
+
+  const pipeline = summary?.pipeline || {};
+
+  const attention = summary?.attention || {};
+
+  const totalPipeline = PIPELINE_STAGES.reduce((total, stage) => {
+    return total + Number(pipeline[stage.key] || 0);
+  }, 0);
+
+  // ========================================================================== //
+  //                           #SECTION - LOADING                                //
+  // ========================================================================== //
+
+  const initialLoading = loadingSummary && !summary;
+
+  if (initialLoading) {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="h-6 w-48 animate-pulse rounded-lg bg-gray-100 dark:bg-white/5" />
+            <div className="mt-2 h-3 w-72 animate-pulse rounded-lg bg-gray-100 dark:bg-white/5" />
+          </div>
+
+          <div className="h-10 w-24 animate-pulse rounded-xl bg-gray-100 dark:bg-white/5" />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {[1, 2, 3, 4, 5].map((item) => (
+            <div
+              key={item}
+              className="h-32 animate-pulse rounded-[24px] bg-gray-100 dark:bg-white/5"
+            />
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+          <div className="h-72 animate-pulse rounded-[28px] bg-gray-100 dark:bg-white/5 xl:col-span-2" />
+          <div className="h-72 animate-pulse rounded-[28px] bg-gray-100 dark:bg-white/5" />
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+          <div className="h-64 animate-pulse rounded-[28px] bg-gray-100 dark:bg-white/5" />
+          <div className="h-64 animate-pulse rounded-[28px] bg-gray-100 dark:bg-white/5" />
+        </div>
+      </div>
+    );
+  }
+
+  // ========================================================================== //
+  //                           #SECTION - RENDER                                 //
+  // ========================================================================== //
+
+  return (
+    <div className="space-y-5 pb-8">
+      {
+        /* ====================================================================== */
+        //   HEADER
+        /* ====================================================================== */
+      }
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-[2px] text-custom-merah-terang">
+            Work Monitoring
+          </p>
+
+          <h1 className="mt-1 text-2xl font-black tracking-tight text-custom-gelap dark:text-white">
+            Dashboard Work Item
           </h1>
 
-          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[2.5px] mt-1">
-            Work & Contract Monitoring
+          <p className="mt-1 max-w-2xl text-[10px] font-bold leading-5 text-gray-400">
+            Ringkasan kondisi pekerjaan, pipeline, keuangan, dan aktivitas
+            operasional terkini.
           </p>
         </div>
 
         <button
+          type="button"
           onClick={handleRefresh}
-          className="p-2.5 bg-white dark:bg-custom-gelap text-gray-400 rounded-xl border border-gray-100 dark:border-white/10 hover:text-custom-merah-terang transition-all"
+          disabled={refreshing}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-custom-merah-terang px-4 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <MdRefresh size={19} className={isLoading ? "animate-spin" : ""} />
+          <MdRefresh size={17} className={refreshing ? "animate-spin" : ""} />
+
+          {refreshing ? "Memuat..." : "Refresh"}
         </button>
       </div>
 
-      {/* =====================================================
-          SUMMARY
-      ====================================================== */}
+      {
+        /* ====================================================================== */
+        //   HEALTH KPI
+        /* ====================================================================== */
+      }
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* ACTIVE WORK */}
-        <div className="bg-white dark:bg-custom-gelap rounded-2xl px-4 py-3.5 border border-gray-100 dark:border-white/5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
-                Active Work
-              </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <HealthKpiCard
+          label="Total Work Aktif"
+          value={overview.total_work - overview.completed}
+          description="Seluruh pekerjaan aktif"
+          status="ACTIVE"
+          icon={MdAccountTree}
+        />
 
-              <p className="text-2xl font-black text-custom-gelap dark:text-white mt-1">
-                {summary.activeWork}
-              </p>
+        <HealthKpiCard
+          label="On Track"
+          value={overview.on_track}
+          description="Target pekerjaan masih aman"
+          status="ON_TRACK"
+          icon={MdTrendingUp}
+        />
 
-              <p className="text-[8px] text-gray-400 mt-0.5">pekerjaan aktif</p>
-            </div>
+        <HealthKpiCard
+          label="Due Soon"
+          value={overview.due_soon}
+          description="Mendekati target pekerjaan"
+          status="DUE_SOON"
+          icon={MdAccessTime}
+        />
 
-            <div className="w-9 h-9 rounded-xl bg-custom-merah-terang/10 text-custom-merah-terang flex items-center justify-center">
-              <MdBusinessCenter size={19} />
-            </div>
-          </div>
-        </div>
+        <HealthKpiCard
+          label="Expired"
+          value={overview.expired}
+          description="Melewati target pekerjaan"
+          status="EXPIRED"
+          icon={MdWarningAmber}
+        />
 
-        {/* PENDING CONTRACT */}
-        <div className="bg-white dark:bg-custom-gelap rounded-2xl px-4 py-3.5 border border-gray-100 dark:border-white/5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
-                Pending Contract
-              </p>
-
-              <p className="text-2xl font-black text-custom-gelap dark:text-white mt-1">
-                {summary.pendingContract}
-              </p>
-
-              <p className="text-[8px] text-gray-400 mt-0.5">
-                belum memiliki kontrak
-              </p>
-            </div>
-
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-500 flex items-center justify-center">
-              <MdDescription size={19} />
-            </div>
-          </div>
-        </div>
-
-        {/* AT RISK */}
-        <div className="bg-white dark:bg-custom-gelap rounded-2xl px-4 py-3.5 border border-gray-100 dark:border-white/5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
-                At Risk
-              </p>
-
-              <p className="text-2xl font-black text-yellow-600 mt-1">
-                {summary.atRisk}
-              </p>
-
-              <p className="text-[8px] text-gray-400 mt-0.5">perlu perhatian</p>
-            </div>
-
-            <div className="w-9 h-9 rounded-xl bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 flex items-center justify-center">
-              <MdWarning size={19} />
-            </div>
-          </div>
-        </div>
-
-        {/* DELAYED */}
-        <div className="bg-white dark:bg-custom-gelap rounded-2xl px-4 py-3.5 border border-gray-100 dark:border-white/5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
-                Delayed
-              </p>
-
-              <p className="text-2xl font-black text-red-600 mt-1">
-                {summary.delayed}
-              </p>
-
-              <p className="text-[8px] text-gray-400 mt-0.5">melewati target</p>
-            </div>
-
-            <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 flex items-center justify-center">
-              <MdAccessTime size={19} />
-            </div>
-          </div>
-        </div>
+        <HealthKpiCard
+          label="Completed"
+          value={overview.completed}
+          description="Pekerjaan sudah ditutup"
+          status="COMPLETED"
+          icon={MdCheckCircle}
+        />
       </div>
 
-      {/* =====================================================
-          WORK PIPELINE
-      ====================================================== */}
+      {
+        /* ====================================================================== */
+        //   PIPELINE + WORK TYPE
+        /* ====================================================================== */
+      }
 
-      <div className="bg-white dark:bg-custom-gelap rounded-3xl border border-gray-100 dark:border-white/5 shadow-sm px-5 py-5">
-        <div className="flex items-center justify-between mb-7">
-          <div>
-            <h2 className="text-xs font-black text-custom-gelap dark:text-white uppercase tracking-widest">
-              Work Pipeline
-            </h2>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+        {/* PIPELINE */}
 
-            <p className="text-[8px] text-gray-400 mt-1">
-              Distribusi pekerjaan berdasarkan lifecycle
-            </p>
-          </div>
+        <DashboardCard
+          title="Work Pipeline"
+          subtitle="Distribusi pekerjaan berdasarkan stage"
+          icon={MdAccountTree}
+          className="xl:col-span-2"
+        >
+          <div className="overflow-x-auto pb-2">
+            <div className="min-w-[720px]">
+              <div className="flex items-center">
+                {PIPELINE_STAGES.map((stage, index) => {
+                  const value = Number(pipeline[stage.key] || 0);
 
-          <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
-            24 Active
-          </span>
-        </div>
+                  return (
+                    <React.Fragment key={stage.key}>
+                      <div className="min-w-[88px] flex-1">
+                        <div className="flex flex-col items-center">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-100 bg-gray-50 text-sm font-black text-custom-gelap dark:border-white/5 dark:bg-white/5 dark:text-white">
+                            {formatNumber(value)}
+                          </div>
 
-        {/* TIMELINE */}
+                          <p className="mt-2 text-center text-[8px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            {stage.label}
+                          </p>
+                        </div>
+                      </div>
 
-        <div className="relative px-2">
-          {/* GARIS */}
-          <div className="absolute left-[8%] right-[8%] top-[15px] h-[2px] bg-gray-100 dark:bg-white/10" />
+                      {index < PIPELINE_STAGES.length - 1 && (
+                        <MdChevronRight
+                          size={18}
+                          className="shrink-0 text-gray-300 dark:text-gray-600"
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
 
-          {/* PROGRESS GARIS */}
-          <div
-            className="absolute left-[8%] top-[15px] h-[2px] bg-custom-merah-terang/60"
-            style={{ width: "65%" }}
-          />
+              {/* <div className="mt-7">
+                <div className="flex h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
+                  {PIPELINE_STAGES.map((stage, index) => {
+                    const value = Number(pipeline[stage.key] || 0);
 
-          <div className="relative grid grid-cols-4">
-            {pipeline.map((item, index) => {
-              const isActive = index <= 2;
-
-              return (
-                <div
-                  key={item.key}
-                  className="flex flex-col items-center text-center"
-                >
-                  {/* DOT */}
-                  <div
-                    className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center border-4 border-white dark:border-custom-gelap transition-all ${
-                      isActive
-                        ? "bg-custom-merah-terang text-white"
-                        : "bg-gray-200 dark:bg-white/10 text-gray-400"
-                    }`}
-                  >
-                    {item.icon}
-                  </div>
-
-                  {/* LABEL */}
-                  <p
-                    className={`mt-3 text-[9px] font-black uppercase tracking-widest ${
-                      isActive
-                        ? "text-custom-gelap dark:text-white"
-                        : "text-gray-400"
-                    }`}
-                  >
-                    {item.label}
-                  </p>
-
-                  {/* COUNT */}
-                  <p
-                    className={`text-xl font-black mt-0.5 ${
-                      isActive ? "text-custom-merah-terang" : "text-gray-400"
-                    }`}
-                  >
-                    {item.count}
-                  </p>
-
-                  {/* DESCRIPTION */}
-                  <p className="text-[8px] text-gray-400 mt-0.5 hidden sm:block">
-                    {item.description}
-                  </p>
+                    return (
+                      <div
+                        key={stage.key}
+                        className={`h-full ${
+                          index === 0
+                            ? "bg-gray-400"
+                            : index === 1
+                              ? "bg-purple-400"
+                              : index === 2
+                                ? "bg-indigo-400"
+                                : index === 3
+                                  ? "bg-orange-400"
+                                  : index === 4
+                                    ? "bg-amber-400"
+                                    : index === 5
+                                      ? "bg-green-400"
+                                      : "bg-emerald-500"
+                        }`}
+                        style={{
+                          width:
+                            totalPipeline > 0
+                              ? `${(value / totalPipeline) * 100}%`
+                              : "0%",
+                        }}
+                      />
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
 
-      {/* =====================================================
-          NEEDS ATTENTION + RECENT ACTIVITY
-      ====================================================== */}
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-[8px] font-bold uppercase tracking-widest text-gray-400">
+                    Pipeline Distribution
+                  </span>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-5">
-        {/* NEEDS ATTENTION */}
+                  <span className="text-[9px] font-black text-custom-gelap dark:text-white">
+                    {formatNumber(totalPipeline)} records
+                  </span>
+                </div>
+              </div> */}
 
-        <div className="bg-white dark:bg-custom-gelap rounded-3xl border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
-            <div>
-              <h2 className="text-xs font-black text-custom-gelap dark:text-white uppercase tracking-widest">
-                Needs Attention
-              </h2>
+              {/* BAR DETAIL */}
 
-              <p className="text-[8px] text-gray-400 mt-1">
-                Tindakan yang perlu ditindaklanjuti
-              </p>
+              <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-3">
+                {PIPELINE_STAGES.map((stage) => {
+                  const value = Number(pipeline[stage.key] || 0);
+
+                  const percentage =
+                    totalPipeline > 0 ? (value / totalPipeline) * 100 : 0;
+
+                  return (
+                    <div key={stage.key}>
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <span className="text-[8px] font-bold text-gray-400">
+                          {stage.shortLabel}
+                        </span>
+
+                        <span className="text-[8px] font-black text-gray-600 dark:text-gray-300">
+                          {percentage.toFixed(0)}%
+                        </span>
+                      </div>
+
+                      <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
+                        <div
+                          className="h-full rounded-full bg-custom-merah-terang transition-all"
+                          style={{
+                            width: `${Math.min(percentage, 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-
-            <span className="px-2.5 py-1 rounded-full bg-red-50 dark:bg-red-500/10 text-red-600 text-[8px] font-black">
-              {attentionItems.length}
-            </span>
           </div>
+        </DashboardCard>
 
-          <div className="divide-y divide-gray-50 dark:divide-white/5">
-            {attentionItems.map((item) => (
-              <div
-                key={item.id}
-                className="px-5 py-3.5 hover:bg-gray-50/60 dark:hover:bg-white/5 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  {/* SEVERITY */}
-                  <div
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                      item.severity === "DELAYED"
-                        ? "bg-red-50 dark:bg-red-500/10 text-red-500"
-                        : "bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600"
-                    }`}
-                  >
-                    {item.severity === "DELAYED" ? (
-                      <MdAccessTime size={17} />
-                    ) : (
-                      <MdWarning size={17} />
-                    )}
-                  </div>
+        {/* WORK TYPE */}
 
-                  {/* INFO */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[10px] font-black text-custom-gelap dark:text-white truncate">
-                        {item.title}
-                      </p>
+        {/* WORK TYPE */}
 
-                      <span
-                        className={`hidden sm:inline-flex px-2 py-0.5 rounded-full border text-[7px] font-black uppercase tracking-wider ${getHealthStyle(
-                          item.severity === "DELAYED" ? "DELAYED" : "AT RISK",
-                        )}`}
-                      >
-                        {item.severity === "DELAYED" ? "Delayed" : "At Risk"}
+        <DashboardCard
+          title="Work Type"
+          subtitle="Komposisi jenis pekerjaan"
+          icon={MdGroups}
+        >
+          <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-center">
+            {/* PIE CHART */}
+
+            <div className="relative h-44 w-44 shrink-0">
+              {(() => {
+                const tender = Number(workType.tender || 0);
+                const maintenance = Number(workType.maintenance || 0);
+                const total = tender + maintenance;
+
+                const tenderPercentage = total > 0 ? (tender / total) * 100 : 0;
+
+                const maintenancePercentage =
+                  total > 0 ? (maintenance / total) * 100 : 0;
+
+                const radius = 70;
+                const circumference = 2 * Math.PI * radius;
+
+                const tenderLength = (tenderPercentage / 100) * circumference;
+
+                const maintenanceLength =
+                  (maintenancePercentage / 100) * circumference;
+
+                return (
+                  <>
+                    <svg
+                      viewBox="0 0 180 180"
+                      className="h-full w-full -rotate-90"
+                    >
+                      {/* Background */}
+
+                      <circle
+                        cx="90"
+                        cy="90"
+                        r={radius}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="22"
+                        className="text-gray-100 dark:text-white/5"
+                      />
+
+                      {/* Tender */}
+
+                      {tender > 0 && (
+                        <circle
+                          cx="90"
+                          cy="90"
+                          r={radius}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="22"
+                          strokeDasharray={`${tenderLength} ${circumference}`}
+                          strokeDashoffset="0"
+                          strokeLinecap="butt"
+                          className="text-purple-500"
+                        />
+                      )}
+
+                      {/* Maintenance */}
+
+                      {maintenance > 0 && (
+                        <circle
+                          cx="90"
+                          cy="90"
+                          r={radius}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="22"
+                          strokeDasharray={`${maintenanceLength} ${circumference}`}
+                          strokeDashoffset={`-${tenderLength}`}
+                          strokeLinecap="butt"
+                          className="text-blue-500"
+                        />
+                      )}
+                    </svg>
+
+                    {/* CENTER */}
+
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-[8px] font-black uppercase tracking-[1.5px] text-gray-400">
+                        Total
+                      </span>
+
+                      <span className="mt-1 text-2xl font-black tracking-tight text-custom-gelap dark:text-white">
+                        {formatNumber(total)}
+                      </span>
+
+                      <span className="text-[8px] font-bold text-gray-400">
+                        Work Item
                       </span>
                     </div>
+                  </>
+                );
+              })()}
+            </div>
 
-                    <p className="text-[9px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-                      {item.work}
-                    </p>
+            {/* LEGEND */}
 
-                    <p className="text-[8px] text-gray-400 mt-1 truncate">
-                      {item.client} · {item.reason}
-                    </p>
+            <div className="w-full max-w-[220px] space-y-4">
+              {/* TENDER */}
+
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3 dark:border-white/5 dark:bg-white/[0.02]">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-purple-500" />
+
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                      Tender
+                    </span>
                   </div>
 
-                  {/* DAYS */}
-                  <div className="text-right flex-shrink-0">
-                    <p
-                      className={`text-xs font-black ${
-                        item.severity === "DELAYED"
-                          ? "text-red-600"
-                          : "text-yellow-600"
-                      }`}
-                    >
-                      {item.days}d
-                    </p>
+                  <span className="text-sm font-black text-custom-gelap dark:text-white">
+                    {formatNumber(workType.tender)}
+                  </span>
+                </div>
 
-                    <p className="text-[7px] text-gray-400 uppercase font-black tracking-wider">
-                      {item.severity === "DELAYED" ? "overdue" : "remaining"}
-                    </p>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-[8px] font-bold text-gray-400">
+                    Persentase
+                  </span>
+
+                  <span className="text-[9px] font-black text-purple-600 dark:text-purple-400">
+                    {overview.total_work
+                      ? (
+                          (Number(workType.tender || 0) /
+                            Number(overview.total_work || 1)) *
+                          100
+                        ).toFixed(0)
+                      : 0}
+                    %
+                  </span>
+                </div>
+              </div>
+
+              {/* MAINTENANCE */}
+
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3 dark:border-white/5 dark:bg-white/[0.02]">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                      Maintenance
+                    </span>
                   </div>
 
-                  <button className="p-1.5 rounded-lg text-gray-300 hover:text-custom-merah-terang transition-colors">
-                    <MdChevronRight size={17} />
-                  </button>
+                  <span className="text-sm font-black text-custom-gelap dark:text-white">
+                    {formatNumber(workType.maintenance)}
+                  </span>
+                </div>
+
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-[8px] font-bold text-gray-400">
+                    Persentase
+                  </span>
+
+                  <span className="text-[9px] font-black text-blue-600 dark:text-blue-400">
+                    {overview.total_work
+                      ? (
+                          (Number(workType.maintenance || 0) /
+                            Number(overview.total_work || 1)) *
+                          100
+                        ).toFixed(0)
+                      : 0}
+                    %
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </DashboardCard>
+      </div>
+
+      {
+        /* ====================================================================== */
+        //   ATTENTION
+        /* ====================================================================== */
+      }
+
+      <DashboardCard
+        title="Attention Required"
+        subtitle="Kondisi yang membutuhkan follow-up"
+        icon={MdWarningAmber}
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <AttentionCard
+            label="Expired Work"
+            value={attention.expired_work}
+            description="Pekerjaan melewati target"
+            icon={MdErrorOutline}
+            type="danger"
+          />
+
+          <AttentionCard
+            label="Due Soon Work"
+            value={attention.due_soon_work}
+            description="Mendekati target"
+            icon={MdAccessTime}
+            type="warning"
+          />
+
+          <AttentionCard
+            label="Overdue Invoice"
+            value={attention.overdue_invoice}
+            description="Invoice melewati jatuh tempo"
+            icon={MdReceiptLong}
+            type="danger"
+          />
+
+          <AttentionCard
+            label="Unpaid Invoice"
+            value={attention.unpaid_invoice}
+            description="Belum menerima pembayaran"
+            icon={MdPayments}
+            type="warning"
+          />
+        </div>
+      </DashboardCard>
+
+      {
+        /* ====================================================================== */
+        //   RECENT ACTIVITY
+        /* ====================================================================== */
+      }
+
+      <DashboardCard
+        title="Recent Activity"
+        subtitle="Aktivitas operasional terbaru"
+        icon={MdAutorenew}
+      >
+        {loadingActivity ? (
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((item) => (
+              <div key={item} className="flex animate-pulse gap-3">
+                <div className="h-9 w-9 shrink-0 rounded-xl bg-gray-100 dark:bg-white/5" />
+
+                <div className="flex-1">
+                  <div className="h-3 w-48 rounded bg-gray-100 dark:bg-white/5" />
+
+                  <div className="mt-2 h-2 w-72 rounded bg-gray-100 dark:bg-white/5" />
+
+                  <div className="mt-2 h-2 w-32 rounded bg-gray-100 dark:bg-white/5" />
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        ) : activities.length === 0 ? (
+          <div className="flex min-h-[180px] flex-col items-center justify-center text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-gray-400 dark:bg-white/5">
+              <MdInfoOutline size={22} />
+            </div>
 
-        {/* RECENT ACTIVITY */}
+            <p className="mt-3 text-sm font-black text-gray-600 dark:text-gray-300">
+              Belum ada aktivitas
+            </p>
 
-        <div className="bg-white dark:bg-custom-gelap rounded-3xl border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 dark:border-white/5">
-            <h2 className="text-xs font-black text-custom-gelap dark:text-white uppercase tracking-widest">
-              Recent Activity
-            </h2>
-
-            <p className="text-[8px] text-gray-400 mt-1">Aktivitas terbaru</p>
+            <p className="mt-1 max-w-sm text-[9px] font-bold leading-4 text-gray-400">
+              Aktivitas perubahan stage, proposal, kontrak, BA, invoice, dan
+              payment akan muncul di sini.
+            </p>
           </div>
+        ) : (
+          <div className="space-y-0">
+            {activities.map((activity, index) => {
+              const Icon = getActivityIcon(activity.activity_type);
 
-          <div className="p-5">
-            <div className="space-y-4">
-              {recentActivities.map((activity, index) => (
-                <div key={activity.id} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className="w-7 h-7 rounded-lg bg-custom-merah-terang/10 text-custom-merah-terang flex items-center justify-center flex-shrink-0">
-                      {index === 0 ? (
-                        <MdDescription size={14} />
-                      ) : (
-                        <MdSchedule size={14} />
-                      )}
-                    </div>
+              const activityStyle = getActivityStyle(activity.activity_type);
 
-                    {index !== recentActivities.length - 1 && (
-                      <div className="w-px flex-1 bg-gray-100 dark:bg-white/10 mt-1.5" />
+              return (
+                <div
+                  key={`${activity.activity_type}-${activity.activity_id}-${index}`}
+                  className="relative flex gap-3"
+                >
+                  {/* TIMELINE */}
+
+                  <div className="relative flex w-9 shrink-0 justify-center">
+                    {index < activities.length - 1 && (
+                      <div
+                        className={`absolute left-1/2 top-9 h-[calc(100%+1rem)] w-px -translate-x-1/2 ${activityStyle.line}`}
+                      />
                     )}
+
+                    <div
+                      className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-xl ${activityStyle.wrapper}`}
+                    >
+                      <Icon size={17} />
+                    </div>
                   </div>
 
-                  <div className="pb-3 min-w-0">
-                    <p className="text-[10px] font-bold text-custom-gelap dark:text-white">
-                      {activity.action}
-                    </p>
+                  {/* CONTENT */}
 
-                    <p className="text-[8px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-                      {activity.work}
-                    </p>
+                  <div className="min-w-0 flex-1 pb-5">
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-3 dark:border-white/5 dark:bg-white/[0.02]">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[10px] font-black text-custom-gelap dark:text-white">
+                              {activity.title}
+                            </span>
 
-                    <p className="text-[7px] text-gray-400 mt-1 uppercase tracking-wider font-bold">
-                      {activity.time}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+                            {activity.activity_type && (
+                              <span className="rounded-md bg-white px-1.5 py-1 text-[7px] font-black uppercase tracking-wider text-gray-400 shadow-sm dark:bg-white/5">
+                                {activity.activity_type.replace("_", " ")}
+                              </span>
+                            )}
+                          </div>
 
-      {/* =====================================================
-          ACTIVE WORK
-      ====================================================== */}
+                          <p className="mt-1 text-[9px] font-bold leading-4 text-gray-500 dark:text-gray-400">
+                            {activity.description}
+                          </p>
+                        </div>
 
-      <div className="bg-white dark:bg-custom-gelap rounded-3xl border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 dark:border-white/5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xs font-black text-custom-gelap dark:text-white uppercase tracking-widest">
-                Active Work
-              </h2>
-
-              <p className="text-[8px] text-gray-400 mt-1">
-                Pekerjaan yang sedang ditangani
-              </p>
-            </div>
-
-            <div className="flex gap-1 bg-gray-50 dark:bg-white/5 rounded-lg p-1">
-              {["ALL", "ON TRACK", "AT RISK", "DELAYED"].map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setSelectedFilter(filter)}
-                  className={`px-2.5 py-1.5 rounded-md text-[7px] font-black uppercase tracking-wider transition-all ${
-                    selectedFilter === filter
-                      ? "bg-white dark:bg-custom-gelap text-custom-merah-terang shadow-sm"
-                      : "text-gray-400"
-                  }`}
-                >
-                  {filter === "ALL" ? "Semua" : filter}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-[#3d2e39] text-[8px] font-black uppercase tracking-widest text-gray-400">
-                <th className="px-5 py-3">Pekerjaan</th>
-
-                <th className="px-5 py-3">Client</th>
-
-                <th className="px-5 py-3">Stage</th>
-
-                <th className="px-5 py-3 w-36">Progress</th>
-
-                <th className="px-5 py-3">Health</th>
-
-                <th className="px-5 py-3">Target</th>
-
-                <th className="px-5 py-3 text-center">Opsi</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-gray-50 dark:divide-white/5">
-              {filteredWorks.map((work) => (
-                <tr
-                  key={work.id}
-                  className="hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors"
-                >
-                  <td className="px-5 py-3.5">
-                    <p className="text-[10px] font-black text-custom-gelap dark:text-white">
-                      {work.name}
-                    </p>
-
-                    <p className="text-[7px] text-gray-400 mt-0.5">
-                      {work.contract !== "-"
-                        ? work.contract
-                        : "Belum ada kontrak"}
-                    </p>
-                  </td>
-
-                  <td className="px-5 py-3.5 text-[9px] font-bold text-gray-500 dark:text-gray-300">
-                    {work.client}
-                  </td>
-
-                  <td className="px-5 py-3.5">
-                    <span className="px-2.5 py-1 rounded-full bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-300 text-[7px] font-black uppercase tracking-wider">
-                      {work.stage}
-                    </span>
-                  </td>
-
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-20 h-1.5 bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-custom-merah-terang rounded-full"
-                          style={{
-                            width: `${work.progress}%`,
-                          }}
-                        />
+                        <span className="shrink-0 text-[8px] font-bold text-gray-400">
+                          {formatDateTime(activity.activity_date)}
+                        </span>
                       </div>
 
-                      <span className="text-[8px] font-black text-gray-400">
-                        {work.progress}%
-                      </span>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="rounded-lg bg-custom-merah-terang/10 px-2 py-1 text-[8px] font-black text-custom-merah-terang">
+                          {activity.work_number || "-"}
+                        </span>
+
+                        <span className="truncate text-[8px] font-bold text-gray-400">
+                          {activity.work_name || "-"}
+                        </span>
+                      </div>
                     </div>
-                  </td>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </DashboardCard>
 
-                  <td className="px-5 py-3.5">
-                    <span
-                      className={`px-2.5 py-1 rounded-full border text-[7px] font-black uppercase tracking-wider ${getHealthStyle(
-                        work.health,
-                      )}`}
-                    >
-                      {work.health}
-                    </span>
-                  </td>
+      {
+        /* ====================================================================== */
+        //   INFORMATION
+        /* ====================================================================== */
+      }
 
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                      <MdCalendarToday size={11} />
-
-                      <span className="text-[8px] font-bold">
-                        {work.endDate}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="px-5 py-3.5 text-center">
-                    <button className="p-1.5 rounded-lg bg-gray-50 dark:bg-white/5 text-gray-400 hover:bg-custom-merah-terang hover:text-white transition-all">
-                      <MdChevronRight size={15} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="flex items-center gap-4 rounded-[28px] border border-gray-100 bg-white p-4 shadow-sm dark:border-white/5 dark:bg-custom-gelap">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-custom-merah-terang/10 text-custom-merah-terang">
+          <MdInfoOutline size={20} />
         </div>
-      </div>
 
-      {/* =====================================================
-          FOOTER INFO
-      ====================================================== */}
-
-      <div className="px-4 py-3 bg-white dark:bg-custom-gelap rounded-2xl border border-gray-100 dark:border-white/5 flex items-center gap-3">
-        <MdInfoOutline
-          size={18}
-          className="text-custom-merah-terang flex-shrink-0"
-        />
-
-        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">
-          Dashboard menampilkan kondisi operasional pekerjaan dan kontrak yang
-          membutuhkan perhatian Admin Contract.
+        <p className="text-[9px] font-bold uppercase leading-5 tracking-widest text-gray-400">
+          Dashboard menampilkan kondisi terkini pekerjaan berdasarkan data Work
+          Item, Contract, BA, Invoice, dan Payment.
         </p>
       </div>
     </div>
   );
 };
 
-export default DashboardContract;
+export default DashboardWorkItem;
