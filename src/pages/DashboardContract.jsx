@@ -571,7 +571,7 @@ const DashboardWorkItem = () => {
           className="xl:col-span-2"
         >
           <div className="overflow-x-auto pb-2">
-            <div className="min-w-[720px]">
+            <div className="min-w-[700px]">
               <div className="flex items-center">
                 {PIPELINE_STAGES.map((stage, index) => {
                   const value = Number(pipeline[stage.key] || 0);

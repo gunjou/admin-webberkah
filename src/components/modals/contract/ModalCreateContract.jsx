@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { MdAttachFile, MdClose, MdDescription, MdSave } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
+import { formatRupiahNumber, parseRupiahNumber } from "../../../utils/Helpers";
 
 const STATUS_OPTIONS = [
   { value: "ACTIVE", label: "ACTIVE" },
@@ -393,12 +394,14 @@ const ModalCreateContract = ({ show, onClose, onSuccess }) => {
                   </span>
 
                   <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={form.contract_value}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatRupiahNumber(form.contract_value)}
                     onChange={(event) =>
-                      handleChange("contract_value", event.target.value)
+                      handleChange(
+                        "contract_value",
+                        parseRupiahNumber(event.target.value),
+                      )
                     }
                     placeholder="0"
                     disabled={loading}

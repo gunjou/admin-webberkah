@@ -7,6 +7,7 @@ import {
 } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
+import { formatRupiahNumber, parseRupiahNumber } from "../../../utils/Helpers";
 
 const ModalCreatePayment = ({ show, onClose, invoice, onSuccess }) => {
   const [loading, setLoading] = useState(false);
@@ -285,14 +286,22 @@ const ModalCreatePayment = ({ show, onClose, invoice, onSuccess }) => {
                     </label>
 
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       name="amount"
-                      value={form.amount}
-                      onChange={handleChange}
-                      min="0"
-                      step="0.01"
+                      value={formatRupiahNumber(form.amount)}
+                      onChange={(event) => {
+                        handleChange({
+                          ...event,
+                          target: {
+                            ...event.target,
+                            name: "amount",
+                            value: parseRupiahNumber(event.target.value),
+                          },
+                        });
+                      }}
                       disabled={loading}
-                      placeholder="Contoh: 39200000"
+                      placeholder="Contoh: 39.200.000"
                       className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-[11px] font-semibold text-gray-700 outline-none transition focus:border-custom-merah focus:ring-1 focus:ring-custom-merah dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                     />
 

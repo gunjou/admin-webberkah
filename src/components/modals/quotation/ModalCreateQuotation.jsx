@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { MdAttachFile, MdClose, MdSave, MdDescription } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
+import { formatRupiahNumber, parseRupiahNumber } from "../../../utils/Helpers";
 
 const STATUS_OPTIONS = [
   { value: "DRAFT", label: "DRAFT" },
@@ -386,12 +387,14 @@ const ModalCreateQuotation = ({ show, onClose, onSuccess }) => {
                   </span>
 
                   <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={form.proposal_value}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatRupiahNumber(form.proposal_value)}
                     onChange={(e) =>
-                      handleChange("proposal_value", e.target.value)
+                      handleChange(
+                        "proposal_value",
+                        parseRupiahNumber(e.target.value),
+                      )
                     }
                     placeholder="0"
                     disabled={loading}

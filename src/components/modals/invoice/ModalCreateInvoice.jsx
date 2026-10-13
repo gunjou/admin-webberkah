@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { MdAttachFile, MdClose, MdDescription, MdSave } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
+import { formatRupiahNumber, parseRupiahNumber } from "../../../utils/Helpers";
 
 const INITIAL_FORM = {
   id_work_item: "",
@@ -467,12 +468,14 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
                   </span>
 
                   <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={form.invoice_value}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatRupiahNumber(form.invoice_value)}
                     onChange={(event) =>
-                      handleChange("invoice_value", event.target.value)
+                      handleChange(
+                        "invoice_value",
+                        parseRupiahNumber(event.target.value),
+                      )
                     }
                     placeholder="0"
                     disabled={loading}

@@ -89,3 +89,19 @@ export const formatFullDate = (date) => {
     }),
   };
 };
+
+/**
+ * Format nominal: 1000000
+ * → 1.000.000
+ */
+// Format angka dengan pemisah ribuan berupa titik
+export const formatRupiahNumber = (value) => {
+  const angka = String(value ?? "").replace(/\D/g, "");
+
+  return angka.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
+
+// Membersihkan format agar hanya menyimpan angka
+export const parseRupiahNumber = (value) => {
+  return String(value ?? "").replace(/\D/g, "");
+};

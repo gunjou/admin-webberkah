@@ -8,6 +8,7 @@ import {
 } from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
+import { formatRupiahNumber, parseRupiahNumber } from "../../../utils/Helpers";
 
 const STATUS_OPTIONS = [
   { value: "ACTIVE", label: "Active" },
@@ -425,11 +426,20 @@ const ModalEditContract = ({ show, onClose, contractId, onSuccess }) => {
                       </span>
 
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         name="contract_value"
-                        value={form.contract_value}
-                        onChange={handleChange}
-                        min="0"
+                        value={formatRupiahNumber(form.contract_value)}
+                        onChange={(event) => {
+                          handleChange({
+                            ...event,
+                            target: {
+                              ...event.target,
+                              name: "contract_value",
+                              value: parseRupiahNumber(event.target.value),
+                            },
+                          });
+                        }}
                         placeholder="0"
                         disabled={saving}
                         className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-800 outline-none transition focus:border-custom-merah-terang focus:ring-1 focus:ring-custom-merah-terang disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
