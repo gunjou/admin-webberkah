@@ -268,7 +268,7 @@ const DashboardWorkItem = () => {
     try {
       setLoadingSummary(true);
 
-      const response = await Api.get("/work-item/dashboard/summary");
+      const response = await Api.get("/work-item/dashboard/admin/summary");
 
       if (response.data?.success) {
         setSummary(response.data?.data || null);
@@ -292,7 +292,7 @@ const DashboardWorkItem = () => {
     try {
       setLoadingActivity(true);
 
-      const response = await Api.get("/work-item/dashboard/activity", {
+      const response = await Api.get("/work-item/dashboard/admin/activity", {
         params: {
           limit: 5,
         },
