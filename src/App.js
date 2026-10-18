@@ -52,6 +52,7 @@ import Invoice from "./pages/Invoice";
 // =========================================================
 
 import { ROLE_GROUPS, getUserFromToken } from "./utils/rbac";
+import LegalDocument from "./pages/LegalDocument";
 
 // =========================================================
 // PROTECTED ROUTE
@@ -217,6 +218,8 @@ function App() {
               <Route path="/completion" element={<Completion />} />
 
               <Route path="/invoice" element={<Invoice />} />
+
+              <Route path="/legal-document" element={<LegalDocument />} />
             </Route>
 
             {/* =================================================

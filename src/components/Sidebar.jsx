@@ -18,6 +18,7 @@ import {
 } from "react-icons/md";
 import { FaMedal } from "react-icons/fa";
 import { hasAccess, ROLE_GROUPS, ROLES, getUserRole } from "../utils/rbac";
+import { IoDocuments } from "react-icons/io5";
 
 const Sidebar = ({ isOpen, isDark }) => {
   const location = useLocation();
@@ -192,6 +193,18 @@ const Sidebar = ({ isOpen, isDark }) => {
       path: "/hutang",
       icon: <MdMoneyOff />,
       allowedRoles: ROLE_GROUPS.HRIS_FINANCE,
+    },
+
+    // =====================================================
+    // LEGAL DOCUMENTS
+    // =====================================================
+
+    {
+      category: "Legal Document",
+      name: "Documents",
+      path: "/legal-document",
+      icon: <IoDocuments />,
+      allowedRoles: ROLE_GROUPS.CONTRACT_INVOICE,
     },
 
     // =====================================================
