@@ -6,16 +6,19 @@ import {
   MdLogout,
   MdPerson,
   MdNotificationsNone,
+  MdLock,
 } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
 import NotificationRouter from "./modals/NotificationRouter";
 import Api from "../utils/Api";
+import ModalChangePassword from "./modals/ModalChangePassword";
 
 const Navbar = ({ isDark, setIsDark, toggleSidebar }) => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifCount, setNotifCount] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const navigate = useNavigate();
 
@@ -283,6 +286,18 @@ const Navbar = ({ isDark, setIsDark, toggleSidebar }) => {
                 Profile Saya
               </button>
 
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileOpen(false);
+                  setChangePasswordOpen(true);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+              >
+                <MdLock className="text-custom-cerah" size={18} />
+                Ganti Password
+              </button>
+
               <hr className="my-1 border-gray-100 dark:border-white/10" />
 
               <button
@@ -296,6 +311,11 @@ const Navbar = ({ isDark, setIsDark, toggleSidebar }) => {
           )}
         </div>
       </div>
+
+      <ModalChangePassword
+        isOpen={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+      />
     </header>
   );
 };
