@@ -116,6 +116,10 @@ const Sidebar = ({ isOpen, isDark }) => {
           path: "/absensi/presensi",
         },
         {
+          name: "Log Error",
+          path: "/absensi/log",
+        },
+        {
           name: "Rekapan",
           path: "/absensi/rekapan",
         },
