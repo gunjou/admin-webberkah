@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
-  MdSearch,
   MdFileDownload,
   MdPayments,
   MdCalendarToday,
@@ -11,13 +10,31 @@ import {
 } from "react-icons/md";
 import Api from "../utils/Api";
 import Swal from "sweetalert2";
+import SwalHelper from "../utils/Swal";
+import ModalExportPayroll from "../components/modals/ModalExportPayroll";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { exportPayrollToPDF } from "./export/ExportPayroll";
+import {
+  exportPayrollToPDF,
+  exportPayrollBankPDF,
+} from "./export/ExportPayroll";
 import { exportSlipGajiPDF } from "./export/ExportSlipGaji";
+import { normalizeBankName } from "./export/ExportPayroll";
+
+// Helper rekening sumber dari /cashbook/accounts
+// Teks untuk PDF: BANK - NOMOR - a.n. PEMEGANG REKENING (account_holder)
+const formatAccountForPdf = (a) =>
+  [
+    normalizeBankName(a.bank_name),
+    a.account_number,
+    a.account_holder && `a.n. ${a.account_holder}`,
+  ]
+    .filter(Boolean)
+    .join(" - ");
 
 const Gaji = () => {
   const [loading, setLoading] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState("Semua Status");
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -52,6 +69,34 @@ const Gaji = () => {
     "November",
     "Desember",
   ];
+
+  const getDataToExport = () =>
+    selectedIds.length > 0
+      ? filteredPayroll.filter((p) => selectedIds.includes(p.id_pegawai))
+      : filteredPayroll;
+
+  // Export payroll ke bank (rekening sumber dipilih di ModalExportPayroll)
+  const exportToBankPDF = async (account) => {
+    try {
+      const res = await Api.get("/pegawai/rekening");
+      const rekeningMap = {};
+      (res.data?.data || []).forEach((r) => {
+        rekeningMap[r.id_pegawai] = r;
+      });
+      exportPayrollBankPDF(
+        getDataToExport(),
+        rekeningMap,
+        monthNames,
+        selectedMonth,
+        selectedYear,
+        formatAccountForPdf(account),
+      );
+    } catch (err) {
+      console.error("Export bank error:", err);
+      SwalHelper.error("Gagal mengambil data rekening pegawai.");
+      throw err;
+    }
+  };
 
   const exportToPDF = () => {
     // 1. Tentukan data mana yang akan di-export
@@ -388,6 +433,7 @@ const Gaji = () => {
 
       startPolling(savedJobId); // 🔥 RESUME
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSimulate = async (id_pegawai) => {
@@ -581,7 +627,7 @@ const Gaji = () => {
 
           {/* TOMBOL LAMA: EXPORT PAYROLL */}
           <button
-            onClick={exportToPDF}
+            onClick={() => setShowExportModal(true)}
             disabled={loading || payrollData.length === 0}
             className="flex items-center gap-2 px-5 py-2.5 bg-custom-merah-terang text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-custom-merah-terang/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
           >
@@ -1174,6 +1220,14 @@ const Gaji = () => {
           </div>,
           document.body,
         )}
+      <ModalExportPayroll
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExportInternal={exportToPDF}
+        onExportBank={exportToBankPDF}
+        periode={`${monthNames[selectedMonth - 1]} ${selectedYear}`}
+        jumlahPegawai={getDataToExport().length}
+      />
     </div>
   );
 };
