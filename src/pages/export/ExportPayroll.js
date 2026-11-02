@@ -379,6 +379,9 @@ export const exportPayrollBankPDF = (
       47,
       { align: "center" },
     );
+  doc.text(`Periode: ${periodeFormal}`, pageWidth / 2, 52, {
+    align: "center",
+  });
 
   let totalDebet = 0;
   const rows = payrollData.map((row, i) => {
@@ -399,7 +402,7 @@ export const exportPayrollBankPDF = (
   });
 
   autoTable(doc, {
-    startY: 52,
+    startY: 57,
     head: [["No", "Nama Pegawai", "Bank", "No. Rekening", "Gaji Bersih (Rp)"]],
     body: rows,
     theme: "grid",
@@ -491,4 +494,184 @@ export const exportPayrollBankPDF = (
     margin,
   );
   doc.save(`Payroll_Bank_${periodeFormal.replace(" ", "_")}.pdf`);
+};
+
+// ============ EXPORT PAYROLL BANK KE EXCEL (.xlsx) ============
+export const exportPayrollBankExcel = async (
+  payrollData,
+  rekeningMap,
+  monthNames,
+  selectedMonth,
+  selectedYear,
+  rekeningSumber = "",
+) => {
+  const ExcelJS = (await import("exceljs")).default;
+  const periodeFormal = `${monthNames[selectedMonth - 1]} ${selectedYear}`;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Payroll Bank");
+
+  ws.columns = [
+    { key: "no", width: 6 },
+    { key: "nama", width: 34 },
+    { key: "bank", width: 16 },
+    { key: "rek", width: 22 },
+    { key: "net", width: 20 },
+  ];
+
+  const border = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" },
+  };
+  const numFmt = "#,##0";
+
+  // Kop surat (logo + identitas perusahaan)
+  try {
+    const resp = await fetch("/images/logo.png");
+    const imgBuf = await resp.arrayBuffer();
+    const imgId = wb.addImage({ buffer: imgBuf, extension: "png" });
+    ws.addImage(imgId, { tl: { col: 0.15, row: 0.2 }, ext: { width: 70, height: 70 } });
+  } catch (e) {}
+  const kop = [
+    ["PT. BERKAH ANGSANA TEKNIKA", { bold: true, size: 14 }],
+    ["Perumahan Bukit Citra Kencana, Block B no. 35, Jl. Pengsong Raya,", { size: 9, color: { argb: "FF505050" } }],
+    ["Desa Perampuan, Kecamatan Labuapi, Lombok Barat, NTB.", { size: 9, color: { argb: "FF505050" } }],
+    ["Phone : 0370 785 3692, Email : admin@berkahangsana.com", { size: 9, color: { argb: "FF505050" } }],
+  ];
+  kop.forEach(([text, font], i) => {
+    const r = i + 1;
+    ws.mergeCells(`B${r}:E${r}`);
+    ws.getCell(`B${r}`).value = text;
+    ws.getCell(`B${r}`).font = font;
+    ws.getCell(`B${r}`).alignment = { horizontal: "center", vertical: "middle" };
+    ws.getRow(r).height = i === 0 ? 22 : 15;
+  });
+  // Garis ganda bawah kop
+  ["A", "B", "C", "D", "E"].forEach((col) => {
+    ws.getCell(`${col}5`).border = { bottom: { style: "double" } };
+  });
+  ws.getRow(5).height = 6;
+
+  const titles = [
+    ["DATA PENGGAJIAN KARYAWAN PT. BERKAH ANGSANA TEKNIKA", { bold: true, size: 11 }],
+    ["Mohon dibayarkan melalui Bank Mandiri sesuai data terlampir", { size: 10 }],
+    [`Periode: ${periodeFormal}`, { size: 10 }],
+  ];
+  titles.forEach(([text, font], i) => {
+    const r = 7 + i;
+    ws.mergeCells(`A${r}:E${r}`);
+    ws.getCell(`A${r}`).value = text;
+    ws.getCell(`A${r}`).font = font;
+    ws.getCell(`A${r}`).alignment = { horizontal: "center" };
+  });
+
+  const header = ws.getRow(11);
+  header.values = ["No", "Nama Pegawai", "Bank", "No. Rekening", "Gaji Bersih (Rp)"];
+  header.eachCell((c) => {
+    c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEF4444" } };
+    c.alignment = { horizontal: "center", vertical: "middle" };
+    c.border = border;
+  });
+
+  let totalDebet = 0;
+  payrollData.forEach((row, i) => {
+    const net = Math.floor(
+      (row.total_diterima || 0) - (row.potongan_hutang || 0) + (row.lembur || 0),
+    );
+    totalDebet += net;
+    const rek = rekeningMap[row.id_pegawai] || {};
+    const r = ws.addRow([
+      i + 1,
+      row.nama_lengkap,
+      normalizeBankName(rek.nama_bank) || "-",
+      rek.no_rekening ? String(rek.no_rekening) : "-", // teks agar nol depan tidak hilang
+      net,
+    ]);
+    r.eachCell((c) => (c.border = border));
+    r.getCell(1).alignment = { horizontal: "center" };
+    r.getCell(3).alignment = { horizontal: "center" };
+    r.getCell(4).numFmt = "@";
+    r.getCell(5).numFmt = numFmt;
+  });
+
+  const totalRow = ws.addRow(["TOTAL DEBET", "", "", "", totalDebet]);
+  ws.mergeCells(`A${totalRow.number}:D${totalRow.number}`);
+  totalRow.eachCell((c) => {
+    c.font = { bold: true };
+    c.border = border;
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F5F5" } };
+  });
+  totalRow.getCell(1).alignment = { horizontal: "center" };
+  totalRow.getCell(5).numFmt = numFmt;
+
+  ws.addRow([]);
+  const info = [
+    ["Total Debet yang Dibutuhkan", totalDebet],
+    ["Rekening Sumber", rekeningSumber || "-"],
+    ["Jumlah Penerima", `${payrollData.length} Orang`],
+  ];
+  info.forEach(([label, val]) => {
+    const r = ws.addRow(["", label, ":", val]);
+    r.getCell(2).font = { bold: true };
+    if (typeof val === "number") {
+      r.getCell(4).numFmt = `"Rp "${numFmt}`;
+      r.getCell(4).font = { bold: true };
+      r.getCell(4).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF136" } };
+      r.getCell(4).alignment = { horizontal: "left" };
+    }
+  });
+
+  // Tanda tangan
+  ws.addRow([]);
+  const tgl = new Date().toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const sign = (vals, font) => {
+    const r = ws.addRow(["", vals[0], "", vals[1], ""]);
+    ws.mergeCells(`D${r.number}:E${r.number}`);
+    [2, 4].forEach((c) => {
+      r.getCell(c).alignment = { horizontal: "center" };
+      if (font) r.getCell(c).font = font;
+    });
+    return r;
+  };
+  sign(["", `Labuapi, ${tgl}`]);
+  sign(["Disetujui oleh,", "Diajukan oleh,"]);
+  for (let i = 0; i < 4; i++) ws.addRow([]);
+  const nameRow = sign(["JAYADI", "FITHRAH AINI"], { bold: true, underline: true });
+  nameRow.height = 18;
+  sign(["Direktur", "Bendahara"]);
+
+  ws.addRow([]);
+  const foot = ws.addRow([
+    `*Dokumen ini digenerate otomatis melalui sistem PT. Berkah Angsana Teknika pada: ${new Date().toLocaleString("id-ID")}`,
+  ]);
+  ws.mergeCells(`A${foot.number}:E${foot.number}`);
+  foot.getCell(1).font = { italic: true, size: 8, color: { argb: "FF808080" } };
+
+  // Pengaturan cetak A4
+  ws.pageSetup = {
+    paperSize: 9,
+    orientation: "portrait",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+  };
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Payroll_Bank_${periodeFormal.replace(" ", "_")}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 };

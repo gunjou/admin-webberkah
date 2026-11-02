@@ -17,6 +17,7 @@ import autoTable from "jspdf-autotable";
 import {
   exportPayrollToPDF,
   exportPayrollBankPDF,
+  exportPayrollBankExcel,
 } from "./export/ExportPayroll";
 import { exportSlipGajiPDF } from "./export/ExportSlipGaji";
 import { normalizeBankName } from "./export/ExportPayroll";
@@ -76,14 +77,16 @@ const Gaji = () => {
       : filteredPayroll;
 
   // Export payroll ke bank (rekening sumber dipilih di ModalExportPayroll)
-  const exportToBankPDF = async (account) => {
+  const exportToBankPDF = async (account, format = "pdf") => {
     try {
       const res = await Api.get("/pegawai/rekening");
       const rekeningMap = {};
       (res.data?.data || []).forEach((r) => {
         rekeningMap[r.id_pegawai] = r;
       });
-      exportPayrollBankPDF(
+      const exporter =
+        format === "excel" ? exportPayrollBankExcel : exportPayrollBankPDF;
+      await exporter(
         getDataToExport(),
         rekeningMap,
         monthNames,
@@ -93,7 +96,7 @@ const Gaji = () => {
       );
     } catch (err) {
       console.error("Export bank error:", err);
-      SwalHelper.error("Gagal mengambil data rekening pegawai.");
+      SwalHelper.error("Gagal export payroll bank.");
       throw err;
     }
   };

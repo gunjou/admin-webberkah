@@ -6,6 +6,8 @@ import {
   MdDescription,
   MdAccountBalance,
   MdCheckCircle,
+  MdPictureAsPdf,
+  MdGridOn,
 } from "react-icons/md";
 import Api from "../../utils/Api";
 
@@ -60,11 +62,13 @@ const ModalExportPayroll = ({
   const [errorAcc, setErrorAcc] = useState("");
   const [selectedAcc, setSelectedAcc] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [format, setFormat] = useState("pdf");
 
   useEffect(() => {
     if (!isOpen) {
       setJenis("internal");
       setSelectedAcc(null);
+      setFormat("pdf");
     }
   }, [isOpen]);
 
@@ -94,7 +98,7 @@ const ModalExportPayroll = ({
     setSubmitting(true);
     try {
       if (jenis === "internal") await onExportInternal();
-      else await onExportBank(selectedAcc);
+      else await onExportBank(selectedAcc, format);
       onClose();
     } finally {
       setSubmitting(false);
@@ -205,7 +209,28 @@ const ModalExportPayroll = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 dark:bg-white/5 flex justify-end gap-2">
+        <div className="px-6 py-4 bg-gray-50 dark:bg-white/5 flex flex-wrap items-center justify-end gap-2">
+          {jenis === "bank" && (
+            <div className="mr-auto flex rounded-xl bg-gray-200/70 dark:bg-white/10 p-1">
+              {[
+                { key: "pdf", label: "PDF", icon: MdPictureAsPdf },
+                { key: "excel", label: "Excel", icon: MdGridOn },
+              ].map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setFormat(key)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    format === key
+                      ? "bg-white dark:bg-custom-gelap text-custom-merah-terang shadow"
+                      : "text-gray-500 hover:text-custom-gelap dark:hover:text-white"
+                  }`}
+                >
+                  <Icon size={14} /> {label}
+                </button>
+              ))}
+            </div>
+          )}
           <button
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
@@ -218,7 +243,11 @@ const ModalExportPayroll = ({
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-custom-merah-terang text-white shadow-lg shadow-custom-merah-terang/20 hover:bg-custom-merah transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <MdFileDownload size={16} />
-            {submitting ? "Memproses..." : "Export PDF"}
+            {submitting
+              ? "Memproses..."
+              : jenis === "bank" && format === "excel"
+                ? "Export Excel"
+                : "Export PDF"}
           </button>
         </div>
       </div>
