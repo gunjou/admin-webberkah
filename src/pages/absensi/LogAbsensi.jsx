@@ -209,9 +209,9 @@ const LogAbsensi = () => {
   const periodeLabel = `${BULAN_OPTIONS[filter.bulan - 1]} ${filter.tahun}`;
 
   return (
-    <div className="space-y-3 animate-in fade-in duration-500 pb-10">
+    <div className="space-y-3 animate-in fade-in duration-500 pb-1">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-2 py-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-2 py-1">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-black dark:text-white uppercase tracking-tighter">
@@ -344,13 +344,14 @@ const LogAbsensi = () => {
 
       {/* Tabel */}
       <div className="bg-white dark:bg-custom-gelap rounded-[25px] shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden">
-        <div className="overflow-x-auto overflow-y-auto max-h-[420px] custom-scrollbar">
+        <div className="overflow-x-auto overflow-y-auto max-h-[360px] custom-scrollbar">
           <table className="w-full text-left border-collapse relative">
             <thead>
               <tr className="sticky top-0 z-20 bg-gray-50 dark:bg-[#1a1a1a] text-[8px] uppercase tracking-[1px] text-gray-400 border-b border-gray-100 dark:border-white/5 shadow-sm">
                 <th className="px-4 py-3 font-black">Waktu</th>
                 <th className="px-4 py-3 font-black">Identitas Pegawai</th>
                 <th className="px-4 py-3 font-black text-center">Aksi</th>
+                <th className="px-4 py-3 font-black">Lokasi Terdekat</th>
                 <th className="px-4 py-3 font-black">Error</th>
                 <th className="px-4 py-3 font-black">Pesan</th>
                 <th className="px-4 py-3 font-black text-center">Durasi</th>
@@ -360,7 +361,7 @@ const LogAbsensi = () => {
             <tbody className="divide-y divide-gray-50 dark:divide-white/5 relative">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="p-10 text-center">
+                  <td colSpan="8" className="p-10 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <div className="w-6 h-6 border-2 border-custom-cerah border-t-transparent rounded-full animate-spin"></div>
                       <span className="text-[8px] font-black uppercase tracking-[2px] text-custom-cerah animate-pulse">
@@ -415,6 +416,11 @@ const LogAbsensi = () => {
                         </span>
                       </td>
                       <td className="px-4 py-2">
+                        <span className="text-[9px] font-bold dark:text-gray-200 whitespace-nowrap">
+                          {item.errors?.lokasi_terdekat || "-"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2">
                         <div className="flex items-center gap-1.5">
                           <span
                             className={`text-[7px] font-black px-1.5 py-0.5 rounded-md border ${statusStyle(item.http_status)}`}
@@ -465,7 +471,7 @@ const LogAbsensi = () => {
               ) : (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="8"
                     className="p-10 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest"
                   >
                     {errorMsg || "Tidak ada kegagalan absensi tercatat"}
