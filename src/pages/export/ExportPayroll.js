@@ -363,15 +363,22 @@ export const exportPayrollBankPDF = (
   doc.setLineWidth(0.5).line(margin, 32, pageWidth - margin, 32);
   doc.setLineWidth(0.1).line(margin, 33, pageWidth - margin, 33);
 
-  doc.setTextColor(0).setFontSize(12).setFont("helvetica", "bold");
-  doc.text("DAFTAR PEMBAYARAN GAJI KARYAWAN", pageWidth / 2, 42, {
-    align: "center",
-  });
+  doc.setTextColor(0).setFontSize(10).setFont("helvetica", "bold");
+  doc.text(
+    "DATA PENGGAJIAN KARYAWAN PT. BERKAH ANGSANA TEKNIKA",
+    pageWidth / 2,
+    42,
+    { align: "center" },
+  );
   doc
     .setFontSize(10)
-    .text(`PERIODE: ${periodeFormal.toUpperCase()}`, pageWidth / 2, 47, {
-      align: "center",
-    });
+    .setFont("helvetica", "normal")
+    .text(
+      "Mohon dibayarkan melalui Bank Mandiri sesuai data terlampir",
+      pageWidth / 2,
+      47,
+      { align: "center" },
+    );
 
   let totalDebet = 0;
   const rows = payrollData.map((row, i) => {

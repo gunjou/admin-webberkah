@@ -116,18 +116,25 @@ const Gaji = () => {
         (acc, row) => acc + (row.potongan_hutang || 0),
         0,
       ),
+      // Floor per baris agar total = jumlah angka yang tercetak (sama dengan export bank)
       total_lembur: dataToExport.reduce(
-        (acc, row) => acc + (row.lembur || 0),
+        (acc, row) => acc + Math.floor(row.lembur || 0),
         0,
       ),
       total_basic: dataToExport.reduce(
-        (acc, row) => acc + (row.total_diterima - (row.potongan_hutang || 0)),
+        (acc, row) =>
+          acc +
+          Math.floor((row.total_diterima || 0) - (row.potongan_hutang || 0)),
         0,
       ),
       grand_total: dataToExport.reduce(
         (acc, row) =>
           acc +
-          (row.total_diterima - (row.potongan_hutang || 0) + (row.lembur || 0)),
+          Math.floor(
+            (row.total_diterima || 0) -
+              (row.potongan_hutang || 0) +
+              (row.lembur || 0),
+          ),
         0,
       ),
     };
@@ -211,8 +218,11 @@ const Gaji = () => {
         const getVal = (kode) =>
           detailK?.komponen_gaji.find((c) => c.kode === kode)?.nilai || 0;
 
+        // Bulatkan di sumber agar semua total (layar, export internal & bank) konsisten
         return {
           ...p,
+          total_diterima: Math.floor(p.total_diterima || 0),
+          total_potongan: Math.floor(p.total_potongan || 0),
           gapok: getVal("GAPOK"),
           t_jab: getVal("T_JAB"),
           t_mkn: getVal("T_MKN"),
@@ -224,8 +234,8 @@ const Gaji = () => {
             getVal("T_MKN") +
             getVal("T_TRP") +
             getVal("T_KHS"),
-          potongan_hutang: hutangPegawai,
-          lembur: upahLembur,
+          potongan_hutang: Math.floor(hutangPegawai),
+          lembur: Math.floor(upahLembur),
         };
       });
 
