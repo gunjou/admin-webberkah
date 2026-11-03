@@ -470,7 +470,7 @@ const Quotation = () => {
         ====================================================== */}
 
         <div className="bg-white dark:bg-custom-gelap border border-gray-100 dark:border-white/5 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[calc(100vh-260px)]">
             <table className="w-full min-w-[1200px]">
               <thead>
                 <tr className="bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">

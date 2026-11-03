@@ -480,7 +480,7 @@ const Completion = () => {
         ====================================================== */}
 
         <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-white/5 dark:bg-custom-gelap">
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[calc(100vh-260px)]">
             <table className="w-full min-w-[1050px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 dark:border-white/5 dark:bg-white/5">

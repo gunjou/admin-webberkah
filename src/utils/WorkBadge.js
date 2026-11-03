@@ -35,7 +35,7 @@ export const WORK_TYPE_BADGES = {
 
 export const WORK_TYPE_LABELS = {
   TENDER: "Tender",
-  MAINTENANCE: "Maintenance",
+  MAINTENANCE: "Non Tender",
 };
 
 export const HEALTH_STATUS_BADGES = {

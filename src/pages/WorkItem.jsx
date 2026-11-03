@@ -525,9 +525,12 @@ const WorkItem = () => {
         </div>
 
         <div className="bg-white dark:bg-custom-gelap border border-gray-100 dark:border-white/5 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Tinggi maksimal tabel = tinggi layar - 200px.
+              Angka 200 = ruang untuk header/filter di atas tabel.
+              Tabel kurang tinggi -> kecilkan angkanya; halaman ikut scroll -> besarkan. */}
+          <div className="overflow-auto max-h-[calc(100vh-260px)]">
             <table className="w-full min-w-[1250px]">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-custom-gelap">
                 <tr className="bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
                   <th className="w-12 px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">
                     #
@@ -540,15 +543,6 @@ const WorkItem = () => {
                   </th>
                   <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider cursor-pointer">
                     Nama Pekerjaan
-                  </th>
-                  <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    Type
-                  </th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    PIC - Client
-                  </th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    PIC
                   </th>
                   <th className="px-4 py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     Stage
@@ -580,7 +574,7 @@ const WorkItem = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                 {displayedData.length === 0 ? (
                   <tr>
-                    <td colSpan="13" className="px-4 py-12 text-center">
+                    <td colSpan="11" className="px-4 py-12 text-center">
                       <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
                         Tidak ada data work item
                       </p>
@@ -601,12 +595,17 @@ const WorkItem = () => {
                           : index + 1}
                       </td>
 
-                      {/* WORK-ITEM NUMBER */}
+                      {/* WORK-ITEM NUMBER & TYPE */}
                       <td className="px-4 py-3 align-center">
+                        <span
+                          className={`inline-flex items-center mb-1 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${WORK_TYPE_BADGES[item.work_type]}`}
+                        >
+                          {WORK_TYPE_LABELS[item.work_type] || item.work_type}
+                        </span>
                         <button
                           type="button"
                           onClick={() => handleDetail(item.id_work_item)}
-                          className="text-[11px] font-black text-custom-merah-terang hover:underline whitespace-nowrap"
+                          className="block text-[11px] font-black text-custom-merah-terang hover:underline whitespace-nowrap"
                         >
                           {item.work_number}
                         </button>
@@ -615,36 +614,25 @@ const WorkItem = () => {
                         </p>
                       </td>
 
-                      {/* WORK-ITEM NAME */}
-                      <td className="px-4 py-3 align-center min-w-[320px] max-w-[420px]">
+                      {/* WORK-ITEM NAME, CLIENT & PIC */}
+                      <td className="px-4 py-3 align-center min-w-[320px] max-w-[820px]">
                         <p className="text-[11px] line-clamp-3 font-black text-custom-gelap dark:text-white leading-relaxed">
                           {item.work_name || "-"}
                         </p>
-                      </td>
-
-                      {/* WORK-ITEM TYPE */}
-                      <td className="px-4 py-3 text-center align-center">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${WORK_TYPE_BADGES[item.work_type]}`}
-                        >
-                          {WORK_TYPE_LABELS[item.work_type] || item.work_type}
-                        </span>
-                      </td>
-
-                      {/* PIC & CLIENT */}
-                      <td className="px-4 py-3 align-center">
-                        <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
-                          Pak {item.client_pic_name || "-"}
-                        </p>
-                        <p className="text-[9px] text-gray-400 font-bold mt-0.5 whitespace-nowrap">
+                        <p className="text-[9px] text-gray-500 dark:text-gray-400 font-bold mt-1">
                           {item.client_name || "-"}
+                          {" · "}
+                          <span className="text-[9px] text-custom-merah dark:text-white font-bold mt-1">
+                            {item.client_pic_name
+                              ? `Pak ${item.client_pic_name}`
+                              : "-"}
+                          </span>
                         </p>
-                      </td>
-
-                      {/* PIC INTERNAL */}
-                      <td className="px-4 py-3 align-center">
-                        <p className="text-[11px] font-black text-custom-gelap dark:text-white whitespace-nowrap">
-                          {item.internal_pic_name || "-"}
+                        <p className="text-[9px] text-gray-400 font-bold mt-0.5">
+                          PIC Berkah:{" "}
+                          <span className="text-[9px] text-custom-merah dark:text-white font-bold mt-1">
+                            {item.internal_pic_name || "-"}
+                          </span>
                         </p>
                       </td>
 
