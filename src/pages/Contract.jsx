@@ -498,7 +498,7 @@ const Contract = () => {
         <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-white/5 dark:bg-custom-gelap">
           <div className="overflow-auto max-h-[calc(100vh-260px)]">
             <table className="w-full min-w-[1250px]">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-custom-gelap">
                 <tr className="border-b border-gray-100 bg-gray-50 dark:border-white/5 dark:bg-white/5">
                   <th className="w-12 px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                     #

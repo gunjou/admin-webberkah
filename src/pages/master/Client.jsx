@@ -357,7 +357,7 @@ const Client = () => {
 
   return (
     <>
-      <div className="space-y-6 animate-in fade-in duration-500 pb-10">
+      <div className="space-y-3 animate-in fade-in duration-500 pb-10">
         {/* =====================================================
             HEADER
         ====================================================== */}
@@ -490,9 +490,9 @@ const Client = () => {
             {/* TABLE CLIENT */}
 
             <div className="bg-white dark:bg-custom-gelap rounded-[40px] shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[calc(100vh-320px)]">
                 <table className="w-full text-left border-collapse">
-                  <thead>
+                  <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-custom-gelap">
                     <tr className="bg-gray-50 dark:bg-[#3d2e39] text-[10px] font-black uppercase tracking-widest text-gray-400">
                       <th className="p-6 w-32">Kode</th>
                       <th className="p-6">Client</th>
@@ -690,9 +690,9 @@ const Client = () => {
             {/* TABLE PIC */}
 
             <div className="bg-white dark:bg-custom-gelap rounded-[40px] shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[calc(100vh-260px)]">
                 <table className="w-full text-left border-collapse">
-                  <thead>
+                  <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-custom-gelap">
                     <tr className="bg-gray-50 dark:bg-[#3d2e39] text-[10px] font-black uppercase tracking-widest text-gray-400">
                       <th className="p-6">PIC</th>
                       <th className="p-6">Client</th>
@@ -761,7 +761,7 @@ const Client = () => {
 
                                 <div className="min-w-0">
                                   <p className="text-sm font-bold text-custom-gelap dark:text-white uppercase tracking-tight">
-                                    {pic.name}
+                                    Pak {pic.name}
                                   </p>
 
                                   <p className="text-[9px] text-gray-400 font-medium mt-1">
