@@ -58,7 +58,16 @@ const PengajuanTable = ({
   onDelete,
   viewMode,
   startIndex = 0,
+  selectedIds = [],
+  onToggleSelect,
+  onToggleSelectAll,
 }) => {
+  const selectedSet = new Set(selectedIds);
+  const allSelected =
+    data.length > 0 && data.every((item) => selectedSet.has(item.id_request));
+  const someSelected =
+    !allSelected && data.some((item) => selectedSet.has(item.id_request));
+
   if (loading) {
     return (
       <div className="bg-white dark:bg-custom-gelap rounded-2xl border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden">
@@ -100,6 +109,18 @@ const PengajuanTable = ({
         <table className="w-full min-w-[1150px]">
           <thead className="sticky top-0 z-20">
             <tr className="border-b border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-custom-gelap">
+              <th className="w-10 px-3 py-4 text-center">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someSelected;
+                  }}
+                  onChange={() => onToggleSelectAll?.(!allSelected)}
+                  className="h-4 w-4 cursor-pointer accent-custom-merah-terang"
+                  title="Pilih semua"
+                />
+              </th>
               <th className="w-12 px-4 py-4 text-center text-[9px] font-black uppercase tracking-widest text-gray-400">
                 No
               </th>
@@ -162,11 +183,21 @@ const PengajuanTable = ({
               const priority =
                 PRIORITY_STYLE[item.priority] || PRIORITY_STYLE.NORMAL;
 
+              const isSelected = selectedSet.has(item.id_request);
+
               return (
                 <tr
                   key={item.id_request}
-                  className="group transition-colors hover:bg-custom-cerah/[0.04] dark:hover:bg-white/[0.03]"
+                  className={`group transition-colors hover:bg-custom-cerah/[0.04] dark:hover:bg-white/[0.03] ${isSelected ? "bg-custom-cerah/[0.06] dark:bg-white/[0.05]" : ""}`}
                 >
+                  <td className="px-3 py-4 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onToggleSelect?.(item.id_request)}
+                      className="h-4 w-4 cursor-pointer accent-custom-merah-terang"
+                    />
+                  </td>
                   <td
                     onClick={() => onDetail?.(item.id_request)}
                     className="cursor-pointer px-2 py-4 text-center"

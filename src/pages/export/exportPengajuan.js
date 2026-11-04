@@ -306,14 +306,14 @@ export const exportPengajuanPDF = (
 
   let filterX = margin;
 
-  if (filters.departemen) {
+  if (filters.search) {
     doc.setFont("helvetica", "bold");
 
-    doc.text("DEPARTEMEN", filterX, infoY);
+    doc.text("PENCARIAN", filterX, infoY);
 
     doc.setFont("helvetica", "normal");
 
-    doc.text(`: ${filters.departemen}`, filterX + 27, infoY);
+    doc.text(`: ${filters.search}`, filterX + 27, infoY);
 
     filterX += 85;
   }
@@ -346,7 +346,7 @@ export const exportPengajuanPDF = (
 
   autoTable(doc, {
     startY:
-      filters.departemen || filters.tanggal_mulai || filters.tanggal_selesai
+      filters.search || filters.tanggal_mulai || filters.tanggal_selesai
         ? 57
         : 50,
 

@@ -16,6 +16,7 @@ const Pengajuan = () => {
   const [viewMode, setViewMode] = useState("ACTIVE");
   const [loading, setLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [dataPengajuan, setDataPengajuan] = useState([]);
   const [sortConfig, setSortConfig] = useState({
     key: "date",
@@ -42,7 +43,7 @@ const Pengajuan = () => {
 
   const [filter, setFilter] = useState({
     status: "ACTIVE",
-    id_departemen: "",
+    search: "",
     tanggal_mulai: "",
     tanggal_selesai: "",
   });
@@ -73,7 +74,7 @@ const Pengajuan = () => {
     try {
       const params = { status: filter.status };
 
-      if (filter.id_departemen) params.id_departemen = filter.id_departemen;
+      if (filter.search) params.search = filter.search;
       if (filter.tanggal_mulai) params.tanggal_mulai = filter.tanggal_mulai;
       if (filter.tanggal_selesai)
         params.tanggal_selesai = filter.tanggal_selesai;
@@ -112,7 +113,7 @@ const Pengajuan = () => {
         params.per_page = historyPerPage;
       }
 
-      if (filter.id_departemen) params.id_departemen = filter.id_departemen;
+      if (filter.search) params.search = filter.search;
       if (filter.tanggal_mulai) params.tanggal_mulai = filter.tanggal_mulai;
       if (filter.tanggal_selesai)
         params.tanggal_selesai = filter.tanggal_selesai;
@@ -154,6 +155,19 @@ const Pengajuan = () => {
   useEffect(() => {
     fetchHistoryData();
   }, [fetchHistoryData]);
+
+  // Reset pilihan setiap data tabel berubah (filter, mode, halaman)
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [dataPengajuan]);
+
+  const handleToggleSelect = (idRequest) => {
+    setSelectedIds((prev) =>
+      prev.includes(idRequest)
+        ? prev.filter((id) => id !== idRequest)
+        : [...prev, idRequest],
+    );
+  };
 
   const refreshPengajuan = useCallback(async () => {
     if (viewMode === "ACTIVE") {
@@ -239,24 +253,30 @@ const Pengajuan = () => {
     }
   };
 
+  const handleToggleSelectAll = (checked) => {
+    setSelectedIds(checked ? displayedData.map((item) => item.id_request) : []);
+  };
+
   const handleExportPDF = async () => {
-    if (!displayedData.length) {
+    // Tanpa pilihan: export semua yang tampil di tabel.
+    // Dengan pilihan: hanya baris terpilih (urutan mengikuti tabel).
+    const exportData = selectedIds.length
+      ? displayedData.filter((item) => selectedIds.includes(item.id_request))
+      : displayedData;
+
+    if (!exportData.length) {
       SwalHelper.warning("Tidak ada data pengajuan yang dapat diexport.");
       return;
     }
-
-    const selectedDepartemen = departemen.find(
-      (item) => String(item.id_departemen) === String(filter.id_departemen),
-    );
 
     try {
       setExportLoading(true);
 
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      exportPengajuanPDF(displayedData, {
+      exportPengajuanPDF(exportData, {
         status: filter.status,
-        departemen: selectedDepartemen?.nama_departemen || "",
+        search: filter.search,
         tanggal_mulai: filter.tanggal_mulai,
         tanggal_selesai: filter.tanggal_selesai,
         viewMode,
@@ -281,13 +301,13 @@ const Pengajuan = () => {
       viewMode === "ACTIVE"
         ? {
             status: "ACTIVE",
-            id_departemen: "",
+            search: "",
             tanggal_mulai: "",
             tanggal_selesai: "",
           }
         : {
             status: "PAID",
-            id_departemen: "",
+            search: "",
             tanggal_mulai: "",
             tanggal_selesai: "",
           },
@@ -305,13 +325,13 @@ const Pengajuan = () => {
       nextMode === "ACTIVE"
         ? {
             status: "ACTIVE",
-            id_departemen: "",
+            search: "",
             tanggal_mulai: "",
             tanggal_selesai: "",
           }
         : {
             status: "PAID",
-            id_departemen: "",
+            search: "",
             tanggal_mulai: "",
             tanggal_selesai: "",
           },
@@ -349,7 +369,9 @@ const Pengajuan = () => {
               ) : (
                 <>
                   <MdDownload size={16} />
-                  Export PDF
+                  {selectedIds.length
+                    ? `Export PDF (${selectedIds.length})`
+                    : "Export PDF"}
                 </>
               )}
             </button>
@@ -384,13 +406,15 @@ const Pengajuan = () => {
         <PengajuanFilter
           filter={filter}
           setFilter={setFilter}
-          departemen={departemen}
           onReset={handleResetFilter}
           viewMode={viewMode}
         />
 
         <PengajuanTable
           data={displayedData}
+          selectedIds={selectedIds}
+          onToggleSelect={handleToggleSelect}
+          onToggleSelectAll={handleToggleSelectAll}
           loading={loading}
           sortConfig={sortConfig}
           onSort={(key) =>

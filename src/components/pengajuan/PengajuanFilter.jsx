@@ -1,13 +1,31 @@
-import React from "react";
-import { MdApartment, MdDateRange, MdRefresh } from "react-icons/md";
+import React, { useEffect, useState } from "react";
+import { MdDateRange, MdRefresh, MdSearch } from "react-icons/md";
 
 const PengajuanFilter = ({
   filter,
   setFilter,
-  departemen,
   onReset,
   viewMode,
 }) => {
+  const [searchInput, setSearchInput] = useState(filter.search || "");
+
+  // Sinkron saat filter di-reset / ganti mode
+  useEffect(() => {
+    setSearchInput(filter.search || "");
+  }, [filter.search]);
+
+  // Debounce agar tidak request setiap ketikan
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const value = searchInput.trim();
+      setFilter((prev) =>
+        (prev.search || "") === value ? prev : { ...prev, search: value },
+      );
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchInput, setFilter]);
+
   const statusTabs =
     viewMode === "ACTIVE"
       ? [
@@ -75,29 +93,17 @@ const PengajuanFilter = ({
 
         <div className="flex flex-1 gap-2 min-w-0">
           <div className="relative flex-1 min-w-0">
-            <MdApartment
+            <MdSearch
               size={16}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-custom-cerah pointer-events-none"
             />
-            <select
-              value={filter.id_departemen}
-              onChange={(e) =>
-                setFilter((prev) => ({
-                  ...prev,
-                  id_departemen: e.target.value,
-                }))
-              }
-              className="w-full h-10 pl-9 pr-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 text-[9px] font-bold text-custom-gelap dark:text-white outline-none appearance-none cursor-pointer"
-            >
-              <option value="">Semua Departemen</option>
-              {departemen
-                .filter((item) => item.status === 1)
-                .map((item) => (
-                  <option key={item.id_departemen} value={item.id_departemen}>
-                    {item.nama_departemen}
-                  </option>
-                ))}
-            </select>
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Cari pemohon, pekerjaan, priority, item..."
+              className="w-full h-10 pl-9 pr-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 text-[9px] font-bold text-custom-gelap dark:text-white outline-none placeholder:text-gray-400"
+            />
           </div>
 
           <div className="relative flex-1 min-w-0">
