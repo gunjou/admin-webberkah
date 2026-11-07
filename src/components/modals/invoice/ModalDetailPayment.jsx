@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { MdClose, MdDelete, MdDescription, MdPayment } from "react-icons/md";
+import {
+  MdAttachFile,
+  MdClose,
+  MdDelete,
+  MdDescription,
+  MdPayment,
+} from "react-icons/md";
 import Api from "../../../utils/Api";
 import SwalHelper from "../../../utils/Swal";
 import DocumentPreviewModal from "../DocumentPreviewModal";
@@ -68,6 +74,7 @@ const STAGE_LABELS = {
 const ModalDetailPayment = ({ show, paymentId, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [payment, setPayment] = useState(null);
+  const [newDocument, setNewDocument] = useState(null);
 
   const [showDocumentPreview, setShowDocumentPreview] = useState(false);
   const [selectedDocumentUrl, setSelectedDocumentUrl] = useState("");
@@ -75,6 +82,7 @@ const ModalDetailPayment = ({ show, paymentId, onClose, onSuccess }) => {
 
   useEffect(() => {
     if (show && paymentId) {
+      setNewDocument(null);
       fetchPayment();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,6 +127,62 @@ const ModalDetailPayment = ({ show, paymentId, onClose, onSuccess }) => {
     setShowDocumentPreview(false);
     setSelectedDocumentUrl("");
     setSelectedDocumentTitle("");
+  };
+
+  const handleDocumentChange = (e) => {
+    const file = e.target.files?.[0];
+
+    if (file) {
+      setNewDocument(file);
+    }
+
+    // Allow selecting the same file again
+    e.target.value = "";
+  };
+
+  const handleUploadDocument = async () => {
+    try {
+      setLoading(true);
+
+      const formData = new FormData();
+      formData.append("document", newDocument);
+
+      const response = await Api.patch(
+        `/work-item/payment/${paymentId}/document`,
+        formData,
+        {
+          transformRequest: [
+            (data, headers) => {
+              if (data instanceof FormData) {
+                delete headers["Content-Type"];
+              }
+
+              return data;
+            },
+          ],
+        },
+      );
+
+      if (response.data?.success) {
+        setPayment(response.data?.data || null);
+        setNewDocument(null);
+        onSuccess?.();
+
+        await SwalHelper.success(
+          response.data?.message || "Lampiran berhasil ditambahkan.",
+        );
+      } else {
+        SwalHelper.error(
+          response.data?.message || "Gagal menambahkan lampiran.",
+        );
+      }
+    } catch (error) {
+      SwalHelper.error(
+        error.response?.data?.message || "Gagal menambahkan lampiran.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -428,18 +492,18 @@ const ModalDetailPayment = ({ show, paymentId, onClose, onSuccess }) => {
                 </div>
 
                 {/* Document */}
-                {payment.document_url && (
-                  <div className="rounded-xl border border-gray-100 p-4 dark:border-gray-700">
-                    <div className="mb-3">
-                      <h3 className="text-[10px] font-black uppercase tracking-[1.5px] text-custom-gelap dark:text-white">
-                        Bukti Pembayaran
-                      </h3>
+                <div className="rounded-xl border border-gray-100 p-4 dark:border-gray-700">
+                  <div className="mb-3">
+                    <h3 className="text-[10px] font-black uppercase tracking-[1.5px] text-custom-gelap dark:text-white">
+                      Bukti Pembayaran
+                    </h3>
 
-                      <p className="mt-0.5 text-[9px] font-semibold text-gray-400">
-                        Dokumen atau bukti pembayaran yang dilampirkan.
-                      </p>
-                    </div>
+                    <p className="mt-0.5 text-[9px] font-semibold text-gray-400">
+                      Dokumen atau bukti pembayaran yang dilampirkan.
+                    </p>
+                  </div>
 
+                  {payment.document_url ? (
                     <button
                       type="button"
                       onClick={handleDocumentPreview}
@@ -448,8 +512,74 @@ const ModalDetailPayment = ({ show, paymentId, onClose, onSuccess }) => {
                       <MdDescription size={15} />
                       Preview Bukti Pembayaran
                     </button>
-                  </div>
-                )}
+                  ) : !newDocument ? (
+                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 transition hover:border-custom-merah hover:bg-custom-merah/5 dark:border-gray-600 dark:bg-white/5 dark:hover:border-custom-merah">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-custom-merah/10 text-custom-merah">
+                        <MdAttachFile size={18} />
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black text-gray-700 dark:text-gray-200">
+                          Pilih dokumen bukti pembayaran
+                        </p>
+
+                        <p className="mt-0.5 text-[8px] font-semibold text-gray-400">
+                          Format yang didukung: PDF, DOC, DOCX, XLS, XLSX.
+                        </p>
+                      </div>
+
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx"
+                        onChange={handleDocumentChange}
+                        disabled={loading}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-white/5">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-custom-merah/10 text-custom-merah">
+                          <MdDescription size={18} />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p
+                            className="truncate text-[10px] font-black text-gray-700 dark:text-gray-200"
+                            title={newDocument.name}
+                          >
+                            {newDocument.name}
+                          </p>
+
+                          <p className="mt-0.5 text-[8px] font-semibold text-gray-400">
+                            {(newDocument.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleUploadDocument}
+                          disabled={loading}
+                          className="inline-flex h-9 items-center rounded-xl bg-custom-merah px-4 text-[9px] font-black uppercase tracking-widest text-white transition hover:bg-custom-merah-terang disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {loading ? "Mengunggah..." : "Simpan Lampiran"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setNewDocument(null)}
+                          disabled={loading}
+                          className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-500/10"
+                          title="Batalkan dokumen"
+                        >
+                          <MdClose size={17} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Notes */}
                 {payment.notes && (
