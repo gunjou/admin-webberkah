@@ -10,8 +10,8 @@ const INITIAL_FORM = {
   work_name: "",
   ba_number: "",
   ba_date: "",
-  document: null,
-  document_url: "",
+  documents: [],
+  attachments: [],
   notes: "",
 };
 
@@ -23,7 +23,7 @@ const ModalEditCompletion = ({ show, onClose, completionId, onSuccess }) => {
 
   const [error, setError] = useState("");
 
-  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState(null);
 
   const fetchDetail = async () => {
     if (!completionId) return;
@@ -54,8 +54,8 @@ const ModalEditCompletion = ({ show, onClose, completionId, onSuccess }) => {
         work_name: completion.work_name || "",
         ba_number: completion.ba_number || "",
         ba_date: completion.ba_date || "",
-        document: null,
-        document_url: completion.document_url || "",
+        documents: [],
+        attachments: completion.attachments || [],
         notes: completion.notes || "",
       });
     } catch (err) {
@@ -82,7 +82,7 @@ const ModalEditCompletion = ({ show, onClose, completionId, onSuccess }) => {
     if (!show) {
       setForm(INITIAL_FORM);
       setError("");
-      setShowDocumentPreview(false);
+      setPreviewAttachment(null);
     }
   }, [show]);
 
@@ -100,11 +100,11 @@ const ModalEditCompletion = ({ show, onClose, completionId, onSuccess }) => {
   };
 
   const handleDocumentChange = (event) => {
-    const file = event.target.files?.[0] || null;
+    const files = Array.from(event.target.files || []);
 
     setForm((prev) => ({
       ...prev,
-      document: file,
+      documents: [...prev.documents, ...files],
     }));
 
     if (error) {
@@ -115,20 +115,45 @@ const ModalEditCompletion = ({ show, onClose, completionId, onSuccess }) => {
     event.target.value = "";
   };
 
-  const handleRemoveDocument = () => {
+  const handleRemoveDocument = (index) => {
     setForm((prev) => ({
       ...prev,
-      document: null,
+      documents: prev.documents.filter((_, fileIndex) => fileIndex !== index),
     }));
   };
 
-  const handlePreviewExistingDocument = () => {
-    if (!form.document_url) {
-      SwalHelper.info("Dokumen BA tidak tersedia.");
+  const handleDeleteAttachment = async (attachment) => {
+    const confirmed = await SwalHelper.confirm({
+      title: "Hapus Lampiran?",
+      message: `Lampiran "${attachment.file_name}" akan dihapus.`,
+      confirmText: "Ya, Hapus",
+      cancelText: "Batal",
+    });
+
+    if (!confirmed) {
       return;
     }
 
-    setShowDocumentPreview(true);
+    try {
+      await Api.delete(
+        `/work-item/completion/${completionId}/attachments/${attachment.id_attachment}`,
+      );
+
+      setForm((prev) => ({
+        ...prev,
+        attachments: prev.attachments.filter(
+          (item) => item.id_attachment !== attachment.id_attachment,
+        ),
+      }));
+
+      if (onSuccess) {
+        await onSuccess();
+      }
+    } catch (err) {
+      console.error("Gagal menghapus lampiran BA:", err);
+
+      setError(err.response?.data?.message || "Gagal menghapus lampiran BA.");
+    }
   };
 
   const validateForm = () => {
@@ -171,9 +196,9 @@ const ModalEditCompletion = ({ show, onClose, completionId, onSuccess }) => {
 
       formData.append("notes", form.notes.trim());
 
-      if (form.document) {
-        formData.append("document", form.document);
-      }
+      form.documents.forEach((document) => {
+        formData.append("document", document);
+      });
 
       const response = await Api.put(
         `/work-item/completion/${completionId}`,
@@ -356,42 +381,53 @@ const ModalEditCompletion = ({ show, onClose, completionId, onSuccess }) => {
                       Dokumen BA
                     </label>
 
-                    {/* Existing document */}
+                    {/* Existing documents */}
 
-                    {form.document_url && !form.document && (
-                      <div className="mb-3 flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 dark:border-gray-700 dark:bg-gray-800">
+                    {form.attachments.map((attachment) => (
+                      <div
+                        key={attachment.id_attachment}
+                        className="mb-3 flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 dark:border-gray-700 dark:bg-gray-800"
+                      >
                         <div className="flex min-w-0 items-center gap-2">
                           <MdDescription
                             size={20}
                             className="shrink-0 text-custom-merah-terang"
                           />
 
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
-                              Dokumen BA saat ini
-                            </p>
-
-                            <p className="mt-0.5 truncate text-[10px] text-gray-400">
-                              Dokumen tersimpan di CDN
-                            </p>
-                          </div>
+                          <p className="truncate text-xs font-semibold text-gray-700 dark:text-gray-200">
+                            {attachment.file_name}
+                          </p>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={handlePreviewExistingDocument}
-                          disabled={saving}
-                          className="ml-3 shrink-0 rounded-lg bg-custom-merah-terang px-3 py-2 text-[9px] font-black uppercase tracking-wider text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Preview
-                        </button>
+                        <div className="ml-3 flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewAttachment(attachment)}
+                            disabled={saving}
+                            className="rounded-lg bg-custom-merah-terang px-3 py-2 text-[9px] font-black uppercase tracking-wider text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Preview
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAttachment(attachment)}
+                            disabled={saving}
+                            className="rounded-lg px-3 py-2 text-[9px] font-black uppercase tracking-wider text-red-500 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-500/10"
+                          >
+                            Hapus
+                          </button>
+                        </div>
                       </div>
-                    )}
+                    ))}
 
-                    {/* New document */}
+                    {/* New documents */}
 
-                    {form.document ? (
-                      <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-3 dark:border-blue-500/20 dark:bg-blue-500/10">
+                    {form.documents.map((document, index) => (
+                      <div
+                        key={`${document.name}-${index}`}
+                        className="mb-3 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-3 dark:border-blue-500/20 dark:bg-blue-500/10"
+                      >
                         <div className="flex min-w-0 items-center gap-2">
                           <MdDescription
                             size={20}
@@ -400,43 +436,44 @@ const ModalEditCompletion = ({ show, onClose, completionId, onSuccess }) => {
 
                           <div className="min-w-0">
                             <p className="truncate text-xs font-semibold text-blue-700 dark:text-blue-300">
-                              {form.document.name}
+                              {document.name}
                             </p>
 
                             <p className="mt-0.5 text-[10px] text-blue-500 dark:text-blue-400">
-                              {(form.document.size / 1024 / 1024).toFixed(2)} MB
+                              {(document.size / 1024 / 1024).toFixed(2)} MB
                             </p>
                           </div>
                         </div>
 
                         <button
                           type="button"
-                          onClick={handleRemoveDocument}
+                          onClick={() => handleRemoveDocument(index)}
                           disabled={saving}
                           className="ml-3 shrink-0 rounded-lg px-3 py-2 text-[9px] font-black uppercase tracking-wider text-red-500 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-500/10"
                         >
                           Hapus
                         </button>
                       </div>
-                    ) : (
-                      <label className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-[9px] font-black uppercase tracking-wider text-gray-400 transition hover:border-custom-merah-terang hover:text-custom-merah-terang dark:border-gray-600 dark:bg-gray-800 dark:hover:border-custom-merah-terang">
-                        <MdAttachFile size={17} />
+                    ))}
 
-                        <span>Ganti Dokumen BA</span>
+                    <label className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-[9px] font-black uppercase tracking-wider text-gray-400 transition hover:border-custom-merah-terang hover:text-custom-merah-terang dark:border-gray-600 dark:bg-gray-800 dark:hover:border-custom-merah-terang">
+                      <MdAttachFile size={17} />
 
-                        <input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png,.webp"
-                          onChange={handleDocumentChange}
-                          disabled={saving}
-                          className="hidden"
-                        />
-                      </label>
-                    )}
+                      <span>Tambah Dokumen BA</span>
+
+                      <input
+                        type="file"
+                        multiple
+                        accept=".pdf,.jpg,.jpeg,.png,.webp"
+                        onChange={handleDocumentChange}
+                        disabled={saving}
+                        className="hidden"
+                      />
+                    </label>
 
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      Kosongkan jika tidak ingin mengganti dokumen. Format: PDF,
-                      JPG, JPEG, PNG, WEBP.
+                      Dokumen baru ditambahkan saat disimpan. Format: PDF, JPG,
+                      JPEG, PNG, WEBP.
                     </p>
                   </div>
 
@@ -496,14 +533,10 @@ const ModalEditCompletion = ({ show, onClose, completionId, onSuccess }) => {
       ======================================================== */}
 
       <DocumentPreviewModal
-        show={showDocumentPreview}
-        url={form.document_url}
-        title={
-          form.ba_number
-            ? `Dokumen BA - ${form.ba_number}`
-            : "Preview Dokumen BA"
-        }
-        onClose={() => setShowDocumentPreview(false)}
+        show={Boolean(previewAttachment)}
+        url={previewAttachment?.file_url}
+        title={previewAttachment?.file_name || "Preview Dokumen BA"}
+        onClose={() => setPreviewAttachment(null)}
       />
     </>
   );

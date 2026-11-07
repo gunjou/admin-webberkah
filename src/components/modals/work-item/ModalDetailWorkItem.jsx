@@ -873,16 +873,24 @@ const ModalDetailWorkItem = ({ idWorkItem, onClose }) => {
                             Dokumen BA
                           </p>
 
-                          <div className="mt-1">
-                            <DocumentButton
-                              url={detail.completion.document_url}
-                              onClick={() =>
-                                handleDocumentPreview(
-                                  detail.completion.document_url,
-                                  `Dokumen BA ${detail.completion.ba_number}`,
-                                )
-                              }
-                            />
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            {detail.completion.attachments?.length > 0 ? (
+                              detail.completion.attachments.map((attachment) => (
+                                <DocumentButton
+                                  key={attachment.id_attachment}
+                                  url={attachment.file_url}
+                                  label={attachment.file_name}
+                                  onClick={() =>
+                                    handleDocumentPreview(
+                                      attachment.file_url,
+                                      attachment.file_name,
+                                    )
+                                  }
+                                />
+                              ))
+                            ) : (
+                              <DocumentButton />
+                            )}
                           </div>
                         </div>
                       </div>

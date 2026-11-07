@@ -328,15 +328,21 @@ const Completion = () => {
   // ============================================================
 
   const handleDocumentPreview = (item) => {
-    if (!item.document_url) {
+    const attachments = item.attachments || [];
+
+    if (attachments.length === 0) {
       SwalHelper.info("Dokumen BA tidak tersedia.");
       return;
     }
 
-    setSelectedDocumentUrl(item.document_url);
-    setSelectedDocumentTitle(
-      item.ba_number ? `Dokumen BA - ${item.ba_number}` : "Preview Dokumen BA",
-    );
+    // Lebih dari satu lampiran dipilih dari daftar di modal detail
+    if (attachments.length > 1) {
+      handleDetail(item);
+      return;
+    }
+
+    setSelectedDocumentUrl(attachments[0].file_url);
+    setSelectedDocumentTitle(attachments[0].file_name);
     setShowDocumentPreview(true);
   };
 
@@ -636,15 +642,21 @@ const Completion = () => {
                       ================================================== */}
 
                       <td className="px-4 py-3 align-top text-center">
-                        {item.document_url ? (
+                        {item.attachments?.length > 0 ? (
                           <button
                             type="button"
                             onClick={() => handleDocumentPreview(item)}
                             className="inline-flex items-center gap-1.5 rounded-xl border border-custom-merah-terang/20 bg-custom-merah-terang/10 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-custom-merah-terang transition-all hover:-translate-y-0.5 hover:bg-custom-merah-terang/15 dark:border-custom-merah-terang/30 dark:bg-custom-merah-terang/10 dark:text-custom-cerah dark:hover:bg-custom-merah-terang/20"
-                            title="Preview Dokumen"
+                            title={
+                              item.attachments.length > 1
+                                ? `Ada ${item.attachments.length} lampiran, klik untuk melihat daftarnya`
+                                : "Preview Dokumen"
+                            }
                           >
                             <MdVisibility size={14} />
-                            Preview
+                            {item.attachments.length > 1
+                              ? `${item.attachments.length} Lampiran`
+                              : "Preview"}
                           </button>
                         ) : (
                           <span className="inline-flex items-center whitespace-nowrap rounded-xl bg-gray-100 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:bg-white/5 dark:text-gray-500">

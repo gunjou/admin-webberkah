@@ -147,16 +147,9 @@ const ModalDetailCompletion = ({ show, onClose, completionId }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, completionId]);
 
-  const handleDocumentPreview = () => {
-    if (!completion?.document_url) {
-      SwalHelper.warning("Dokumen BA belum tersedia.");
-      return;
-    }
-
-    setSelectedDocumentUrl(completion.document_url);
-
-    setSelectedDocumentTitle(`${completion.ba_number || "BA"} - Dokumen BA`);
-
+  const handleDocumentPreview = (attachment) => {
+    setSelectedDocumentUrl(attachment.file_url);
+    setSelectedDocumentTitle(attachment.file_name);
     setShowDocumentPreview(true);
   };
 
@@ -289,32 +282,33 @@ const ModalDetailCompletion = ({ show, onClose, completionId }) => {
                         Dokumen BA
                       </p>
 
-                      {completion.document_url ? (
-                        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-700">
-                          <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-custom-merah-terang/10 text-custom-merah-terang dark:bg-custom-merah-terang/10 dark:text-custom-cerah">
-                              <MdDescription size={22} />
+                      {completion.attachments?.length > 0 ? (
+                        <div className="space-y-2">
+                          {completion.attachments.map((attachment) => (
+                            <div
+                              key={attachment.id_attachment}
+                              className="flex flex-col gap-4 rounded-xl border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-700"
+                            >
+                              <div className="flex min-w-0 items-center gap-3">
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-custom-merah-terang/10 text-custom-merah-terang dark:bg-custom-merah-terang/10 dark:text-custom-cerah">
+                                  <MdDescription size={22} />
+                                </div>
+
+                                <p className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">
+                                  {attachment.file_name}
+                                </p>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDocumentPreview(attachment)}
+                                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-custom-merah-terang/10 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-custom-merah-terang transition hover:bg-custom-merah-terang/15 dark:bg-custom-merah-terang/10 dark:text-custom-cerah dark:hover:bg-custom-merah-terang/20"
+                              >
+                                <MdVisibility size={16} />
+                                Preview Dokumen
+                              </button>
                             </div>
-
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                                Dokumen Berita Acara
-                              </p>
-
-                              <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
-                                Dokumen tersedia dan dapat dilihat.
-                              </p>
-                            </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={handleDocumentPreview}
-                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-custom-merah-terang/10 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-custom-merah-terang transition hover:bg-custom-merah-terang/15 dark:bg-custom-merah-terang/10 dark:text-custom-cerah dark:hover:bg-custom-merah-terang/20"
-                          >
-                            <MdVisibility size={16} />
-                            Preview Dokumen
-                          </button>
+                          ))}
                         </div>
                       ) : (
                         <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-4 dark:bg-gray-800">

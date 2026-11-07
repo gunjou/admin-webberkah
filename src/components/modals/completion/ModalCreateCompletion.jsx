@@ -17,7 +17,7 @@ const INITIAL_FORM = {
   id_work_item: "",
   ba_number: "",
   ba_date: getTodayDate(),
-  document: null,
+  documents: [],
   notes: "",
 };
 
@@ -95,15 +95,18 @@ const ModalCreateCompletion = ({ show, onClose, onSuccess }) => {
   };
 
   const handleDocumentChange = (event) => {
-    const file = event.target.files?.[0] || null;
+    const files = Array.from(event.target.files || []);
 
-    handleChange("document", file);
+    handleChange("documents", [...form.documents, ...files]);
 
     event.target.value = "";
   };
 
-  const handleRemoveDocument = () => {
-    handleChange("document", null);
+  const handleRemoveDocument = (index) => {
+    handleChange(
+      "documents",
+      form.documents.filter((_, fileIndex) => fileIndex !== index),
+    );
   };
 
   const validateForm = () => {
@@ -143,9 +146,9 @@ const ModalCreateCompletion = ({ show, onClose, onSuccess }) => {
       formData.append("ba_date", form.ba_date);
       formData.append("notes", form.notes.trim());
 
-      if (form.document) {
-        formData.append("document", form.document);
-      }
+      form.documents.forEach((document) => {
+        formData.append("document", document);
+      });
 
       const response = await Api.post("/work-item/completion", formData, {
         transformRequest: [
@@ -316,8 +319,11 @@ const ModalCreateCompletion = ({ show, onClose, onSuccess }) => {
                   Dokumen BA
                 </label>
 
-                {form.document ? (
-                  <div className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 dark:border-blue-500/20 dark:bg-blue-500/10">
+                {form.documents.map((document, index) => (
+                  <div
+                    key={`${document.name}-${index}`}
+                    className="mb-2 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 dark:border-blue-500/20 dark:bg-blue-500/10"
+                  >
                     <div className="flex min-w-0 items-center gap-2">
                       <MdDescription
                         size={18}
@@ -326,18 +332,18 @@ const ModalCreateCompletion = ({ show, onClose, onSuccess }) => {
 
                       <div className="min-w-0">
                         <p className="truncate text-[10px] font-bold text-blue-700 dark:text-blue-300">
-                          {form.document.name}
+                          {document.name}
                         </p>
 
                         <p className="mt-0.5 text-[8px] font-medium text-blue-500 dark:text-blue-400">
-                          {(form.document.size / 1024 / 1024).toFixed(2)} MB
+                          {(document.size / 1024 / 1024).toFixed(2)} MB
                         </p>
                       </div>
                     </div>
 
                     <button
                       type="button"
-                      onClick={handleRemoveDocument}
+                      onClick={() => handleRemoveDocument(index)}
                       disabled={loading}
                       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-blue-500 transition hover:bg-blue-100 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-500/20"
                       title="Hapus dokumen"
@@ -345,7 +351,8 @@ const ModalCreateCompletion = ({ show, onClose, onSuccess }) => {
                       <MdClose size={16} />
                     </button>
                   </div>
-                ) : (
+                ))}
+
                   <label
                     className={`flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed ${
                       errors.document
@@ -355,20 +362,20 @@ const ModalCreateCompletion = ({ show, onClose, onSuccess }) => {
                   >
                     <MdAttachFile size={17} />
 
-                    <span>Pilih Dokumen BA</span>
+                    <span>Tambah Dokumen BA</span>
 
                     <input
                       type="file"
+                      multiple
                       accept=".pdf,.jpg,.jpeg,.png,.webp"
                       onChange={handleDocumentChange}
                       disabled={loading}
                       className="hidden"
                     />
                   </label>
-                )}
 
                 <p className="mt-1 text-[8px] font-bold text-gray-400">
-                  Opsional. Format: PDF, JPG, JPEG, PNG, WEBP.
+                  Opsional, bisa lebih dari satu. Format: PDF, JPG, JPEG, PNG, WEBP.
                 </p>
 
                 {renderError("document")}

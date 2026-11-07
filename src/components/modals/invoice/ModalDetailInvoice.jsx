@@ -233,14 +233,9 @@ const ModalDetailInvoice = ({ show, onClose, invoiceId }) => {
     setShowDocumentPreview(true);
   };
 
-  const handleDocumentBAPreview = (item) => {
-    if (!item.ba_document_url) {
-      SwalHelper.warning("Dokumen BA belum tersedia.");
-      return;
-    }
-
-    setSelectedDocumentUrl(item.ba_document_url);
-    setSelectedDocumentTitle(`${item.ba_number || "BA"} - Dokumen BA`);
+  const handleDocumentBAPreview = (attachment) => {
+    setSelectedDocumentUrl(attachment.file_url);
+    setSelectedDocumentTitle(attachment.file_name);
     setShowDocumentPreview(true);
   };
 
@@ -726,15 +721,20 @@ const ModalDetailInvoice = ({ show, onClose, invoiceId }) => {
                         Dokumen BA
                       </p>
 
-                      {invoice.ba_document_url ? (
-                        <button
-                          type="button"
-                          onClick={() => handleDocumentBAPreview(invoice)}
-                          className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-xs font-bold text-gray-700 transition hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                        >
-                          <MdDescription size={16} />
-                          Preview Dokumen BA
-                        </button>
+                      {invoice.ba_attachments?.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {invoice.ba_attachments.map((attachment) => (
+                            <button
+                              key={attachment.id_attachment}
+                              type="button"
+                              onClick={() => handleDocumentBAPreview(attachment)}
+                              className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-xs font-bold text-gray-700 transition hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                            >
+                              <MdDescription size={16} />
+                              {attachment.file_name}
+                            </button>
+                          ))}
+                        </div>
                       ) : (
                         <span className="text-xs font-medium text-gray-400">
                           Dokumen BA tidak tersedia.
