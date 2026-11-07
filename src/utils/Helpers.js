@@ -96,7 +96,10 @@ export const formatFullDate = (date) => {
  */
 // Format angka dengan pemisah ribuan berupa titik
 export const formatRupiahNumber = (value) => {
-  const angka = String(value ?? "").replace(/\D/g, "");
+  // Nilai number dari API bisa bersen; bulatkan agar titik desimal tidak terbaca sebagai digit
+  const angka = String(
+    typeof value === "number" ? Math.round(value) : (value ?? ""),
+  ).replace(/\D/g, "");
 
   return angka.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
