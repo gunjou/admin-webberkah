@@ -32,6 +32,9 @@ const ModalEditInvoice = ({ show, onClose, invoiceId, onSuccess }) => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Sisa tagihan dari backend, tanpa menghitung invoice yang sedang diedit
+  const [summary, setSummary] = useState(null);
+
   const fetchDetail = async () => {
     if (!invoiceId) return;
 
@@ -82,6 +85,21 @@ const ModalEditInvoice = ({ show, onClose, invoiceId, onSuccess }) => {
         document: null,
         document_url: invoice.invoice_document_url || "",
       });
+
+      if (invoice.id_completion) {
+        try {
+          const summaryResponse = await Api.get(
+            `/work-item/invoice/billing-summary?id_completion=${invoice.id_completion}&exclude_id_invoice=${invoiceId}`,
+          );
+
+          setSummary(
+            summaryResponse.data?.success ? summaryResponse.data.data : null,
+          );
+        } catch {
+          // Ringkasan hanya informasi; backend tetap memvalidasi saat simpan
+          setSummary(null);
+        }
+      }
     } catch (err) {
       setError(
         err.response?.data?.message || "Gagal mengambil detail invoice.",
@@ -106,6 +124,7 @@ const ModalEditInvoice = ({ show, onClose, invoiceId, onSuccess }) => {
     if (!show) {
       setForm(INITIAL_FORM);
       setError("");
+      setSummary(null);
     }
   }, [show]);
 
@@ -146,10 +165,6 @@ const ModalEditInvoice = ({ show, onClose, invoiceId, onSuccess }) => {
   };
 
   const validateForm = () => {
-    if (!form.id_work_item) {
-      return "Work Item wajib dipilih.";
-    }
-
     if (!form.id_completion) {
       return "Berita Acara wajib dipilih.";
     }
@@ -164,6 +179,10 @@ const ModalEditInvoice = ({ show, onClose, invoiceId, onSuccess }) => {
 
     if (form.invoice_value === "" || Number(form.invoice_value) <= 0) {
       return "Nilai invoice harus lebih besar dari 0.";
+    }
+
+    if (summary && Number(form.invoice_value) > Number(summary.remaining_value)) {
+      return `Nilai invoice melebihi sisa yang dapat ditagih (Rp ${formatRupiahNumber(summary.remaining_value)}).`;
     }
 
     if (
@@ -200,8 +219,6 @@ const ModalEditInvoice = ({ show, onClose, invoiceId, onSuccess }) => {
       setError("");
 
       const formData = new FormData();
-
-      formData.append("id_work_item", String(form.id_work_item));
 
       formData.append("id_completion", String(form.id_completion));
 
@@ -386,7 +403,8 @@ const ModalEditInvoice = ({ show, onClose, invoiceId, onSuccess }) => {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                      Nilai Invoice <span className="text-red-500">*</span>
+                      Nilai Invoice (DPP, sebelum PPN){" "}
+                      <span className="text-red-500">*</span>
                     </label>
 
                     <div className="relative">
@@ -414,18 +432,27 @@ const ModalEditInvoice = ({ show, onClose, invoiceId, onSuccess }) => {
                         className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-800 outline-none transition focus:border-custom-merah-terang focus:ring-1 focus:ring-custom-merah-terang disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                       />
                     </div>
+
+                    {summary && (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Maksimal Rp {formatRupiahNumber(summary.remaining_value)}{" "}
+                        (kontrak Rp {formatRupiahNumber(summary.contract_value)},
+                        invoice lain Rp {formatRupiahNumber(summary.invoiced_value)})
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                      PPN (%)
+                      PPN (%) — mengikuti kontrak
                     </label>
 
                     <input
                       type="number"
                       name="vat_rate"
                       value={form.vat_rate}
-                      onChange={handleChange}
+                      readOnly
+                      title="PPN mengikuti kontrak"
                       min="0"
                       max="100"
                       step="0.01"

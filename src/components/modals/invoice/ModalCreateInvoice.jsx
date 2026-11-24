@@ -5,7 +5,6 @@ import SwalHelper from "../../../utils/Swal";
 import { formatRupiahNumber, parseRupiahNumber } from "../../../utils/Helpers";
 
 const INITIAL_FORM = {
-  id_work_item: "",
   id_completion: "",
   invoice_number: "",
   invoice_date: "",
@@ -19,8 +18,11 @@ const INITIAL_FORM = {
 const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
   const [form, setForm] = useState(INITIAL_FORM);
 
-  const [workItems, setWorkItems] = useState([]);
   const [completions, setCompletions] = useState([]);
+
+  // Ringkasan tagihan dari backend (satu-satunya sumber perhitungan)
+  const [summary, setSummary] = useState(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(false);
@@ -31,20 +33,9 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
     setLoadingOptions(true);
 
     try {
-      const [workResponse, completionResponse] = await Promise.all([
-        Api.get("/work-item/work/options?context=invoice"),
-        Api.get("/work-item/completion/options?context=invoice"),
-      ]);
-
-      if (workResponse.data?.success) {
-        setWorkItems(workResponse.data?.data || []);
-      } else {
-        setWorkItems([]);
-
-        await SwalHelper.error(
-          workResponse.data?.message || "Gagal mengambil opsi pekerjaan.",
-        );
-      }
+      const completionResponse = await Api.get(
+        "/work-item/completion/options?context=invoice",
+      );
 
       if (completionResponse.data?.success) {
         setCompletions(completionResponse.data?.data || []);
@@ -58,12 +49,10 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
     } catch (error) {
       console.error("Gagal mengambil opsi invoice:", error);
 
-      setWorkItems([]);
       setCompletions([]);
 
       await SwalHelper.error(
-        error?.response?.data?.message ||
-          "Gagal mengambil opsi pekerjaan dan BA.",
+        error?.response?.data?.message || "Gagal mengambil opsi BA.",
       );
     } finally {
       setLoadingOptions(false);
@@ -78,10 +67,69 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
     } else {
       setForm(INITIAL_FORM);
       setErrors({});
-      setWorkItems([]);
       setCompletions([]);
+      setSummary(null);
     }
   }, [show]);
+
+  // Saat BA dipilih: ambil sisa tagihan, isi nilai invoice dengan sugesti & PPN dari kontrak
+  useEffect(() => {
+    if (!show || !form.id_completion) {
+      setSummary(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchSummary = async () => {
+      setLoadingSummary(true);
+
+      try {
+        const response = await Api.get(
+          `/work-item/invoice/billing-summary?id_completion=${form.id_completion}`,
+        );
+
+        if (cancelled) return;
+
+        if (response.data?.success) {
+          const data = response.data.data;
+
+          setSummary(data);
+
+          setForm((current) => ({
+            ...current,
+            invoice_value: String(Math.round(data.suggested_invoice_value ?? 0)),
+            vat_rate: String(data.suggested_vat_rate ?? 0),
+          }));
+        } else {
+          setSummary(null);
+
+          await SwalHelper.error(
+            response.data?.message || "Gagal mengambil ringkasan tagihan.",
+          );
+        }
+      } catch (error) {
+        if (cancelled) return;
+
+        setSummary(null);
+
+        await SwalHelper.error(
+          error?.response?.data?.message || "Gagal mengambil ringkasan tagihan.",
+        );
+      } finally {
+        if (!cancelled) setLoadingSummary(false);
+      }
+    };
+
+    fetchSummary();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [show, form.id_completion]);
+
+  const isFullyInvoiced =
+    summary !== null && Number(summary.remaining_value) <= 0;
 
   const handleChange = (field, value) => {
     setForm((current) => ({
@@ -113,10 +161,6 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!form.id_work_item) {
-      newErrors.id_work_item = "Pekerjaan wajib dipilih.";
-    }
-
     if (!form.id_completion) {
       newErrors.id_completion = "BA wajib dipilih.";
     }
@@ -135,6 +179,11 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
       Number(form.invoice_value) <= 0
     ) {
       newErrors.invoice_value = "Nilai invoice harus lebih besar dari 0.";
+    } else if (
+      summary &&
+      Number(form.invoice_value) > Number(summary.remaining_value)
+    ) {
+      newErrors.invoice_value = `Nilai invoice melebihi sisa yang dapat ditagih (Rp ${formatRupiahNumber(summary.remaining_value)}).`;
     }
 
     if (
@@ -175,8 +224,6 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
 
     try {
       const formData = new FormData();
-
-      formData.append("id_work_item", String(form.id_work_item));
 
       formData.append("id_completion", String(form.id_completion));
 
@@ -280,44 +327,8 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
         <form onSubmit={handleSubmit}>
           <div className="max-h-[calc(90vh-135px)] overflow-y-auto px-5 py-5">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {/* Work Item */}
-              <div>
-                <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Pekerjaan <span className="text-red-500">*</span>
-                </label>
-
-                <select
-                  value={form.id_work_item}
-                  onChange={(event) =>
-                    handleChange("id_work_item", event.target.value)
-                  }
-                  disabled={loadingOptions || loading}
-                  className={`h-10 w-full rounded-xl border ${
-                    errors.id_work_item
-                      ? "border-red-500"
-                      : "border-gray-100 dark:border-white/10"
-                  } cursor-pointer bg-gray-50 px-3 text-[10px] font-black text-custom-gelap outline-none focus:border-custom-merah-terang disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white/5 dark:text-white`}
-                >
-                  <option value="">
-                    {loadingOptions ? "Memuat pekerjaan..." : "Pilih Pekerjaan"}
-                  </option>
-
-                  {workItems.map((item) => (
-                    <option
-                      key={item.id ?? item.id_work_item}
-                      value={item.id ?? item.id_work_item}
-                    >
-                      {item.label ||
-                        `${item.work_number || ""} - ${item.work_name || ""}`}
-                    </option>
-                  ))}
-                </select>
-
-                {renderError("id_work_item")}
-              </div>
-
               {/* BA */}
-              <div>
+              <div className="md:col-span-2">
                 <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Berita Acara <span className="text-red-500">*</span>
                 </label>
@@ -350,6 +361,55 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
                 </select>
 
                 {renderError("id_completion")}
+
+                {loadingSummary && (
+                  <p className="mt-2 text-[9px] font-bold text-gray-400">
+                    Memuat ringkasan tagihan...
+                  </p>
+                )}
+
+                {summary && !loadingSummary && (
+                  <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-white/10 dark:bg-white/5">
+                    <p className="mb-2 text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Ringkasan Tagihan
+                    </p>
+
+                    <div className="grid grid-cols-1 gap-2 text-[10px] font-bold md:grid-cols-3">
+                      <div>
+                        <p className="text-[8px] uppercase text-gray-400">
+                          Nilai Kontrak (DPP)
+                        </p>
+                        <p className="text-custom-gelap dark:text-white">
+                          Rp {formatRupiahNumber(summary.contract_value)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[8px] uppercase text-gray-400">
+                          Sudah Ditagih ({summary.invoice_count} invoice)
+                        </p>
+                        <p className="text-custom-gelap dark:text-white">
+                          Rp {formatRupiahNumber(summary.invoiced_value)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[8px] uppercase text-gray-400">
+                          Sisa Dapat Ditagih
+                        </p>
+                        <p className="text-custom-merah-terang">
+                          Rp {formatRupiahNumber(summary.remaining_value)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {isFullyInvoiced && (
+                      <p className="mt-2 text-[9px] font-bold text-red-500">
+                        Kontrak sudah tertagih penuh. Invoice baru tidak dapat dibuat.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Invoice Number */}
@@ -379,7 +439,7 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
               {/* VAT */}
               <div>
                 <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  PPN (%) <span className="text-red-500">*</span>
+                  PPN (%) — mengikuti kontrak
                 </label>
 
                 <div className="relative">
@@ -389,10 +449,9 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
                     max="100"
                     step="0.01"
                     value={form.vat_rate}
-                    onChange={(event) =>
-                      handleChange("vat_rate", event.target.value)
-                    }
-                    placeholder="12"
+                    readOnly
+                    title="PPN mengikuti kontrak"
+                    placeholder="Pilih BA terlebih dahulu"
                     disabled={loading}
                     className={`h-10 w-full rounded-xl border ${
                       errors.vat_rate
@@ -459,7 +518,8 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
               {/* Invoice Value */}
               <div>
                 <label className="mb-1.5 block text-[9px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Nilai Invoice <span className="text-red-500">*</span>
+                  Nilai Invoice (DPP, sebelum PPN){" "}
+                  <span className="text-red-500">*</span>
                 </label>
 
                 <div className="relative">
@@ -582,7 +642,9 @@ const ModalCreateInvoice = ({ show, onClose, onSuccess }) => {
 
             <button
               type="submit"
-              disabled={loading || loadingOptions}
+              disabled={
+                loading || loadingOptions || loadingSummary || isFullyInvoiced
+              }
               className="flex items-center gap-2 rounded-xl bg-custom-merah-terang px-5 py-2.5 text-[9px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
             >
               {loading ? (
